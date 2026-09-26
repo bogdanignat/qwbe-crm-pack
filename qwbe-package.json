@@ -2,5 +2,5 @@
   "name": "crm-pack",
   "kind": "plugin",
   "summary": "CRM parent with organizations, contacts and contracts as child cubes.",
-  "cubes": ["crm", "crm/contacts", "crm/contracts", "crm/organizations"]
+  "cubes": ["crm", "crm/contact-groups", "crm/contacts", "crm/contracts", "crm/organizations"]
 }

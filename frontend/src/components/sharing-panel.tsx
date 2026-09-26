@@ -18,7 +18,7 @@ import { toast } from "sonner"
 
 import { Badge, Tooltip, TooltipContent, TooltipTrigger } from "shadcn-admin-kit"
 
-import { apiFetch } from "@/lib/cube"
+import { useSharingIdentity } from "@/hooks/use-sharing-identity"
 import {
   CUSTOM_ACTIONS,
   actionsForLevel,
@@ -28,8 +28,8 @@ import {
   fetchGrantPage,
   grantActionsLabel,
   grantsPageView,
-  lookupGroups,
   lookupUserNames,
+  normalizeUsername,
   revokeGrant,
   type EntityAction,
   type GrantChip,
@@ -87,9 +87,6 @@ export function SharingPanel({
   const [page, setPage] = useState<GrantsPageView | null>(null)
   const [offset, setOffset] = useState(0)
   const [userNames, setUserNames] = useState<Record<string, string>>({})
-  // undefined = not asked yet; null = refused (group form hidden).
-  const [groups, setGroups] = useState<Record<string, string> | null | undefined>(undefined)
-  const [me, setMe] = useState<{ id: string; username: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   // One flag serialises every mutation: Share, Confirm and Revoke are all
   // disabled while any of them is in flight.
@@ -141,24 +138,11 @@ export function SharingPanel({
 
   useEffect(() => load(offset), [load, offset])
 
-  // Groups and the session identity are needed only by the management form,
-  // so they are fetched once the list has answered 200 -- never after a 403.
-  useEffect(() => {
-    if (access !== "manage" || groups !== undefined) return
-    let alive = true
-    void lookupGroups(cube).then((g) => {
-      if (alive) setGroups(g)
-    })
-    void apiFetch("/api/qwbe/auth/me")
-      .then(async (r) => (r.ok ? ((await r.json()) as { id: string; username: string }) : null))
-      .then((m) => {
-        if (alive && m) setMe({ id: m.id, username: m.username })
-      })
-      .catch(() => undefined)
-    return () => {
-      alive = false
-    }
-  }, [access, groups, cube])
+  // Groups and the session identity are needed only by the management form, so
+  // they are read once the list has answered 200 -- never after a 403. Their
+  // lifetimes live in the hook, each independent of the other's result: sharing
+  // the panel's own effect made whichever answered first cancel the other.
+  const { groups, me } = useSharingIdentity(cube, access === "manage")
 
   const refetch = () => load(offset)
 
@@ -385,7 +369,12 @@ function ShareForm({
 
   const groupEntries = Object.entries(groups ?? {})
   const actions = actionsForLevel(level, custom)
-  const subjectLabel = kind === "user" ? `@${username.trim()}` : `group ${groups?.[groupId] ?? groupId}`
+  // The identity the typed text names, sigil stripped (lib/sharing.ts). The
+  // input keeps `username` exactly as typed; everything that COMPARES or SENDS
+  // it -- the self guard, the duplicate guard, the confirmation line and the
+  // grant -- uses this, so all four agree on who "@maria" is.
+  const target = normalizeUsername(username)
+  const subjectLabel = kind === "user" ? `@${target}` : `group ${groups?.[groupId] ?? groupId}`
 
   const switchKind = (next: "user" | "group") => {
     setKind(next)
@@ -401,12 +390,11 @@ function ShareForm({
   // names, so it is off for grants on other pages or whose name lookup was
   // refused. A duplicate is additive and shows as its own revokable chip.
   const begin = () => {
-    const name = username.trim()
     if (kind === "user") {
-      if (name === "") return setFormError("choose a user")
-      if (me && name === me.username) return setFormError("you already manage this record")
-      if (chips.some((c) => c.kind === "user" && c.label === name))
-        return setFormError(`already shared directly with @${name} on this page`)
+      if (target === "") return setFormError("choose a user")
+      if (me && target === me.username) return setFormError("you already manage this record")
+      if (chips.some((c) => c.kind === "user" && c.label === target))
+        return setFormError(`already shared directly with @${target} on this page`)
     } else {
       if (groupId === "") return setFormError("choose a group")
       if (chips.some((c) => c.kind === "group" && c.subjectId === groupId))
@@ -423,7 +411,7 @@ function ShareForm({
       const ref = { cube, entityType, entityId: id, actions }
       const result =
         kind === "user"
-          ? await createUserGrant({ ...ref, username: username.trim() })
+          ? await createUserGrant({ ...ref, username: target })
           : await createGroupGrant({ ...ref, groupId })
       if (!result.ok) {
         // The draft survives a refusal: qwbe's own message under the form.
@@ -468,8 +456,18 @@ function ShareForm({
       {kind === "user" ? (
         <UserPicker
           ref={pickerRef}
+          purpose="The account you pick is the one this record will be shared with."
           value={username}
-          exclude={[...(me ? [me.username] : []), ...chips.filter((c) => c.kind === "user").map((c) => c.label)]}
+          // Sharing wording, never the groups panel's: an account already on
+          // this page stays visible and disabled, with the reason it cannot be
+          // picked again. A chip whose name lookup failed carries a raw id and
+          // simply does not match any suggestion.
+          excluded={[
+            ...(me ? [{ username: me.username, reason: "You manage this record" }] : []),
+            ...chips
+              .filter((c) => c.kind === "user")
+              .map((c) => ({ username: c.label, reason: "Already shared" })),
+          ]}
           onChange={(v) => {
             setUsername(v)
             setConfirming(false)

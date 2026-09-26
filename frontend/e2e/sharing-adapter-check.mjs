@@ -10,18 +10,26 @@
 // actions, route gate untouched (PATCH still 403 for a reader), name lookup,
 // group grant, revoke order, duplicates tolerated.
 //
-//   QWBE_REPO=~/Projects/Qwbe/qwbe node probes/crm-sharing.mjs
+//   cd frontend && npm run check:sharing          # QWBE_REPO defaults to ../../../qwbe
+//   QWBE_REPO=<qwbe> node e2e/sharing-adapter-check.mjs
+//
+// It was probes/crm-sharing.mjs until 2026-09-26 (T-1452). It proves the FRONTEND adapter, not
+// the pack's runtime surface, and it boots its own kernel from a checkout -- so it lives with the
+// frontend and is not one of the probes `qwbe check` runs (every probes/*.mjs is run there
+// against the checker's kernel, via QWBE_URL). Like any checkout-mode run it judges the
+// INSTALLED copy at <qwbe>/core/plugins/crm-pack, not this working tree. Never run it with
+// QWBE_DATABASE_URL exported: lib.mjs would reuse that database instead of a scratch one. It is
+// ignored explicitly (deleted before booting); the scratch database comes from QWBE_PG_* only.
 
-import { homedir } from "node:os"
-import { dirname, join } from "node:path"
+import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-const qwbeRepo = process.env.QWBE_REPO ?? join(homedir(), "Projects/qwbe")
+const here = dirname(fileURLToPath(import.meta.url))
+const qwbeRepo = resolve(process.env.QWBE_REPO ?? join(here, "..", "..", "..", "..", "qwbe"))
 const { client, dropScratch, freePort, makeScore, scratchDataDir, startServer, stopServer } = await import(
   join(qwbeRepo, "probes/lib.mjs")
 )
-const here = dirname(fileURLToPath(import.meta.url))
-const sharing = await import(join(here, "../frontend/src/lib/sharing.ts"))
+const sharing = await import(join(here, "../src/lib/sharing.ts"))
 
 const score = makeScore()
 const port = await freePort()
@@ -31,6 +39,8 @@ const LEGACY = {
   QWBE_LEGACY_MIGRATIONS:
     "contacts:crm-pack,contracts:crm-pack,crm/accounts:crm-pack,bookmarks:example-plugin,tags:example-plugin",
 }
+// Ignored on purpose: startServer would otherwise reuse that database (ownsDb=false).
+delete process.env.QWBE_DATABASE_URL
 const server = await startServer(port, { QWBE_DATA_DIR: data, ...LEGACY })
 if (!server.alive) {
   dropScratch(data)
@@ -48,12 +58,16 @@ const asSession = (token) => (input, init = {}) =>
 const CUBE = "crm/organizations"
 const TYPE = "Organization"
 
+// A refusal inside the try throws Refused, so finally still stops the kernel and drops the
+// scratch database; it is reported (exit 1) after finally.
+class Refused extends Error {}
+let refused = null
+
 try {
   const admin = await api.login()
   const cubes = await api.call("/settings/cubes", { headers: admin.headers })
-  if (!(cubes.body ?? []).some((c) => c.name === CUBE)) {
-    console.error(`refused: cube "${CUBE}" is not mounted -- install crm-pack first.`)
-    process.exit(1)
+  if (!(Array.isArray(cubes.body) ? cubes.body : []).some((c) => c.name === CUBE)) {
+    throw new Refused(`refused: cube "${CUBE}" is not mounted (GET /settings/cubes http=${cubes.status}) -- install crm-pack first.`)
   }
   const mihaiCreated = await api.call("/account", {
     method: "POST",
@@ -120,10 +134,10 @@ try {
     chips.length === 1 && chips[0].label === "mihai" && chips[0].total && chips[0].actions === "TOTAL",
     JSON.stringify(chips),
   )
-  const search = await sharing.searchUsers({ q: "mih", limit: 20, doFetch: asAdmin })
+  const search = await sharing.searchAccounts({ q: "mih", limit: 20, doFetch: asAdmin })
   score.check(
-    "searchUsers finds mihai by prefix and carries no email",
-    Array.isArray(search) && search.some((u) => u.username === "mihai") && search.every((u) => !("email" in u)),
+    "searchAccounts finds mihai by prefix and carries no email",
+    search.ok && search.value.rows.some((u) => u.username === "mihai") && search.value.rows.every((u) => !("email" in u)),
     JSON.stringify(search),
   )
 
@@ -172,9 +186,16 @@ try {
   score.check("duplicate rows are two separately revokable chips", dupChips.length === 2 && dupChips[0].grantId !== dupChips[1].grantId, JSON.stringify(dupChips))
   const revoked = await sharing.revokeGrant(d1.value.id, asAdmin)
   score.check("revoking one duplicate keeps the other", revoked.ok && (await sharing.fetchGrantPage({ ...ref, offset: 0, limit: 50, doFetch: asAdmin })).value.total === 1, "")
+} catch (err) {
+  if (!(err instanceof Refused)) throw err
+  refused = err
 } finally {
   await stopServer(server)
   dropScratch(data)
 }
 
+if (refused) {
+  console.error(refused.message)
+  process.exit(1)
+}
 process.exit(score.report("crm-pack sharing adapter probe"))

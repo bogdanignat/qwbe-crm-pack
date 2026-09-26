@@ -1,33 +1,43 @@
-// Installing the local CRM plugin through the public install-from door, end to end.
+// Installing the local CRM plugin through the public install-from door, end to end (QWB-31).
 //
-//   QWBE_REPO=~/Projects/qwbe node probes/qwb31-install-lifecycle.mjs
+//   npm run test:lifecycle                         # QWBE_REPO defaults to ../../qwbe
+//   QWBE_REPO=<qwbe> node test/install-lifecycle.mjs
 //
-// The plugin lives OUTSIDE the repo at ~/Projects/qwbe-packs/plugins/crm-pack. This probe
-// proves the acceptance criteria that need a running system, in order:
+// It was probes/qwb31-install-lifecycle.mjs until 2026-09-26 (T-1452). It is an OPERATOR proof,
+// not a pack runtime probe: it restarts its own kernel four times and drives install-from and
+// uninstall, which `qwbe check` (one booted kernel, reached through QWBE_URL) cannot express. So it
+// lives under test/, which both staging filters drop, and `qwbe check` does not run it.
 //
-//   1. clean Qwbe (scratch store WITHOUT crm-pack) boots and serves no /contacts or /contracts
+// It proves the acceptance criteria that need a running system, in order:
+//
+//   1. clean Qwbe (scratch plugins + store WITHOUT crm-pack) boots and serves no /contacts or /contracts
 //   2. POST /settings/packages/install-from with the local directory is the ONLY install step
 //   3. restart mounts both cubes; OpenAPI declares their routes, payloads, statuses, auth
 //   9. restart keeps the plugin AND the CRM rows
 //   10. disabling one cube leaves the other cube and Qwbe itself answering
 //   11. uninstall unmounts both cubes; the other cubes' data is untouched
 //
-// Everything runs on scratch: QWBE_STORE_DIR and QWBE_DATA_DIR are mkdtemp directories, the
-// servers are this probe's own children on OS-granted ports, and the source plugin tree is
-// hashed before/after to prove the install read but never wrote. The owner's live data dir
-// and the live instance on :4500 are never touched.
+// Everything runs on scratch, under ONE mkdtemp root laid out like the checker's sandbox:
+// <root>/plugins (QWBE_PLUGINS_DIR), <root>/store (QWBE_STORE_DIR), <root>/data (QWBE_DATA_DIR),
+// <root>/node_modules (links into the kernel checkout, see below) and <root>/source/crm-pack -- a clean copy of this checkout made with the runner's copyFilter,
+// so the before/after fingerprint never walks node_modules or .git. All four boots share ONE
+// scratch database created here (otherwise "restart keeps the CRM rows" could not hold) and
+// dropped at the end. The kernel checkout's core/plugins and core/store, the owner's live data
+// and database, and the live instances on 4500/4510/4520 are never touched. Never run it with
+// QWBE_DATABASE_URL exported (the runner creates its database from the QWBE_PG_* coordinates).
 
 import { createHash } from "node:crypto"
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join, relative } from "node:path"
+import { join, relative, resolve } from "node:path"
 
-const qwbeRepo = process.env.QWBE_REPO ?? join(process.env.HOME ?? "", "Projects/qwbe")
-const { client, dropScratch, freePort, makeScore, scratchDataDir, startServer, stopServer } = await import(
-  join(qwbeRepo, "probes/lib.mjs")
-)
+import { copyFilter } from "./sdk-check-lib.mjs"
+
+const PACK = resolve(import.meta.dirname, "..")
+const qwbeRepo = resolve(process.env.QWBE_REPO ?? join(PACK, "..", "..", "qwbe"))
+const lib = await import(join(qwbeRepo, "probes/lib.mjs"))
 // Deterministic tree hash, same shape as the installer's fingerprintOf: sha256 over the sorted
-// (relative path, file hash) list. Re-implemented here (20 lines) because probes are plain
+// (relative path, file hash) list. Re-implemented here (20 lines) because this is plain
 // .mjs - importing the .ts kernel module would drag the type-stripping question into a gate.
 const fingerprintOf = (dir) => {
   const entries = []
@@ -44,23 +54,66 @@ const fingerprintOf = (dir) => {
   return createHash("sha256").update(JSON.stringify(entries)).digest("hex")
 }
 
-const SOURCE = join(process.env.HOME ?? "", "Projects/qwbe-packs/plugins/crm-pack")
-const PLUGINS = join(qwbeRepo, "core", "plugins")
-const score = makeScore()
+// The scratch database has no provenance ledger: the boot authorizes the pack's pre-ledger
+// sources exactly like probes/crm.mjs (operator authorization for an EMPTY throwaway database).
+const LEGACY_MIGRATIONS =
+  "contacts:crm-pack,contracts:crm-pack,crm/accounts:crm-pack,bookmarks:example-plugin,tags:example-plugin"
 
-if (!existsSync(join(SOURCE, "qwbe-package.json"))) {
-  console.error(`refused: CRM source not found at ${SOURCE}`)
-  process.exit(1)
+const root = mkdtempSync(join(tmpdir(), "qwb31-"))
+const PLUGINS = join(root, "plugins")
+const store = join(root, "store")
+const data = join(root, "data")
+const SOURCE = join(root, "source", "crm-pack")
+
+// The mounted pack imports qwbe-core/*, effect and @effect/platform. Under <qwbe>/core/plugins
+// those resolve through the checkout itself (qwbe-core by self-reference, the rest from
+// core/node_modules); a plugins root in the temp dir has neither, and the second boot refuses with
+// "Cannot find package '@effect/platform'". So <root>/node_modules gets LINKS, never copies:
+// qwbe-core -> <qwbe>/core and every top-level entry of <qwbe>/core/node_modules, which keeps ONE
+// effect instance shared with the kernel. The same idea as the node_modules link the checker's
+// install sandbox gets (core/src/check-package.ts, stageSandbox). rmSync of the root removes the
+// links, not their targets.
+const kernelCore = join(qwbeRepo, "core")
+const kernelModules = join(kernelCore, "node_modules")
+const scratchModules = join(root, "node_modules")
+
+/** Fills the mkdtemp root. Called inside the try below, so a setup failure still removes root. */
+const setupScratch = () => {
+  for (const d of [PLUGINS, store, data, join(root, "source")]) mkdirSync(d, { recursive: true })
+  cpSync(PACK, SOURCE, { recursive: true, filter: copyFilter(PACK) })
+  mkdirSync(scratchModules)
+  symlinkSync(kernelCore, join(scratchModules, "qwbe-core"))
+  for (const entry of readdirSync(kernelModules)) {
+    if (!entry.startsWith(".")) symlinkSync(join(kernelModules, entry), join(scratchModules, entry))
+  }
 }
 
-const sourceBefore = fingerprintOf(SOURCE)
-const store = mkdtempSync(join(tmpdir(), "qwb31-store-"))
-const data = scratchDataDir("qwb31")
+const score = lib.makeScore()
+let dbUrl
+let current
+let fatal
+
+/** A refusal that must still reach the cleanup below (process.exit would skip `finally`). */
+const abort = (message) => {
+  throw new Error(message)
+}
 
 const boot = async () => {
-  const port = await freePort()
-  const server = await startServer(port, { QWBE_DATA_DIR: data, QWBE_STORE_DIR: store })
-  return { server, api: client(port), port }
+  const port = await lib.freePort()
+  const server = await lib.startServer(port, {
+    QWBE_DATABASE_URL: dbUrl,
+    QWBE_PLUGINS_DIR: PLUGINS,
+    QWBE_STORE_DIR: store,
+    QWBE_DATA_DIR: data,
+    QWBE_LEGACY_MIGRATIONS: LEGACY_MIGRATIONS,
+  })
+  current = server
+  return { server, api: lib.client(port), port }
+}
+
+const stop = async (server) => {
+  await lib.stopServer(server)
+  if (current === server) current = undefined
 }
 
 /** /settings/cubes row names, or null when the request itself failed. */
@@ -69,19 +122,24 @@ const cubeNames = async (api, headers) => {
   return r.status === 200 ? (r.body ?? []).map((c) => c.name) : null
 }
 
-/** OpenAPI paths starting with a prefix. */
-const openapiPaths = async (api, prefix) => {
-  const r = await api.call("/openapi.json")
+/** OpenAPI paths starting with a prefix, or null when the spec request failed. The spec is
+ *  behind authentication (401 without a token), so the caller passes admin headers. */
+const openapiPaths = async (api, prefix, headers) => {
+  const r = await api.call("/openapi.json", { headers })
   if (r.status !== 200) return null
   return Object.keys(r.body?.paths ?? {}).filter((p) => p.startsWith(prefix))
 }
 
 try {
+  setupScratch()
+  if (!existsSync(join(SOURCE, "qwbe-package.json"))) abort(`refused: CRM source copy has no qwbe-package.json at ${SOURCE}`)
+  dbUrl = await lib.scratchDatabase("qwb31")
+  const sourceBefore = fingerprintOf(SOURCE)
+
   // ---- 1. clean boot: no CRM anywhere --------------------------------------------
   const first = await boot()
   if (!first.server.alive) {
-    console.error(`clean server did not start:\n${first.server.output}`)
-    process.exit(1)
+    abort(`clean server did not start:\n${first.server.output}`)
   }
   const admin1 = await first.api.login()
   const names1 = await cubeNames(first.api, admin1.headers)
@@ -91,8 +149,8 @@ try {
     `cubes=${names1}`,
   )
   const crmPaths1 = [
-    ...(await openapiPaths(first.api, "/contacts")),
-    ...(await openapiPaths(first.api, "/contracts")),
+    ...((await openapiPaths(first.api, "/contacts", admin1.headers)) ?? ["<spec request failed>"]),
+    ...((await openapiPaths(first.api, "/contracts", admin1.headers)) ?? ["<spec request failed>"]),
   ]
   score.check("clean OpenAPI declares no CRM routes", crmPaths1.length === 0, `found=${crmPaths1}`)
 
@@ -108,8 +166,9 @@ try {
     `http=${install.status} body=${JSON.stringify(install.body)?.slice(0, 160)}`,
   )
   const staged = existsSync(join(store, "crm-pack", "qwbe-package.json"))
-  // install-from stages into the STORE only; the mounted copy under core/plugins is rebuilt
-  // from the store at boot. Checking for it here would be checking the wrong moment.
+  // install-from writes the store shelf AND the mounted copy under the (scratch) plugins root
+  // directly; the kernel only mounts it on the next boot. The shelf is checked here, the mounted
+  // copy after the restart.
   score.check("package staged in the (scratch) store by install-from", staged, `staged=${staged}`)
   const namesBeforeRestart = await cubeNames(first.api, admin1.headers)
   score.check(
@@ -117,18 +176,17 @@ try {
     namesBeforeRestart !== null && !namesBeforeRestart.includes("crm"),
     `cubes=${namesBeforeRestart}`,
   )
-  await stopServer(first.server)
+  await stop(first.server)
 
   // ---- 3 + 6. restart mounts; OpenAPI declares the surface -------------------------
   const second = await boot()
   if (!second.server.alive) {
-    console.error(`server with crm-pack did not start:\n${second.server.output}`)
-    process.exit(1)
+    abort(`server with crm-pack did not start:\n${second.server.output}`)
   }
   const admin = await second.api.login()
   const reader = await second.api.login("reader", "reader")
   const names2 = await cubeNames(second.api, admin.headers)
-  // install-from mounts the copy under core/plugins immediately; the store shelf is the source
+  // install-from writes the copy under the plugins root immediately; the store shelf is the source
   // it was staged from. The mounted copy deliberately omits qwbe-package.json (bookkeeping -
   // the kernel's isBookkeeping filter), so presence is judged by the cube directories.
   const mountedCopy =
@@ -136,11 +194,11 @@ try {
     existsSync(join(PLUGINS, "crm-pack", "cubes", "crm", "contacts", "index.ts")) &&
     existsSync(join(PLUGINS, "crm-pack", "cubes", "crm", "contracts", "index.ts"))
   score.check(
-    "after restart both CRM cubes are mounted and enabled (copy present under core/plugins)",
+    "after restart both CRM cubes are mounted and enabled (copy present under the plugins root)",
     names2?.includes("crm") && names2?.includes("crm/contacts") && names2?.includes("crm/contracts") && mountedCopy,
     `cubes=${names2} copy=${mountedCopy}`,
   )
-  const spec = (await second.api.call("/openapi.json")).body
+  const spec = (await second.api.call("/openapi.json", { headers: admin.headers })).body
   const paths = Object.keys(spec?.paths ?? {})
   const want = ["/contacts", "/contacts/{id}", "/contracts", "/contracts/{id}"]
   score.check(
@@ -186,6 +244,21 @@ try {
       body: JSON.stringify({ title: "QWB31 Contract", amount: 4200, currency: "RON", partyId: contact?.id }),
     })
   ).body
+  // Entity-level permissions: the reader sees only records shared with it (the kernel's
+  // entity-enforcement), so both rows are shared through the grant endpoint before the reader
+  // reads them back -- the same explicit grants probes/crm.mjs uses.
+  const shares = []
+  for (const [cube, entityType, id] of [
+    ["crm/contacts", "Contact", contact?.id],
+    ["crm/contracts", "Contract", contract?.id],
+  ]) {
+    const g = await second.api.call(
+      `/permissions/entities/${encodeURIComponent(cube)}/${entityType}/${encodeURIComponent(String(id))}/grants/user`,
+      { method: "POST", headers: admin.headers, body: JSON.stringify({ username: "reader", actions: ["read"] }) },
+    )
+    shares.push(g.status)
+  }
+  score.check("admin shares the contact and the contract with the reader (read)", shares.every((st) => st === 200), `http=${shares}`)
   const readBack = await second.api.call(`/contracts/${contract?.id}`, { headers: reader.headers })
   const listed = await second.api.call("/contacts", { headers: reader.headers })
   score.check(
@@ -216,13 +289,12 @@ try {
     anon.status === 401 && forbidden.status === 403 && invalid.status === 400 && missing.status === 404,
     `${anon.status},${forbidden.status},${invalid.status},${missing.status}; empty-name=${badContact.status}`,
   )
-  await stopServer(second.server)
+  await stop(second.server)
 
   // ---- 9. restart keeps plugin AND data ----------------------------------------------
   const third = await boot()
   if (!third.server.alive) {
-    console.error(`restart-2 server did not start:\n${third.server.output}`)
-    process.exit(1)
+    abort(`restart-2 server did not start:\n${third.server.output}`)
   }
   const admin3 = await third.api.login()
   const names3 = await cubeNames(third.api, admin3.headers)
@@ -282,12 +354,11 @@ try {
     !pluginsAfterRm && shelfKept,
     `pluginsCopy=${pluginsAfterRm} shelf=${shelfKept}`,
   )
-  await stopServer(third.server)
+  await stop(third.server)
 
   const fourth = await boot()
   if (!fourth.server.alive) {
-    console.error(`post-uninstall server did not start:\n${fourth.server.output}`)
-    process.exit(1)
+    abort(`post-uninstall server did not start:\n${fourth.server.output}`)
   }
   const admin4 = await fourth.api.login()
   const names4 = await cubeNames(fourth.api, admin4.headers)
@@ -303,21 +374,22 @@ try {
       notesAfter.body?.total === notesBefore.body?.total,
     `cubes=${names4} contacts=${contactsGone.status} notes=${notesAfter.body?.total}vs${notesBefore.body?.total}`,
   )
-  await stopServer(fourth.server)
+  await stop(fourth.server)
 
   // ---- source tree never written ------------------------------------------------------
   const sourceAfter = fingerprintOf(SOURCE)
   score.check("the plugin source tree is byte-identical after the whole run", sourceBefore === sourceAfter)
+} catch (error) {
+  fatal = error
 } finally {
-  dropScratch(data)
-  rmSync(store, { recursive: true, force: true })
-  // If the run died mid-way, leave core/plugins as found: crm-pack staged there by THIS probe
-  // is removed only when the uninstall step never reached it.
-  const pluginsCopy = join(PLUGINS, "crm-pack")
-  if (existsSync(pluginsCopy) && !existsSync(join(store, "crm-pack"))) {
-    rmSync(pluginsCopy, { recursive: true, force: true })
-    console.error("cleanup: removed a half-installed core/plugins/crm-pack (store shelf was gone)")
-  }
+  if (current) await lib.stopServer(current)
+  await lib.dropDatabase(dbUrl)
+  // Only the mkdtemp root this run made -- never anything under $QWBE_REPO.
+  if (root.startsWith(tmpdir())) rmSync(root, { recursive: true, force: true })
 }
 
+if (fatal) {
+  console.error(fatal instanceof Error ? fatal.message : String(fatal))
+  process.exit(1)
+}
 process.exit(score.report("QWB-31 crm-pack install-from lifecycle"))

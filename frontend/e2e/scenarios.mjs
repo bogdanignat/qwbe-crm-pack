@@ -1324,18 +1324,47 @@ export async function scenarioSharing(api, seed) {
   )
 }
 
+/**
+ * Point the ACCESS GROUPS card at one access scope. The card is its own control,
+ * separate from the Entity selector the custom fields use, and NOTHING is
+ * selected for the operator: until a scope is chosen the groups panel is not
+ * mounted at all, so every visit to /settings must choose again.
+ */
+async function chooseAccessScope(label) {
+  const combo = await clickStable((v) => v.role === "combobox" && v.name === "Access scope", "Access scope")
+  if (!combo) return false
+  if (!(await openSelect(combo))) return false
+  const option = Object.entries(snapshot().refs).find(([, v]) => v.role === "option" && v.name === label)?.[0]
+  if (!option) return false
+  click(option, snapshot().refs[option]?.name)
+  await pause()
+  return true
+}
+
 // --- 13. groups in Settings: create, rename, add @reader, remove, read back ---
 // Needs the kernel members slice (GET /permissions/groups/:id/members); on an
 // older kernel the panel shows its "could not load" message and this records
 // RED with that detail, never a false "no members". Groups have no delete
 // endpoint, so the group created here stays behind (name carries "e2e").
+//
+// The groups panel appears only AFTER an access scope is chosen, and the cube
+// asserted at the API below is the one chosen here -- "Organizations" is the
+// label of crm/organizations (src/lib/access-scopes.ts LABELS).
 export async function scenarioGroups(api) {
-  const name = "groups panel: create, rename, add @reader (read back), remove, members none"
+  const name = "groups panel: scope chosen, create, rename, add @reader (read back), remove, members none"
   const groupName = `e2e group ${Date.now()}`
   await open("/settings")
+  if (!(await waitForText("Access groups", 15_000))) {
+    shot("13-groups-RED", { full: true })
+    return record(name, "RED", "the Access groups card is not on the settings page", "13-groups-RED.png")
+  }
+  if (!(await chooseAccessScope("Organizations"))) {
+    shot("13-groups-RED", { full: true })
+    return record(name, "RED", "the Access scope selector did not offer Organizations", "13-groups-RED.png")
+  }
   if (!(await waitForText("Permission groups", 15_000))) {
     shot("13-groups-RED", { full: true })
-    return record(name, "RED", "the groups panel is not on the settings page", "13-groups-RED.png")
+    return record(name, "RED", "the groups panel did not mount after the scope was chosen", "13-groups-RED.png")
   }
   const nameBox = await clickStable((v) => v.role === "textbox" && v.name === "New group name", "New group name")
   if (!nameBox) return record(name, "RED", "no New group name input", "13-groups-RED.png")

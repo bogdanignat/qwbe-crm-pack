@@ -16,6 +16,12 @@
 # next.js
 /.next/
 /out/
+# the isolated UI fixture's own build output (e2e/ui/fixture.mjs, QWBE_DIST_DIR)
+/.next-ui-fixture/
+# the throwaway tsconfig that same fixture hands to `next build` (QWBE_TSCONFIG)
+# so the tracked tsconfig.json is never rewritten. Deleted after every run; listed
+# here in case a crash leaves it behind.
+/tsconfig.ui-fixture.json
 
 # production
 /build

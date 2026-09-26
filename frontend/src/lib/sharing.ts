@@ -107,6 +107,23 @@ export function grantsPagePath(
   return `${ref}/grants?offset=${offset}&limit=${limit}`
 }
 
+// Typed text -> the username identity, the ONE place that conversion happens
+// (T-1450). The "@" is a display sigil -- the placeholder is "@username" and
+// every suggestion renders "@maria" -- but no backend-issued `username` ever
+// carries it. Both halves of the picker's contract come through here so they
+// cannot disagree: the SEARCH (normalizeDirectoryQuery) and the SUBMIT
+// (addGroupMember, userGrantPayload, and the panels' duplicate/self guards).
+// Stripping it on one side only is the bug: "@maria" matched Maria in the list
+// and then invited "@maria", which is no account at all.
+//
+// Only a LEADING "@" is a sigil; one inside the text (an email) is left alone.
+// No case-folding: both sides of every comparison are backend-issued strings
+// and the mutation path compares exactly.
+export function normalizeUsername(typed: string): string {
+  const text = typed.trim()
+  return text.startsWith("@") ? text.slice(1).trim() : text
+}
+
 // Typeahead search over the account directory (q scans username,
 // displayName, email; the picker renders username + displayName only).
 export function userSearchPath(q: string, limit: number): string {
@@ -213,7 +230,7 @@ export function userGrantPayload(
   username: string,
   actions: ReadonlyArray<string>,
 ): PayloadOutcome {
-  const name = username.trim()
+  const name = normalizeUsername(username)
   if (name === "") return { error: "subject" }
   const outcome = normalizeActions(actions)
   if ("error" in outcome) return outcome
@@ -323,7 +340,7 @@ export function chipsOf(
 
 // GroupMembershipSchema (permissions-schemas.ts:13-19). Members are addressed
 // by `username` on write, but carry an opaque `userId` here: labels resolve
-// through lookupUserNames, falling back to the raw id.
+// through lookupAccounts (one batch per page), falling back to the raw id.
 export type GroupMembership = {
   id: string
   groupId: string
@@ -368,27 +385,156 @@ export function parseMembersPage(raw: unknown): GroupMembershipPage | null {
 // One row of the members list. `username` is null when the account lookup
 // did not return it: the row then shows the opaque id and a remove MUST ask
 // for an explicit username, because the id can never be sent as a username.
+// `displayName` is null when the account carries none -- an account without a
+// display name is NOT an unresolved account.
 export type MemberRow = {
   membershipId: string
   userId: string
   username: string | null
+  displayName: string | null
 }
 
+// The whole page resolves through ONE batch lookup (`?ids=a,b`), so this maps
+// an already-fetched account map: no request per row.
 export function memberRowsOf(
   rows: ReadonlyArray<GroupMembership>,
-  userNames: Readonly<Record<string, string>>,
+  accounts: Readonly<Record<string, AccountRef>>,
 ): MemberRow[] {
-  return rows.map((row) => ({
-    membershipId: row.id,
-    userId: row.userId,
-    username: userNames[row.userId] ?? null,
-  }))
+  return rows.map((row) => {
+    const account = accounts[row.userId]
+    return {
+      membershipId: row.id,
+      userId: row.userId,
+      username: account?.username ?? null,
+      displayName: account?.displayName ?? null,
+    }
+  })
+}
+
+// What a member row shows: the display name leads when the directory returned
+// one, with the @username beside it; an account the lookup did not resolve
+// falls back to the opaque id and says so (`unresolved`), never to an empty
+// row and never to a guessed name.
+export type MemberLabel = {
+  primary: string
+  secondary: string | null
+  unresolved: boolean
+  // The name of a CONTROL (aria-label of Remove / Confirm / Cancel). Always
+  // the handle -- `@username`, or the opaque id when the lookup failed -- and
+  // never the display name: the display name is directory data that can change
+  // under the operator, and a control whose accessible name moves with it
+  // cannot be addressed twice by the same words, by an assistive technology, a
+  // keyboard user or a test. `primary`/`secondary` carry the display name to
+  // the eye; only this names the button.
+  control: string
+}
+
+export function memberLabelOf(row: MemberRow): MemberLabel {
+  if (row.username === null) {
+    return { primary: row.userId, secondary: null, unresolved: true, control: row.userId }
+  }
+  const handle = `@${row.username}`
+  return row.displayName === null
+    ? { primary: handle, secondary: null, unresolved: false, control: handle }
+    : { primary: row.displayName, secondary: handle, unresolved: false, control: handle }
 }
 
 // true = another page exists; empty rows with total 0 is the only "no
 // members" signal (the caller already knows the page is valid).
 export function membersHasMore(page: GroupMembershipPage): boolean {
   return page.offset + page.rows.length < page.total
+}
+
+// What the picker can mark "Already in group", and how far that marking
+// reaches.
+//
+// `marked` is the number of accounts actually EXCLUDED, not the number of rows
+// on the page: a row whose username the directory did not resolve cannot be
+// compared against a typed username, so it is a member the picker cannot mark.
+// Counting rows instead would claim coverage for it and, when the page holds
+// every member, hide the gap notice entirely -- the operator would read an
+// unmarked existing member as "not a member yet".
+//
+// `incomplete` therefore compares the MARKS against the group's own total, so
+// it is true both for a member on another page and for a loaded member with an
+// unresolved username.
+export type MemberMarks = {
+  excluded: ReadonlyArray<{ username: string; reason: string }>
+  marked: number
+  incomplete: boolean
+}
+
+export function memberMarks(
+  rows: ReadonlyArray<MemberRow>,
+  total: number,
+  reason: string,
+): MemberMarks {
+  const excluded = rows.flatMap((row) => (row.username === null ? [] : [{ username: row.username, reason }]))
+  return { excluded, marked: excluded.length, incomplete: excluded.length < total }
+}
+
+// The selection to keep after a group list has been re-read: the same group,
+// or NOTHING. A group the fresh list no longer carries was deleted, renamed
+// out of this scope, or refused to this caller between two reads -- keeping it
+// selected would point every later request, and every open dialog, at a group
+// of a list that no longer exists. Returning "" is what makes the panel drop
+// the section instead.
+export function retainSelectedGroup(groups: ReadonlyArray<PermissionGroupRef>, selected: string): string {
+  return groups.some((group) => group.id === selected) ? selected : ""
+}
+
+// A refused write to the GROUP ITSELF -- create or rename, and nothing else --
+// said in words the operator can act on, chosen by the STATUS. The kernel's
+// message text is not a contract, so it is only used when the status carries no
+// meaning of its own (the same rule lib/contact-groups.ts writeRefusalMessage
+// follows).
+//
+// Membership writes must NOT come through here: on those routes the same
+// statuses mean different things (a 404 is usually the USERNAME, not the group;
+// a 400 is this adapter refusing an empty user or an unusable group id), so
+// they have their own mapper below. Mapping them here produced "This group no
+// longer exists." for `username bob does not exist` and "A group name is
+// required." for "choose a user".
+//
+// 409 is the reason this exists: group names are unique per cube and the
+// database decides, normalizing case and surrounding spaces, so "already
+// taken" must be stated as the normalization actually works -- otherwise the
+// operator retypes the same name with different capitals and is refused again.
+export function groupWriteRefusalMessage(status: number, serverMessage: string): string {
+  switch (status) {
+    case 400:
+      return "A group name is required."
+    case 403:
+      return "You may not administer the groups of this scope."
+    case 404:
+      return "This group no longer exists."
+    case 409:
+      return "Another group of this scope already uses this name (names ignore case and surrounding spaces)."
+    default:
+      return serverMessage
+  }
+}
+
+// A refused MEMBERSHIP write (add member, remove member). Only the two statuses
+// whose meaning is fixed on these routes are worded here; everything else keeps
+// the message that was actually produced, because on these routes it is the only
+// thing that says WHICH of several things went wrong:
+//
+//   400 - this adapter refused before sending (no user picked, unusable group
+//         id). The adapter's own sentence already names the cause.
+//   403 - requireCubeAccess: the caller may not administer this scope's groups
+//         (qwbe core/src/cubes/permissions/groups.ts). Status-fixed.
+//   404 - THREE different causes share this status: the username does not
+//         resolve to an account (`username X does not exist`, handler-utils.ts
+//         resolveIdentity), the group is gone (`group X does not exist`), or the
+//         membership is gone (`membership does not exist`). Only the message
+//         distinguishes them, so it travels verbatim -- inventing one of the
+//         three would send the operator after the wrong problem.
+//   409 - not produced: adding an existing member returns that membership
+//         unchanged (groups.ts addGroupMember is idempotent).
+export function memberWriteRefusalMessage(status: number, serverMessage: string): string {
+  if (status === 403) return "You may not administer the members of this scope's groups."
+  return serverMessage
 }
 
 // The admin calls validate at the boundary and keep qwbe's own message on
@@ -421,8 +567,16 @@ export async function fetchGroups(
   }
 }
 
-// Create a group in one cube. The name is trimmed and must be nonempty
-// (the server validates nonempty only; no uniqueness check exists).
+// Create a group in one cube. The name is trimmed and must be nonempty.
+//
+// Nonempty is the ONLY thing this client can decide. The name must also be
+// unique within the cube, and the DATABASE is what says so: qwbe keeps a
+// partial unique index over (cube, name) normalized as `lower(btrim(name))`
+// (core/src/cubes/permissions/groups.ts `permission_groups_cube_name_key`,
+// groups-unique.test.ts), which is not what `.trim()` compares. A 409 can
+// therefore arrive for a name that looks free here -- " Sales" against
+// "sales", or another operator winning the race -- and 409 is a NORMAL answer
+// for both create and rename, never a defect. See groupWriteRefusalMessage.
 export async function createGroup(opts: {
   cube: string
   name: string
@@ -442,7 +596,9 @@ export async function createGroup(opts: {
   }
 }
 
-// Rename by group id (PATCH). Same nonempty-name rule.
+// Rename by group id (PATCH). Same nonempty-name rule, and the same unique
+// index: a rename onto a name another group of the cube already holds answers
+// 409 and changes nothing (no row touched, no audit row written).
 export async function renameGroup(opts: {
   groupId: string
   name: string
@@ -497,7 +653,7 @@ export async function addGroupMember(opts: {
   username: string
   doFetch?: typeof fetch
 }): Promise<SharingResult<GroupMembership>> {
-  const username = opts.username.trim()
+  const username = normalizeUsername(opts.username)
   if (username === "") return { ok: false, status: 400, message: "choose a user" }
   const path = groupMembersAddPath(opts.groupId)
   if (!path) return { ok: false, status: 400, message: "invalid group id" }
@@ -518,7 +674,7 @@ export async function removeGroupMember(opts: {
   username: string
   doFetch?: typeof fetch
 }): Promise<SharingResult<{ removed: string }>> {
-  const username = opts.username.trim()
+  const username = normalizeUsername(opts.username)
   if (username === "") return { ok: false, status: 400, message: "choose a user" }
   const path = groupMembersRemovePath(opts.groupId)
   if (!path) return { ok: false, status: 400, message: "invalid group id" }
@@ -588,57 +744,97 @@ export async function fetchGrantPage(opts: {
   return { ok: true, value: (await response.json()) as EntityGrantPage }
 }
 
-// Directory search for the user picker. `null` = the directory refused or is
-// unreachable (403 on account:read, network): the picker must say so and
-// leave the typed username as the identity, never show "no matches" for a
-// refusal and never ask for anything more (no enumeration escalation).
-export async function searchUsers(opts: {
+// One parsed account page. `rows` are the accounts this adapter could read;
+// `returned` is how many rows the BACKEND put in the page, before any were
+// dropped.
+//
+// The two are kept apart on purpose: "did the backend cap this page?" is a
+// question about `returned`, and answering it with `rows.length` turns every
+// dropped malformed row into a false "you are seeing everything".
+export type AccountPage = {
+  rows: AccountRef[]
+  returned: number
+}
+
+// Boundary parse of an account page. A row without a usable id+username is
+// dropped (never rendered as a half account); `email` is read by nobody here
+// (contract inventory G8).
+export function parseAccountPage(raw: unknown): AccountPage {
+  if (typeof raw !== "object" || raw === null) return { rows: [], returned: 0 }
+  const rows = (raw as { rows?: unknown }).rows
+  if (!Array.isArray(rows)) return { rows: [], returned: 0 }
+  const parsed = (rows as unknown[]).flatMap((entry) => {
+    if (typeof entry !== "object" || entry === null) return []
+    const row = entry as Record<string, unknown>
+    const id = typeof row.id === "string" ? row.id : ""
+    const username = typeof row.username === "string" ? row.username : ""
+    if (id === "" || username === "") return []
+    return [{
+      id,
+      username,
+      displayName: typeof row.displayName === "string" && row.displayName !== "" ? row.displayName : null,
+    }]
+  })
+  return { rows: parsed, returned: rows.length }
+}
+
+// Directory search for the user picker, with the refusal kept apart from a
+// transport failure: `status: 403` = the directory refused account:read (the
+// picker says so and keeps the typed username as the identity), `status: 0` =
+// the request never reached the backend (offer a retry). An empty `rows` is a
+// real "no account matches", never a refusal. No enumeration escalation: the
+// query and the limit travel exactly as the caller asked.
+export async function searchAccounts(opts: {
   q: string
   limit: number
   doFetch?: typeof fetch
-}): Promise<AccountRef[] | null> {
+}): Promise<SharingResult<AccountPage>> {
   const doFetch = opts.doFetch ?? apiFetch
   try {
     const response = await doFetch(userSearchPath(opts.q, opts.limit))
-    if (!response.ok) return null
-    const page = (await response.json()) as { rows?: Array<Record<string, unknown>> }
-    return (page.rows ?? []).flatMap((row) => {
-      const id = typeof row.id === "string" ? row.id : ""
-      const username = typeof row.username === "string" ? row.username : ""
-      if (id === "" || username === "") return []
-      return [{
-        id,
-        username,
-        displayName: typeof row.displayName === "string" ? row.displayName : null,
-      }]
-    })
+    if (!response.ok) return refusal(response)
+    const body: unknown = await response.json().catch(() => null)
+    // A 200 with a body this adapter cannot read is a failure, never an empty
+    // directory: "no matches" must be the backend's answer, not a parse gap.
+    if (typeof body !== "object" || body === null || !Array.isArray((body as { rows?: unknown }).rows)) {
+      return { ok: false, status: response.status, message: "invalid account search response" }
+    }
+    return { ok: true, value: parseAccountPage(body) }
   } catch {
-    return null
+    return { ok: false, status: 0, message: "network error" }
   }
 }
 
-// Batch label resolution for user chips. A row the response did not return
-// (deleted account) is simply absent, so the chip falls back to the raw id.
-export async function lookupUserNames(
+// Batch account resolution by opaque id. A row the response did not return
+// (deleted account) is simply absent, so the caller falls back to the raw id.
+export async function lookupAccounts(
   ids: ReadonlyArray<string>,
   doFetch: typeof fetch = apiFetch,
-): Promise<Record<string, string>> {
+): Promise<Record<string, AccountRef>> {
   const path = userNamesPath(ids)
   if (!path) return {}
   try {
     const response = await doFetch(path)
     if (!response.ok) return {}
-    const page = (await response.json()) as { rows?: Array<Record<string, unknown>> }
-    const names: Record<string, string> = {}
-    for (const row of page.rows ?? []) {
-      if (typeof row.id === "string" && typeof row.username === "string") {
-        names[row.id] = row.username
-      }
+    const accounts: Record<string, AccountRef> = {}
+    for (const row of parseAccountPage(await response.json().catch(() => null)).rows) {
+      accounts[row.id] = row
     }
-    return names
+    return accounts
   } catch {
     return {}
   }
+}
+
+// Batch label resolution for user chips (username only).
+export async function lookupUserNames(
+  ids: ReadonlyArray<string>,
+  doFetch: typeof fetch = apiFetch,
+): Promise<Record<string, string>> {
+  const accounts = await lookupAccounts(ids, doFetch)
+  const names: Record<string, string> = {}
+  for (const [id, account] of Object.entries(accounts)) names[id] = account.username
+  return names
 }
 
 // The groups of one cube. `null` means the backend refused -- 403 for a user

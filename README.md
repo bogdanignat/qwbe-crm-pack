@@ -17,12 +17,77 @@ source contract the kernel enforces at boot and refuses a package that breaks it
 copy records where it came from and when (`qwbe-source.json`). Freshness is provable, not
 assumed - both checks exit 1 on drift:
 
-    node probes/source-drift.mjs              # this pack: store shelf and installed copy
+    npm run test:drift                        # this pack: store shelf and installed copy (test/source-drift.mjs)
     node ../../qwbe/core/bin/qwbe.mjs drift   # every shelf in the kernel's store
 
 `start-crm-local.sh` is gone (QWB-54, ticket 22): it installed the pack by hand-copying into
 `core/plugins`, the exact path this ticket removes. Install with the command above, then
 start the kernel the qwbe way; the frontend runs from `frontend/` with `npm run dev`.
+
+### Start mother + CRM together (local workstation)
+
+From this repository, run `npm start` (or `node tools/start-local.mjs`). The launcher
+uses the mother's existing `scripts/start.mjs` and starts the CRM frontend alongside it:
+
+| Application | Default address |
+| --- | --- |
+| Mother qwbe | http://localhost:4510 |
+| CRM | http://localhost:4520 |
+| API / Swagger | http://127.0.0.1:4500/docs |
+
+It prints the resolved addresses on every run. CRM uses **4520** here because 3000 is
+already used by Personal Hub; running `npm run dev` inside `frontend/` is unchanged.
+Addresses are local to the machine running the launcher, not a remote browser.
+Wait for the services' Ready messages before opening them; printed URLs alone are not
+a health check. Sign in using the existing qwbe account, not a hard-coded demo password.
+Ctrl+C stops both applications and their managed children; it leaves the database alone.
+
+From **home or any directory**, start with the existing database container first:
+
+```sh
+docker compose -f /home/bogdan/projects/qwbe/docker-compose.yml start postgres && npm --prefix /home/bogdan/projects/qwbe-plugins/crm-pack start
+```
+
+From a second terminal, stop the applications:
+
+```sh
+npm --prefix /home/bogdan/projects/qwbe-plugins/crm-pack stop
+```
+
+To stop the dedicated qwbe database too, after the applications have stopped:
+
+```sh
+npm --prefix /home/bogdan/projects/qwbe-plugins/crm-pack stop && docker compose -f /home/bogdan/projects/qwbe/docker-compose.yml stop postgres
+```
+
+`stop` contacts only this repository's launcher through a user-only Unix socket in
+the ignored `.local/` directory; it does not kill processes by PID or port. Repeated
+stop is harmless when no launcher is active. It cannot stop separately started
+processes or launchers from before this control socket was added. A stale socket
+after SIGKILL is reported for manual inspection, never silently replaced.
+The database commands above start/stop the **existing** container and preserve its volume.
+
+Prerequisites: Node 22.18+, installed dependencies in both repositories, CRM installed
+through the official installer above, and the existing qwbe PostgreSQL database running.
+This does **not** change the separate invoice application's SQLite database or runtime.
+The launcher refuses occupied ports, missing packages or an unreachable database; it
+never kills an existing listener, installs packages, copies cubes or provisions a database.
+
+Configure `QWBE_DATABASE_URL` in the shell or in `qwbe/.env` using `qwbe/.env.example`
+as a template. For the local qwbe Docker database, run `npm run db:up` from the qwbe
+repository first. Do not use another application's database. The launcher reads
+`qwbe/.env`, then this repository's ignored `.env`; shell variables take precedence.
+Database connection strings are not printed. Normal kernel boot still performs its
+own migrations; this launcher adds no migration or reset commands.
+
+Optional overrides: `QWBE_REPO` (default `../../qwbe`, relative to this repository),
+`QWBE_PORT` (API, default 4500), `QWBE_WEB_PORT` (default read from the mother's web
+package), `CRM_PORT` (default 4520). Both frontends are pointed at the local API launched
+here, overriding any stale `QWBE_API_URL` or `NEXT_PUBLIC_QWBE_API` for these processes only.
+
+- `npm run start:check`: preflight only, starts no applications and writes no data.
+- `CRM_PORT=4521 npm start`: choose a different CRM port explicitly.
+- `npm run test:start`: isolated launcher regression tests; no real database required.
 
 ## Domain model — the decided vocabulary
 
@@ -114,8 +179,10 @@ One direction only: a contract **holds** a party id. Nothing resolves it inside 
 If `contacts` is absent or switched off, `contracts` starts and serves anyway, with ids that
 resolve to nothing — and vice versa. Showing a contract next to its contact is declared one
 level up, in a space, by a third party, so neither cube ever learns the other exists. The
-runtime probes (`probes/crm.mjs`) boot the kernel with each cube alone to prove the
-independence, and exercise the party id as data (set, nullable, opaque).
+runtime probe (`probes/crm.mjs`, checkout mode) boots the kernel with each cube alone to prove
+the independence, and exercises the party id as data (set, nullable, opaque). Under
+`qwbe check` the independence boots are skipped (printed, not counted): they need a kernel
+checkout.
 
 ## Money
 
@@ -196,24 +263,47 @@ cubes/crm/organizations/schema.ts  Organization: the domain schemas (split for t
 cubes/crm/contacts/index.ts        Contact: table, API, schemas, permissions, commands
 cubes/crm/contracts/index.ts       Contract: table, API, schemas, permissions, commands
 cubes/crm/*/index.test.ts          source-local contract tests
-probes/crm.mjs                     runtime proof against a live kernel (scratch QWBE_DATA_DIR)
-probes/source-drift.mjs            copy freshness: store shelf + installed copy vs this repo
+probes/crm.mjs                     the pack's runtime probe: QWBE_URL (qwbe check) or its own checkout kernel
+test/sdk-check.mjs                 `npm run test:check`: qwbe check, native + publication-shaped sandbox
+test/install-lifecycle.mjs         `npm run test:lifecycle`: install-from / restart / uninstall on scratch
+test/source-drift.mjs              `npm run test:drift`: store shelf + installed copy vs this repo
+frontend/e2e/sharing-adapter-check.mjs  `npm run check:sharing` (in frontend/): the sharing adapter vs a kernel
 ```
 
 The cubes do not import each other. All use only exported `qwbe-core/*` package subpaths.
 
 ## Running the tests
 
-Unit tests and typechecking run from this source directory. Runtime probes use a Qwbe checkout
-and scratch data:
+Unit tests and typechecking run from this source directory. Everything that boots a kernel
+creates its own throwaway Postgres database from `QWBE_PG_HOST/PORT/USER/PASSWORD`. The
+checkout probes (`probes/crm.mjs` without `QWBE_URL`, `check:sharing`) ignore
+`QWBE_DATABASE_URL` explicitly; for the other commands do not export it (sourcing `qwbe/.env`
+exports the live one; derive the `QWBE_PG_*` variables from it and `unset QWBE_DATABASE_URL`
+first):
 
 ```sh
 npm install --ignore-scripts
 npm test
 npm run typecheck
 
-# runtime probe (starts its own server on a scratch data dir)
+# the SDK gate: qwbe check on this checkout (expected FAIL at stage invocation) and on a
+# publication-shaped sandbox copy (must PASS 4/4 stages)
+npm run test:check
+
+# checkout-mode runtime probe (own kernel on scratch, independence included)
 QWBE_REPO=<qwbe> node probes/crm.mjs
+
+# operator checks, outside what qwbe check runs
+npm run test:lifecycle                     # install-from/uninstall lifecycle, all on scratch
+npm run test:drift                         # installed copies vs this repo (RED until reinstalled)
+(cd frontend && npm run check:sharing)     # sharing adapter against a kernel
 ```
 
-This pack is not yet gated by `qwbe check`; tracked as follow-up.
+The probe contract: `qwbe check` runs every `probes/*.mjs` (non-recursive) against the kernel it
+booted, passing `QWBE_URL`, `QWBE_ADMIN_PASSWORD` and `QWBE_READER_PASSWORD` -- and never
+`QWBE_REPO`. So `probes/` holds only the pack's runtime probe; it refuses a non-loopback
+`QWBE_URL` or a live port (4500/4510/4520). The other three checks moved out of `probes/` on
+2026-09-26 (T-1452): the lifecycle and drift checks under `test/` (both staging filters drop it),
+the sharing adapter check under `frontend/e2e/`. Checkout-mode runs (`probes/crm.mjs` without
+`QWBE_URL`, `check:sharing`) judge the INSTALLED copy at `<qwbe>/core/plugins/crm-pack`, not
+this working tree; the working tree is judged by the `test:check` sandbox.

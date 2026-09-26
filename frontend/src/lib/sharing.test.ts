@@ -24,9 +24,14 @@ import {
   groupGrantPayload,
   isTotalActions,
   lookupGroups,
+  lookupAccounts,
   lookupUserNames,
+  memberLabelOf,
+  memberMarks,
+  normalizeUsername,
+  parseAccountPage,
   revokeGrant,
-  searchUsers,
+  searchAccounts,
   userGrantPayload,
   userNamesPath,
   userSearchPath,
@@ -39,6 +44,9 @@ import {
   groupMembersPath,
   groupMembersRemovePath,
   groupRenamePath,
+  groupWriteRefusalMessage,
+  memberWriteRefusalMessage,
+  retainSelectedGroup,
   removeGroupMember,
   removeGroupMemberById,
   renameGroup,
@@ -122,6 +130,38 @@ describe("paths", () => {
   })
 })
 
+// T-1450: the picker invites the sigil ("@username" placeholder, "@maria"
+// rows) and the directory never carries it. Search and submit share ONE rule,
+// so an account the list matched is the account the mutation names.
+describe("normalizeUsername", () => {
+  it("strips the leading sigil the picker itself invites", () => {
+    assert.equal(normalizeUsername("@maria"), "maria")
+  })
+
+  it("leaves a bare username untouched", () => {
+    assert.equal(normalizeUsername("maria"), "maria")
+  })
+
+  it("trims around the name and between the sigil and the name", () => {
+    assert.equal(normalizeUsername("  @maria  "), "maria")
+    assert.equal(normalizeUsername("@ maria"), "maria")
+    assert.equal(normalizeUsername("  mihai "), "mihai")
+  })
+
+  it("strips only the LEADING @, never one inside the text (an email)", () => {
+    assert.equal(normalizeUsername("maria@example.com"), "maria@example.com")
+  })
+
+  it("a bare @ names nobody, so it is empty -- not a user called '@'", () => {
+    assert.equal(normalizeUsername("@"), "")
+    assert.equal(normalizeUsername("  @  "), "")
+  })
+
+  it("does NOT case-fold: the mutation path compares exactly", () => {
+    assert.equal(normalizeUsername("@Maria"), "Maria")
+  })
+})
+
 describe("payloads", () => {
   it("TOTAL snapshot: the exact six actions travel explicitly", () => {
     assert.deepEqual(userGrantPayload("mihai", [...ENTITY_ACTIONS]), {
@@ -143,6 +183,14 @@ describe("payloads", () => {
     assert.deepEqual(groupGrantPayload("", ["read"]), { error: "subject" })
     assert.deepEqual(userGrantPayload("mihai", []), { error: "actions" })
     assert.deepEqual(userGrantPayload("mihai", ["fly"]), { error: "actions" })
+  })
+
+  it("a grant typed as '@maria' names maria, the account the picker matched (T-1450)", () => {
+    assert.deepEqual(userGrantPayload("@maria", ["read"]), {
+      payload: { username: "maria", actions: ["read"] },
+    })
+    // A sigil with nothing after it is still no subject at all.
+    assert.deepEqual(userGrantPayload("@", ["read"]), { error: "subject" })
   })
 
   it("a custom set never includes share; only the exact TOTAL set does", () => {
@@ -272,20 +320,16 @@ describe("calls with injected fetch", () => {
     assert.equal(calls.length, 1)
   })
 
-  it("searchUsers answers null on a refusal (directory unavailable), not 'no matches'", async () => {
-    const users = await searchUsers({ q: "mih", limit: 20, doFetch: fetchStub(() => ({ status: 403, body: {} })).doFetch })
-    assert.equal(users, null)
-    const empty = await searchUsers({ q: "zzz", limit: 20, doFetch: fetchStub(() => ({ status: 200, body: { rows: [] } })).doFetch })
-    assert.deepEqual(empty, [])
-  })
-
-  it("searchUsers keeps id and username, drops unusable rows", async () => {
+  it("searchAccounts keeps id and username, drops unusable rows", async () => {
     const { doFetch } = fetchStub(() => ({
       status: 200,
       body: { rows: [{ id: "u1", username: "mihai", displayName: "Mihai", email: "m@x" }, { id: "u2" }] },
     }))
-    const users = await searchUsers({ q: "mih", limit: 20, doFetch })
-    assert.deepEqual(users, [{ id: "u1", username: "mihai", displayName: "Mihai" }])
+    const result = await searchAccounts({ q: "mih", limit: 20, doFetch })
+    assert.deepEqual(result, {
+      ok: true,
+      value: { rows: [{ id: "u1", username: "mihai", displayName: "Mihai" }], returned: 2 },
+    })
   })
 
   it("lookupUserNames maps resolved rows and falls back around missing ones", async () => {
@@ -460,6 +504,21 @@ describe("groups admin calls", () => {
     assert.deepEqual(JSON.parse(String(calls[0].init?.body)), { username: "mihai" })
   })
 
+  it("addGroupMember sends '@maria' as maria -- the row the search matched (T-1450)", async () => {
+    const { doFetch, calls } = fetchStub(() => ({ status: 200, body: memberRow() }))
+    const result = await addGroupMember({ groupId: "grp1", username: "@maria", doFetch })
+    assert.equal(result.ok, true)
+    assert.deepEqual(JSON.parse(String(calls[0].init?.body)), { username: "maria" })
+  })
+
+  it("addGroupMember refuses a bare @ without a request: it names nobody", async () => {
+    const { doFetch, calls } = fetchStub(() => ({ status: 200, body: memberRow() }))
+    const result = await addGroupMember({ groupId: "grp1", username: "@", doFetch })
+    assert.equal(result.ok, false)
+    if (!result.ok) assert.equal(result.status, 400)
+    assert.equal(calls.length, 0)
+  })
+
   it("addGroupMember refuses an empty username without a request", async () => {
     const { doFetch, calls } = fetchStub(() => ({ status: 200, body: memberRow() }))
     const result = await addGroupMember({ groupId: "grp1", username: "  ", doFetch })
@@ -560,10 +619,225 @@ describe("groups members page view", () => {
   })
 
   it("memberRowsOf keeps the opaque id and marks an unresolved username as null", () => {
-    const rows = memberRowsOf([memberRow(), memberRow({ id: "m2", userId: "u2" })], { u1: "mihai" })
+    const rows = memberRowsOf([memberRow(), memberRow({ id: "m2", userId: "u2" })], {
+      u1: { id: "u1", username: "mihai", displayName: "Mihai Ionescu" },
+    })
     assert.deepEqual(rows, [
-      { membershipId: "m1", userId: "u1", username: "mihai" },
-      { membershipId: "m2", userId: "u2", username: null },
+      { membershipId: "m1", userId: "u1", username: "mihai", displayName: "Mihai Ionescu" },
+      { membershipId: "m2", userId: "u2", username: null, displayName: null },
     ])
+  })
+
+  it("memberLabelOf leads with the display name and keeps an honest fallback", () => {
+    assert.deepEqual(
+      memberLabelOf({ membershipId: "m1", userId: "u1", username: "mihai", displayName: "Mihai Ionescu" }),
+      { primary: "Mihai Ionescu", secondary: "@mihai", unresolved: false, control: "@mihai" },
+    )
+    // An account with no display name is resolved, just unnamed.
+    assert.deepEqual(memberLabelOf({ membershipId: "m2", userId: "u2", username: "ana", displayName: null }), {
+      primary: "@ana",
+      secondary: null,
+      unresolved: false,
+      control: "@ana",
+    })
+    // The directory did not return this account: raw id, said out loud.
+    assert.deepEqual(memberLabelOf({ membershipId: "m3", userId: "u3", username: null, displayName: null }), {
+      primary: "u3",
+      secondary: null,
+      unresolved: true,
+      control: "u3",
+    })
+  })
+
+  it("memberLabelOf names controls by the handle, so a rename cannot move them", () => {
+    const before = memberLabelOf({ membershipId: "m1", userId: "u1", username: "mihai", displayName: "Mihai Ionescu" })
+    const afterRename = memberLabelOf({ membershipId: "m1", userId: "u1", username: "mihai", displayName: "M. Ionescu" })
+    assert.equal(before.control, afterRename.control, "the aria-label of Remove must not follow the display name")
+    assert.equal(before.control, "@mihai")
+    // The visible text is still allowed to follow the directory.
+    assert.notEqual(before.primary, afterRename.primary)
+  })
+
+  it("memberMarks excludes only the rows it could resolve, and counts THOSE", () => {
+    const rows = memberRowsOf([memberRow(), memberRow({ id: "m2", userId: "u2" })], {
+      u1: { id: "u1", username: "mihai", displayName: null },
+    })
+    const marks = memberMarks(rows, 2, "Already in group")
+    assert.deepEqual(marks.excluded, [{ username: "mihai", reason: "Already in group" }])
+    // Two rows, one mark: counting rows would claim the unresolved member is
+    // marked, and would hide the gap notice on a single-page group entirely --
+    // the operator would read that unmarked existing member as "not a member
+    // yet" and try to add them again.
+    assert.equal(marks.marked, 1)
+    assert.equal(marks.incomplete, true)
+  })
+
+  it("memberMarks reports complete coverage only when every member of the group is marked", () => {
+    const resolved = memberRowsOf([memberRow()], { u1: { id: "u1", username: "mihai", displayName: null } })
+    assert.deepEqual(memberMarks(resolved, 1, "Already in group"), {
+      excluded: [{ username: "mihai", reason: "Already in group" }],
+      marked: 1,
+      incomplete: false,
+    })
+    // A member on another page is a gap just the same.
+    assert.equal(memberMarks(resolved, 60, "Already in group").incomplete, true)
+    // No page loaded yet: nothing marked, nothing claimed.
+    assert.deepEqual(memberMarks([], 0, "Already in group"), { excluded: [], marked: 0, incomplete: false })
+  })
+
+  it("memberMarks carries the caller's reason unchanged", () => {
+    // The shared picker never invents context copy: the wording is the panel's.
+    const rows = memberRowsOf([memberRow()], { u1: { id: "u1", username: "mihai", displayName: null } })
+    assert.deepEqual(memberMarks(rows, 1, "Already shared").excluded, [
+      { username: "mihai", reason: "Already shared" },
+    ])
+  })
+})
+
+describe("account directory adapter", () => {
+  it("searchAccounts keeps a refusal, a transport failure and a real empty apart", async () => {
+    const refused = await searchAccounts({
+      q: "mih",
+      limit: 20,
+      doFetch: fetchStub(() => ({ status: 403, body: { message: "account:read denied" } })).doFetch,
+    })
+    assert.equal(refused.ok, false)
+    assert.equal(refused.ok === false && refused.status, 403)
+
+    const empty = await searchAccounts({
+      q: "zzz",
+      limit: 20,
+      doFetch: fetchStub(() => ({ status: 200, body: { rows: [] } })).doFetch,
+    })
+    assert.deepEqual(empty, { ok: true, value: { rows: [], returned: 0 } })
+
+    // A 200 whose body this adapter cannot read is a failure, not an empty
+    // directory.
+    const unreadable = await searchAccounts({
+      q: "mih",
+      limit: 20,
+      doFetch: fetchStub(() => ({ status: 200, body: { rows: "nope" } })).doFetch,
+    })
+    assert.equal(unreadable.ok, false)
+  })
+
+  it("parseAccountPage counts what the BACKEND returned, not what survived the parse", () => {
+    const page = parseAccountPage({
+      rows: [
+        { id: "u1", username: "mihai" },
+        { id: "u2" },
+        { username: "ana" },
+        null,
+      ],
+    })
+    assert.deepEqual(page.rows, [{ id: "u1", username: "mihai", displayName: null }])
+    assert.equal(
+      page.returned,
+      4,
+      "three rows were unreadable, but the page the backend sent was still four rows long",
+    )
+    assert.deepEqual(parseAccountPage({ rows: "nope" }), { rows: [], returned: 0 })
+    assert.deepEqual(parseAccountPage(null), { rows: [], returned: 0 })
+  })
+
+  it("lookupAccounts returns username and displayName per id, absent for unknown ids", async () => {
+    const { doFetch } = fetchStub(() => ({
+      status: 200,
+      body: { rows: [{ id: "u1", username: "mihai", displayName: "Mihai", email: "m@x" }, { id: "u2" }] },
+    }))
+    assert.deepEqual(await lookupAccounts(["u1", "u2"], doFetch), {
+      u1: { id: "u1", username: "mihai", displayName: "Mihai" },
+    })
+    assert.deepEqual(await lookupAccounts([], doFetch), {})
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Group names are unique PER CUBE and the database decides (qwbe
+// core/src/cubes/permissions/groups.ts `permission_groups_cube_name_key`,
+// groups-unique.test.ts, verified 2026-09-26). 409 is a normal answer for both
+// writes, and the wording must describe the normalization that actually runs.
+// ---------------------------------------------------------------------------
+
+describe("duplicate group names", () => {
+  it("createGroup reports a 409 as a refusal with the conflict status, never as a success", async () => {
+    const { doFetch, calls } = fetchStub(() => ({ status: 409, body: { message: "duplicate key value" } }))
+    const result = await createGroup({ cube: "crm/organizations", name: "Sales", doFetch })
+    assert.equal(result.ok, false)
+    if (!result.ok) assert.equal(result.status, 409)
+    assert.equal(calls.length, 1)
+  })
+
+  it("renameGroup reports a 409 the same way, and the group keeps its old name", async () => {
+    const { doFetch } = fetchStub(() => ({ status: 409, body: { message: "duplicate key value" } }))
+    const result = await renameGroup({ groupId: "grp1", name: "Sales", doFetch })
+    assert.equal(result.ok, false)
+    if (!result.ok) assert.equal(result.status, 409)
+  })
+
+  it("names the conflict by its STATUS, saying how the name is actually compared", () => {
+    const conflict = groupWriteRefusalMessage(409, "duplicate key value violates unique constraint")
+    assert.match(conflict, /already uses this name/i)
+    assert.match(conflict, /case/i)
+    assert.doesNotMatch(conflict, /duplicate key/i)
+  })
+
+  it("names a refusal, an empty name and a vanished group without inventing a diagnosis", () => {
+    assert.match(groupWriteRefusalMessage(403, "forbidden"), /may not administer/i)
+    assert.match(groupWriteRefusalMessage(400, "invalid"), /name is required/i)
+    assert.match(groupWriteRefusalMessage(404, "gone"), /no longer exists/i)
+    // A status with no meaning of its own keeps the server's own words.
+    assert.equal(groupWriteRefusalMessage(0, "network error"), "network error")
+    assert.equal(groupWriteRefusalMessage(503, "upstream down"), "upstream down")
+  })
+})
+
+describe("a refused MEMBERSHIP write", () => {
+  it("keeps the answer's own words for 404: the username, the group and the membership share that status", () => {
+    // qwbe resolves the username first (core/src/cubes/permissions/
+    // handler-utils.ts resolveIdentity), so this 404 is about the ACCOUNT and
+    // must never be reported as a missing group.
+    assert.equal(
+      memberWriteRefusalMessage(404, "username ghost does not exist"),
+      "username ghost does not exist",
+    )
+    assert.equal(memberWriteRefusalMessage(404, "membership does not exist"), "membership does not exist")
+    assert.equal(memberWriteRefusalMessage(404, "group grp_9 does not exist"), "group grp_9 does not exist")
+    for (const message of ["username ghost does not exist", "membership does not exist"]) {
+      assert.doesNotMatch(memberWriteRefusalMessage(404, message), /This group no longer exists/i)
+    }
+  })
+
+  it("keeps the adapter's own words for 400 instead of asking for a group name", () => {
+    // Both 400s are this client's, produced before any request: sharing.ts
+    // addGroupMember ("choose a user") and the unusable group id.
+    assert.equal(memberWriteRefusalMessage(400, "choose a user"), "choose a user")
+    assert.equal(memberWriteRefusalMessage(400, "invalid group id"), "invalid group id")
+    assert.doesNotMatch(memberWriteRefusalMessage(400, "choose a user"), /name is required/i)
+  })
+
+  it("words only the one status whose meaning is fixed on these routes", () => {
+    assert.match(memberWriteRefusalMessage(403, "forbidden"), /may not administer/i)
+    assert.equal(memberWriteRefusalMessage(0, "network error"), "network error")
+    assert.equal(memberWriteRefusalMessage(500, "boom"), "boom")
+    // 409 is not produced here at all (addGroupMember is idempotent), so it
+    // carries whatever arrived rather than the group-name conflict sentence.
+    assert.equal(memberWriteRefusalMessage(409, "conflict"), "conflict")
+    assert.doesNotMatch(memberWriteRefusalMessage(409, "conflict"), /already uses this name/i)
+  })
+})
+
+describe("the selection after a group list was re-read", () => {
+  it("keeps a group the fresh list still carries", () => {
+    assert.equal(retainSelectedGroup([groupRow({ id: "g1" }), groupRow({ id: "g2" })], "g2"), "g2")
+  })
+
+  it("drops a group the fresh list no longer carries, so no request targets a stale list", () => {
+    assert.equal(retainSelectedGroup([groupRow({ id: "g1" })], "g2"), "")
+    assert.equal(retainSelectedGroup([], "g1"), "")
+  })
+
+  it("keeps an empty selection empty", () => {
+    assert.equal(retainSelectedGroup([groupRow({ id: "g1" })], ""), "")
   })
 })

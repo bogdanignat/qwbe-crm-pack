@@ -1,7 +1,12 @@
 // The SOURCE-DRIFT probe (pack side): every copy the kernel holds of this
 // pack must provably be what this repo holds now.
 //
-//   QWBE_REPO=<qwbe> node probes/source-drift.mjs
+//   npm run test:drift                        # QWBE_REPO defaults to ../../qwbe
+//   QWBE_REPO=<qwbe> node test/source-drift.mjs
+//
+// It was probes/source-drift.mjs until 2026-09-26 (T-1452): it judges the copies installed in a
+// kernel CHECKOUT, which the `qwbe check` sandbox does not have, so it is an operator check under
+// test/ and not a probe the checker runs. Read-only: it never writes either checkout.
 //
 // Two copies exist after an official install: the store shelf (core/store/crm-pack, carrying
 // its qwbe-source.json provenance) and the installed destination (core/plugins/crm-pack,

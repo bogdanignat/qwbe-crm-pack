@@ -18,6 +18,9 @@ import { Separator } from "@/components/ui/separator"
 const ENTRIES = [
   { href: "/organizations", label: "Organizations" },
   { href: "/contacts", label: "Contacts" },
+  // Business groups OF CONTACTS, next to the contacts they group. Not the
+  // permission groups in Settings, which group user accounts.
+  { href: "/contact-groups", label: "Contact groups" },
   { href: "/echo", label: "Echo" },
   { href: "/settings", label: "Settings" },
 ] as const

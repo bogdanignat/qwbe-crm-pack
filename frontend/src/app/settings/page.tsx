@@ -1,4 +1,4 @@
-// The Settings area: runtime custom fields and permission groups are managed
+// The Settings area: runtime custom fields and access groups are managed
 // here, per entity, never on the lists. The cube selector addresses every cube this pack
 // serves -- organizations, contacts and contracts -- whether or not the app has
 // a list route for it, because definitions ride the customfields API, not the
@@ -11,9 +11,11 @@
 
 import { useState } from "react"
 
+import { AccessGroupsPanel } from "@/components/access-groups-panel"
 import { CustomFieldsPanel } from "@/components/custom-fields-panel"
-import { GroupsPanel } from "@/components/groups-panel"
+import { QueryProvider } from "@/components/query-provider"
 import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
 import {
   Select,
   SelectContent,
@@ -54,7 +56,17 @@ export default function SettingsPage() {
       {/* key remounts the panel on cube switch so no definition list, error
           or open delete confirmation of the previous cube survives (QWB-60). */}
       <CustomFieldsPanel key={cube} cube={cube} />
-      <GroupsPanel key={`groups:${cube}`} cube={cube} />
+      <Separator />
+      {/* The kernel's ACCESS groups (groups of user accounts) are administered
+          here as a MIRROR of the host app's /permissions UI: the same
+          permissions API, the same group ids, no store and no roles of this
+          pack's own. Its scope selector is deliberately NOT the Entity selector
+          above -- custom fields and access scopes are two different lists of
+          cubes (docs/t1452-access-groups-report.md). Business sets of CONTACTS
+          are a different thing entirely and live at /contact-groups. */}
+      <QueryProvider>
+        <AccessGroupsPanel />
+      </QueryProvider>
     </main>
   )
 }
