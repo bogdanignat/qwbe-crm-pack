@@ -222,7 +222,7 @@ npm run check -- --live        # plus checks/live (starts its own servers on scr
 npm run check -- --drift       # plus tools/check/source-drift.ts
 
 # the SDK gate: qwbe check on this checkout (expected FAIL at stage invocation) and on a
-# publication-shaped sandbox copy (must PASS 4/4 stages)
+# publication-shaped sandbox copy laid out beside a `qwbe` link to the checkout (must PASS 4/4 stages)
 npm run test:check
 
 # live checks alone, as the kernel runs them
@@ -231,7 +231,12 @@ QWBE_REPO=<qwbe> node probes/crm.mjs
 
 The probe contract: `qwbe check` runs every `probes/*.mjs` (non-recursive) against the kernel it
 booted, passing `QWBE_URL`, `QWBE_ADMIN_PASSWORD` and `QWBE_READER_PASSWORD` -- and never
-`QWBE_REPO`. So `probes/` holds only the launcher of `checks/live/`. The checkout-only checks
+`QWBE_REPO`. So `probes/` holds only the launcher of `checks/live/`, and `checks/live/` finds the
+kernel by the sibling layout (`../../qwbe` next to this checkout) when `QWBE_REPO` is unset. The
+`test:check` sandbox reproduces that layout -- the copy at `qwbe-plugins/crm-pack`, a `qwbe` link
+beside it -- and links this checkout's `node_modules` entries and `frontend/` into the copy, since
+the probe spawns `node_modules/.bin/vitest` and the sharing checks import from `frontend/src/lib/`;
+only `qwbe-core` is installed there as a real directory. The checkout-only checks
 left `probes/` on 2026-09-26 (T-1452) and became Effect checks on 2026-09-27: the install
 lifecycle and the sharing adapter under `checks/live/`, the drift gate in `tools/check/`. The
 working tree is judged by the `test:check` sandbox.

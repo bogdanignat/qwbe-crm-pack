@@ -10,6 +10,22 @@ import * as Either from "effect/Either"
 /** The prefix every sandbox this runner creates carries. Cleanup keys off it. */
 export const SANDBOX_PREFIX = "qwbe-crm-sdk-check-"
 
+/**
+ * The layout inside a sandbox: the copy at `qwbe-plugins/crm-pack`, a `qwbe` link to the checkout
+ * beside it. It is the sibling layout `checks/_layers/kernel.ts` defaults to, so the probe's live
+ * suite boots the checkout kernel from the copy the same way it does from the checkout -- without
+ * QWBE_REPO, which `checkEnv` never forwards.
+ */
+export const SANDBOX_PACK = "qwbe-plugins/crm-pack"
+export const SANDBOX_KERNEL = "qwbe"
+
+/** The checkout's own dependency entries the copy links for the probe; the kernel is installed real. */
+export const isLinkedDependency = (entry: string) => entry !== "qwbe-core"
+
+/** Foreign entries the probe's live suite imports from (checks/_layers/sharing.ts reads
+ *  frontend/src/lib/sharing.ts): linked into the copy, never copied; the kernel drops them at install. */
+export const LINKED_ENTRIES = ["frontend"] as const
+
 /** The only `scripts.test` the kernel's invocation gate accepts. */
 export const CANONICAL_TEST = "qwbe check ."
 

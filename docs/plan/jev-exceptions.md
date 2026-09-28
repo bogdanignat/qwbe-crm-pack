@@ -66,5 +66,6 @@ deviations from the rules, kept on purpose:
 - Scenario files over ~100 lines, one purpose each: `tools/db/ensure-contact-group-indexes.test.ts`
   (11 database scenarios), `ensure-contact-group-indexes-spawn.test.ts`, `contact-group-indexes-pure.test.ts`,
   `checks/live/contact-groups-{unique,repair,sharing}.test.ts`, `test/sdk-check-{pure,env,sandbox}.test.ts`.
-- `tools/db/contact-group-indexes-spec.ts` (107 lines) and `test/sdk-check-run.ts` (102) sit just over
+- `tools/db/contact-group-indexes-spec.ts` (107 lines), `test/sdk-check-run.ts` (102) and
+  `test/sdk-check-sandbox.ts` (114, the sibling layout and the links added on 2026-09-28) sit just over
   the line.

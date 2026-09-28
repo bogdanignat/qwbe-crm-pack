@@ -9,7 +9,12 @@
 //   [native]  `qwbe check` on this checkout. EXPECTED TO FAIL at stage invocation (the developer
 //             test script, `qwbe-core: file:`): the gate working. The developer loop is left as is.
 //   [sandbox] the same command on a publication-shaped copy in a temp dir, the kernel installed
-//             as a real directory under its node_modules. All four stages must pass.
+//             as a real directory under its node_modules, the checkout's other dependencies linked
+//             in (the probe spawns vitest from them), and the checkout linked as the sibling `qwbe`
+//             the live layers default to. All four stages must pass. Stage runtime is the pack's
+//             probe, i.e. checks/live booting the CHECKOUT kernel (the owner's probe, 2026-09-27):
+//             in both runs it is the same evidence; what the sandbox adds is source, caps and
+//             invocation judged on the publication shape.
 // A sandbox pass is NOT release-ready: nothing is published, the version staged is the kernel's own.
 //
 // Side effects: one temp dir under the OS temp dir, removed only through removeOwnSandbox; core/dist
@@ -65,7 +70,7 @@ const program = Effect.gen(function* () {
   const sandboxStatus = yield* Effect.scoped(
     Effect.gen(function* () {
       const sandbox = yield* stageSandbox(PACK, core, version)
-      yield* Console.log(`\n[sandbox] staged at ${sandbox} (publication package.json, qwbe-core ${version}, no file:/link:)`)
+      yield* Console.log(`\n[sandbox] staged at ${sandbox} (publication package.json, qwbe-core ${version}, no file:/link:; dependencies and the sibling qwbe linked)`)
       return yield* report("sandbox", bin, yield* runCheck(bin, sandbox, env), secrets)
     }),
   )

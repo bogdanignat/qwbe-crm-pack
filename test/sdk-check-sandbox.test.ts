@@ -1,5 +1,6 @@
 // The cleanup guard and the staged shape (T-1452, B4): the runner deletes only a directory it made,
-// and the sandbox it stages is the publication shape with the kernel as a REAL directory. Fixtures
+// and the sandbox it stages is the publication shape with the kernel as a REAL directory, the
+// checkout's dependencies linked, and the checkout itself linked as the sibling `qwbe`. Fixtures
 // are real mkdtemp directories; afterAll removes only the ones this file created.
 import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -7,7 +8,7 @@ import { dirname, join, sep } from "node:path"
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
 import { afterAll, describe, expect, layer } from "@effect/vitest"
 import * as Effect from "effect/Effect"
-import { SANDBOX_PREFIX } from "./sdk-check-pure.ts"
+import { SANDBOX_KERNEL, SANDBOX_PACK, SANDBOX_PREFIX } from "./sdk-check-pure.ts"
 import { isOwnSandbox, removeOwnSandbox, stageSandbox } from "./sdk-check-sandbox.ts"
 
 const made: string[] = []
@@ -59,7 +60,7 @@ layer(NodeFileSystem.layer)((it) => {
   })
 
   describe("the staged sandbox", () => {
-    it.effect("is the publication shape with the kernel installed as a real directory, removed on scope close", () =>
+    it.effect("is the publication shape beside a link to the checkout, kernel real, dependencies linked, removed on scope close", () =>
       Effect.gen(function* () {
         const pack = files(mkdtemp("sdk-check-pack-"), {
           "package.json": JSON.stringify({ name: "p", dependencies: { "qwbe-core": "file:../core" }, devDependencies: { x: "1" } }),
@@ -67,8 +68,13 @@ layer(NodeFileSystem.layer)((it) => {
           "test/sdk-check.ts": "runner",
           ".git/HEAD": "ref",
           "shot.png": "png",
+          "frontend/src/lib/sharing.ts": "imported by checks/_layers/sharing.ts",
+          "node_modules/.bin/vitest": "bin",
+          "node_modules/vitest/vitest.mjs": "vitest",
+          "node_modules/qwbe-core/linked-checkout": "the checkout's own qwbe-core entry, never linked",
         })
-        const core = files(mkdtemp("sdk-check-core-"), {
+        const repo = mkdtemp("sdk-check-qwbe-")
+        const core = files(join(repo, "core"), {
           "bin/qwbe.mjs": "bin",
           "src/main.ts": "src",
           "src/nested/node_modules/dep/index.js": "nested",
@@ -82,6 +88,7 @@ layer(NodeFileSystem.layer)((it) => {
           Effect.gen(function* () {
             const dir = yield* stageSandbox(pack, core, "1.2.3")
             expect(yield* isOwnSandbox(dir)).toBe(true)
+            expect(dir.endsWith(join(sep, SANDBOX_PACK))).toBe(true)
             expect(lstatSync(join(dir, "cubes", "crm", "index.ts")).isFile()).toBe(true)
             for (const foreign of ["test", ".git", "shot.png"])
               expect(() => lstatSync(join(dir, foreign)), `${foreign} must not be staged`).toThrow()
@@ -91,13 +98,26 @@ layer(NodeFileSystem.layer)((it) => {
             const installed = join(dir, "node_modules", "qwbe-core")
             expect(lstatSync(installed).isSymbolicLink()).toBe(false)
             expect(lstatSync(join(installed, "dist", "cube-contract.js")).isFile()).toBe(true)
+            expect(() => lstatSync(join(installed, "linked-checkout")), "the kernel is the checkout's core, not the pack's entry").toThrow()
             expect(() => lstatSync(join(installed, "scripts")), "only the package files list").toThrow()
             expect(() => lstatSync(join(installed, "src", "nested", "node_modules")), "no nested node_modules").toThrow()
             expect(readlinkSync(join(installed, "node_modules"))).toBe(join(core, "node_modules"))
-            return dir
+            // The probe spawns node_modules/.bin/vitest from the copy: every other entry is a link to the checkout's.
+            for (const entry of [".bin", "vitest"])
+              expect(readlinkSync(join(dir, "node_modules", entry))).toBe(join(pack, "node_modules", entry))
+            // What the live suite imports from the checkout's frontend is linked, not staged.
+            expect(readlinkSync(join(dir, "frontend"))).toBe(join(pack, "frontend"))
+            // The sibling layout checks/_layers/kernel.ts defaults to: <copy>/../../qwbe/core is the checkout's core.
+            const root = dirname(dirname(dir))
+            expect(readlinkSync(join(root, SANDBOX_KERNEL))).toBe(repo)
+            expect(lstatSync(join(dir, "..", "..", SANDBOX_KERNEL, "core", "src", "main.ts")).isFile()).toBe(true)
+            return root
           }),
         )
         expect(() => lstatSync(sandbox), "the scope removed the sandbox").toThrow()
+        // Removing the sandbox removed the links, never what they pointed at.
+        expect(lstatSync(join(core, "src", "main.ts")).isFile()).toBe(true)
+        expect(lstatSync(join(pack, "node_modules", "vitest", "vitest.mjs")).isFile()).toBe(true)
       }))
   })
 })
