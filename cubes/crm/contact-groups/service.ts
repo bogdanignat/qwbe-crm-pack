@@ -19,7 +19,7 @@
 // REFUSES a mount that declares both (`uniqueIndexReasons`), because the raw batch path calls neither
 // `ensureTable` nor the write gate and would write straight around the guarantee.
 //
-// WHAT IS STILL OURS. The operator CLI (tools/ensure-contact-group-indexes.mjs) stays, and it is
+// WHAT IS STILL OURS. The operator CLI (tools/db/ensure-contact-group-indexes.ts) stays, and it is
 // not a duplicate of the kernel: the kernel's installer is memoized per table per database and
 // swallows a failure per index, so a table whose live rows already duplicate the key mounts with
 // reads working and writes refused, and NOTHING installs the index afterwards until the process
@@ -189,7 +189,7 @@ export const indexNotReady = (index: string, what: string, reason: string): Erro
     `${index} refused ${what}: the kernel's write gate refused before the statement ran, so the ` +
       `index is absent, carries a different definition or is invalid, and NOTHING is enforcing ` +
       `this invariant (kernel reason: ${reason}). ` +
-      `Check it with node tools/ensure-contact-group-indexes.mjs`,
+      `Check it with node tools/db/ensure-contact-group-indexes.ts`,
   )
 
 /**

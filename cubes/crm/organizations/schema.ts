@@ -10,17 +10,17 @@
 // create would die on the NOT NULL meta column. The exact source columns of the vtiger import
 // live in the import mapping, which is where source-system names belong.
 
-import { Schema } from "effect"
+import { Record, Schema } from "effect"
 import { EntityMeta } from "qwbe-core/entity"
 
-export const Organization = Schema.Struct({
-  ...EntityMeta,
+// The one field list: the row adds the entity meta, the create and the patch derive from it.
+const fields = {
   /** The one required field, and the summary title. */
   name: Schema.NonEmptyTrimmedString,
   /** The external identity of a row that came from (or is destined for) a source system:
    *  "vtiger:<crmid>" for the import. Null for rows created by hand.
    *  Uniqueness lives in the DATABASE: a partial unique index on this field (only live rows,
-   *  only non-null values) is ensured by tools/ensure-external-id-index.mjs -- a plugin cube
+   *  only non-null values) is ensured by tools/db/ensure-external-id-index.ts -- a plugin cube
    *  cannot create it (the kernel's per-cube role holds DML only), so the pack's tool does,
    *  as the database user that owns the tables. */
   externalId: Schema.NullOr(Schema.String),
@@ -44,26 +44,21 @@ export const Organization = Schema.Struct({
   billingCode: Schema.NullOr(Schema.String),
   billingCountry: Schema.NullOr(Schema.String),
   description: Schema.NullOr(Schema.String),
-}).annotations({ identifier: "Organization" })
+}
+
+// Every field optional on create with a null default; the non-null ones are overridden below
+// (the spread keeps each key in its declared position, so the encoded shape stays the same).
+const nullDefaults = <F extends { readonly [key: string]: Schema.Schema.All }>(f: F) =>
+  Record.map(f, (s) => Schema.optionalWith(s, { default: () => null })) as unknown as {
+    readonly [K in keyof F]: Schema.optionalWith<F[K], { default: () => null }>
+  }
+
+export const Organization = Schema.Struct({ ...EntityMeta, ...fields }).annotations({ identifier: "Organization" })
 
 export const OrganizationCreate = Schema.Struct({
-  name: Schema.NonEmptyTrimmedString,
-  externalId: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  organizationNo: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  phone: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  email: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  website: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  organizationType: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  industry: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  rating: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  ownership: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  employees: Schema.optionalWith(Schema.NullOr(Schema.Int.pipe(Schema.nonNegative())), { default: () => null }),
-  emailOptOut: Schema.optionalWith(Schema.Boolean, { default: () => false }),
-  billingStreet: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  billingCity: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  billingCode: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  billingCountry: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  description: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
+  ...nullDefaults(fields),
+  name: fields.name,
+  emailOptOut: Schema.optionalWith(fields.emailOptOut, { default: () => false }),
 }).annotations({ identifier: "OrganizationCreate" })
 
 // Every domain field is optional on a patch; `id`, `createdAt` and the entity meta `type`
@@ -72,24 +67,8 @@ export const OrganizationCreate = Schema.Struct({
 // future deletion ticket lives in README.md.
 export type OrganizationRow = typeof Organization.Type
 
-export const OrganizationPatch = Schema.Struct({
-  name: Schema.optional(Schema.NonEmptyTrimmedString),
-  externalId: Schema.optional(Schema.NullOr(Schema.String)),
-  organizationNo: Schema.optional(Schema.NullOr(Schema.String)),
-  phone: Schema.optional(Schema.NullOr(Schema.String)),
-  email: Schema.optional(Schema.NullOr(Schema.String)),
-  website: Schema.optional(Schema.NullOr(Schema.String)),
-  organizationType: Schema.optional(Schema.NullOr(Schema.String)),
-  industry: Schema.optional(Schema.NullOr(Schema.String)),
-  rating: Schema.optional(Schema.NullOr(Schema.String)),
-  ownership: Schema.optional(Schema.NullOr(Schema.String)),
-  employees: Schema.optional(Schema.NullOr(Schema.Int.pipe(Schema.nonNegative()))),
-  emailOptOut: Schema.optional(Schema.Boolean),
-  billingStreet: Schema.optional(Schema.NullOr(Schema.String)),
-  billingCity: Schema.optional(Schema.NullOr(Schema.String)),
-  billingCode: Schema.optional(Schema.NullOr(Schema.String)),
-  billingCountry: Schema.optional(Schema.NullOr(Schema.String)),
-  description: Schema.optional(Schema.NullOr(Schema.String)),
+export const OrganizationPatch = Schema.extend(
+  Schema.partial(Schema.Struct(fields)),
   // Accepts nothing: any value present fails the decode. Absence is fine.
-  deleted: Schema.optional(Schema.Never),
-}).annotations({ identifier: "OrganizationPatch" })
+  Schema.Struct({ deleted: Schema.optional(Schema.Never) }),
+).annotations({ identifier: "OrganizationPatch" })

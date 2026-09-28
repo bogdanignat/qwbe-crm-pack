@@ -156,8 +156,8 @@ export function discardGeneratedTypeDeclarations(path) {
   rmSync(path, { force: true })
 }
 
-// The ports of the live CRM stack. `isForbiddenPort` covers the first two; the
-// launcher also uses 4520, and this fixture must never bind any of them.
+// The ports of the live CRM stack. `isForbiddenPort` covers the first two; the CRM
+// frontend's local port is 4520, and this fixture must never bind any of them.
 const forbidden = (port) => isForbiddenPort(port) || port === 4520
 
 async function freePort() {

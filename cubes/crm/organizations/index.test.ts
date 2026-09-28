@@ -155,7 +155,7 @@ describe("organizations cube contract", () => {
     // externalId ("vtiger:<crmid>") is on the row schema (nullable: rows created by hand
     // have no source system), defaulted on create, and published as a list filter -- that
     // filter IS the import's lookup before create. Uniqueness lives in the DATABASE: the
-    // partial unique index is ensured by tools/ensure-external-id-index.mjs, because a
+    // partial unique index is ensured by tools/db/ensure-external-id-index.ts, because a
     // plugin cube's role holds DML only and cannot create indexes.
     assert.equal(cube.manifest.version, "1.1.0")
     assert.ok(cube.manifest.searchable?.includes("externalId"))

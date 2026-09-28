@@ -1,0 +1,1 @@
+{ "extends": "./tsconfig.json", "include": ["tools/**/*.ts", "probes/**/*.ts", "checks/**/*.ts", "test/**/*.ts"] }

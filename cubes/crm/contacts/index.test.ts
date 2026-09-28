@@ -69,7 +69,7 @@ describe("contacts cube contract", () => {
     // the word "organizations" appears here by declaration only.
     // Ticket 13 adds exactly one more list declaration: externalId, the identity the import
     // looks a contact up by before it creates one (uniqueness lives in the DATABASE --
-    // tools/ensure-external-id-index.mjs; the cube's role cannot create indexes). Ticket 14
+    // tools/db/ensure-external-id-index.ts; the cube's role cannot create indexes). Ticket 14
     // widens the list with name and email: the same declaration drives `?q=` and the UI's
     // filter controls, and searching a person by their name is the everyday case.
     assert.deepEqual(cube.manifest.relations, { organizationId: { target: "crm/organizations" } })

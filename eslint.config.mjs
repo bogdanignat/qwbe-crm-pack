@@ -17,7 +17,6 @@ import tseslint from "typescript-eslint"
 export default tseslint.config(
   {
     // Only the cubes are installed into the kernel, and only they have a tsconfig behind them.
-    // The .mjs probes and tools are plain node scripts: a type-aware rule cannot run on them.
     ignores: [
       "**/*.mjs",
       "**/*.cjs",
@@ -32,6 +31,35 @@ export default tseslint.config(
       parser: tseslint.parser,
       parserOptions: {
         projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint.plugin,
+      "@effect": effect,
+    },
+    rules: {
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/no-unsafe-argument": "error",
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      "@effect/no-import-from-barrel-package": "error",
+    },
+  },
+  {
+    // The Effect tools and probes are typed through tsconfig.tools.json, so they get the same
+    // type-aware rules as the cubes (project instead of projectService: one tsconfig covers
+    // tools + probes + checks + test). The .mjs probe entry stays ignored: a one-line launcher.
+    files: ["tools/**/*.ts", "probes/**/*.ts", "checks/**/*.ts", "test/**/*.ts"],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        project: ["./tsconfig.tools.json"],
         tsconfigRootDir: import.meta.dirname,
       },
     },

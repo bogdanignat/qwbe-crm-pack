@@ -9,8 +9,9 @@
 //
 // The kernel owns the index lifecycle now (`manifest.uniqueIndexes`), so what used to be tested
 // here -- a pg_indexes probe, its expected definitions, the table warming that fed it -- is tested
-// in the kernel's own suite and, against a real server, in tools/ensure-contact-group-indexes.test
-// .mjs. What is left here is the cube's half: the DECLARATION it publishes, and what it says when
+// in the kernel's own suite and, against a real server, in
+// tools/db/ensure-contact-group-indexes.test.ts.
+// What is left here is the cube's half: the DECLARATION it publishes, and what it says when
 // the database refuses a write. Both refusals the kernel can hand over are exercised: a duplicate
 // (23505 carrying the index) and the write gate's `UniqueIndexNotReady`.
 //

@@ -2,43 +2,49 @@
 // (split the file, never raise the cap). Same domain, same decisions —
 // see index.ts for the reasoning that surrounds these fields.
 
-import { Schema } from "effect"
+import { Record, Schema } from "effect"
 import { EntityMeta } from "qwbe-core/entity"
 
-export const Contact = Schema.Struct({
-  ...EntityMeta,
+// The one input field list: the row adds the entity meta, the create and the patch derive from it.
+const fields = {
   name: Schema.String,
   email: Schema.String,
   /** The external identity of a row that came from (or is destined for) a source system:
    *  "vtiger:<crmid>" for the import. Null for rows created by hand.
    *  Uniqueness lives in the DATABASE: a partial unique index on this field (only live rows,
-   *  only non-null values) is ensured by tools/ensure-external-id-index.mjs -- a plugin cube
+   *  only non-null values) is ensured by tools/db/ensure-external-id-index.ts -- a plugin cube
    *  cannot create it (the kernel's per-cube role holds DML only), so the pack's tool does,
    *  as the database user that owns the tables. */
   externalId: Schema.NullOr(Schema.String),
   /** Optional in practice, so nullable in the schema rather than absent from responses. */
   phone: Schema.NullOr(Schema.String),
-  /** Free text on purpose — the Organization lives in its own cube, not folded in here. */
+  /** Free text on purpose -- the Organization lives in its own cube, not folded in here. */
   company: Schema.NullOr(Schema.String),
   /** The one truth of the contact-to-organization relation. Nullable, opaque, caller-set. */
+  organizationId: Schema.NullOr(Schema.NonEmptyTrimmedString),
+}
+
+// Every field optional on create with a null default; the non-null ones are overridden below
+// (the spread keeps each key in its declared position, so the encoded shape stays the same).
+const nullDefaults = <F extends { readonly [key: string]: Schema.Schema.All }>(f: F) =>
+  Record.map(f, (s) => Schema.optionalWith(s, { default: () => null })) as unknown as {
+    readonly [K in keyof F]: Schema.optionalWith<F[K], { default: () => null }>
+  }
+
+// A stored row reads organizationId as any string: the non-empty rule guards writes only.
+export const Contact = Schema.Struct({
+  ...EntityMeta,
+  ...fields,
   organizationId: Schema.NullOr(Schema.String),
 }).annotations({ identifier: "Contact" })
 
 /** The patch: a contact can move to another organization, or be unlinked (organizationId null). */
-export const ContactPatch = Schema.Struct({
-  name: Schema.optional(Schema.NonEmptyTrimmedString),
-  email: Schema.optional(Schema.String),
-  externalId: Schema.optional(Schema.NullOr(Schema.String)),
-  phone: Schema.optional(Schema.NullOr(Schema.String)),
-  company: Schema.optional(Schema.NullOr(Schema.String)),
-  organizationId: Schema.optional(Schema.NullOr(Schema.NonEmptyTrimmedString)),
-}).annotations({ identifier: "ContactPatch" })
+export const ContactPatch = Schema.partial(
+  Schema.Struct({ ...fields, name: Schema.NonEmptyTrimmedString }),
+).annotations({ identifier: "ContactPatch" })
 
 export const ContactCreate = Schema.Struct({
-  name: Schema.String,
-  email: Schema.optionalWith(Schema.String, { default: () => "" }),
-  externalId: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  phone: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  company: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
-  organizationId: Schema.optionalWith(Schema.NullOr(Schema.NonEmptyTrimmedString), { default: () => null }),
+  ...nullDefaults(fields),
+  name: fields.name,
+  email: Schema.optionalWith(fields.email, { default: () => "" }),
 }).annotations({ identifier: "ContactCreate" })

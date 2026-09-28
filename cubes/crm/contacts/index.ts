@@ -67,7 +67,7 @@ const summary = (c: ContactRow): SummaryRow => ({
   title: c.name,
   details: [
     { key: "email", value: c.email },
-    { key: "company", value: c.company ?? "—" },
+    { key: "company", value: c.company ?? "-" },
   ],
 })
 
@@ -121,7 +121,7 @@ export const cube = defineCube(group, {
     handlers: {
       // The kernel's list, not this cube's: filtering by the organizationId relation is
       // served from the manifest's declared relation. Legacy rows without the relation key
-      // are fixed once by the one-shot backfill (tools/backfill-contact-organizationid.mjs),
+      // are fixed once by the one-shot backfill (tools/db/backfill-contact-organizationid.ts),
       // not by normalizing every response here.
       list: genericList<ContactRow>({
         cube: "crm/contacts",

@@ -4,31 +4,31 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node tools/start-local.mjs",
-    "stop": "node tools/stop-local.mjs",
-    "start:check": "node tools/start-local.mjs --check",
-    "test:start": "node --test tools/start-local.test.mjs",
-    "test": "QWBE_REPO=\"${QWBE_REPO:-$PWD/../../qwbe}\" node --test source-contract.test.mjs cubes/crm/contact-groups/index.test.ts cubes/crm/contacts/index.test.ts cubes/crm/contracts/index.test.ts cubes/crm/organizations/index.test.ts tools/import.test.mjs tools/ensure-contact-group-indexes.test.mjs tools/ensure-contact-group-indexes.spec.test.mjs tools/contact-groups-http.test.mjs tools/ensure-external-id-index.test.mjs tools/backfill-contact-organizationid.test.mjs tools/seed-demo.test.mjs",
+    "check": "node tools/check/check.ts",
+    "test": "vitest run && QWBE_REPO=\"${QWBE_REPO:-$PWD/../../qwbe}\" node --test cubes/crm/contact-groups/index.test.ts cubes/crm/contacts/index.test.ts cubes/crm/contracts/index.test.ts cubes/crm/organizations/index.test.ts",
+    "test:check": "node test/sdk-check.ts",
     "lint": "eslint .",
-    "test:source": "node --test source-contract.test.mjs",
-    "test:check": "node test/sdk-check.mjs",
-    "test:sdk-check-unit": "node --test test/sdk-check-lib.test.mjs",
-    "test:lifecycle": "QWBE_REPO=\"${QWBE_REPO:-$PWD/../../qwbe}\" node test/install-lifecycle.mjs",
-    "test:drift": "QWBE_REPO=\"${QWBE_REPO:-$PWD/../../qwbe}\" node test/source-drift.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tools.json"
   },
   "dependencies": {
-    "@effect/platform": "^0.96.0",
-    "effect": "^3.21.0",
+    "@effect/platform": "^0.97.2",
+    "effect": "^3.22.2",
     "qwbe-core": "file:../../qwbe/core"
   },
   "devDependencies": {
     "@effect/eslint-plugin": "^0.3.2",
+    "@effect/platform-node": "^0.108.2",
+    "@effect/vitest": "^0.30.0",
     "@types/node": "^26.0.0",
+    "@types/pg": "^8.23.1",
     "eslint": "^10.9.1",
     "mysql2": "^3.24.2",
     "pg": "^8.23.0",
     "typescript": "^5.7.0",
-    "typescript-eslint": "^8.68.0"
+    "typescript-eslint": "^8.68.0",
+    "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "vitest": "$vitest"
   }
 }

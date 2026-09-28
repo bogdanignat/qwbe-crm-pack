@@ -6,7 +6,7 @@
 //   * the kernel, which mounts the cube -- `manifest.uniqueIndexes` (index.ts) is this array, so
 //     the kernel renders the DDL and the expected catalog definition from it and gates every write
 //     on the result;
-//   * the operator CLI (tools/ensure-contact-group-indexes.mjs), which runs with NO kernel in the
+//   * the operator CLI (tools/db/ensure-contact-group-indexes.ts), which runs with NO kernel in the
 //     process, against a database, at the moment the invariant is broken.
 //
 // The second one is why there is no runtime import here. This module imports ONLY types

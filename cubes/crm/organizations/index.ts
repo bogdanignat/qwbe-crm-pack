@@ -71,8 +71,8 @@ const summary = (o: OrganizationRow): SummaryRow => ({
   id: o.id,
   title: o.name,
   details: [
-    { key: "industry", value: o.industry ?? "—" },
-    { key: "city", value: o.billingCity ?? "—" },
+    { key: "industry", value: o.industry ?? "-" },
+    { key: "city", value: o.billingCity ?? "-" },
   ],
 })
 
@@ -112,7 +112,7 @@ const manifest = {
   // LEDGER -- not this claim -- decides whether crm/accounts really belonged to crm-pack
   // (checked at boot; kernel migrate-ownership.ts). Legacy rows still carry
   // `accountNo`/`accountType` in their body: the one-shot backfill
-  // (tools/backfill-contact-organizationid.mjs) renames those keys once, in the data.
+  // (tools/db/backfill-contact-organizationid.ts) renames those keys once, in the data.
   dataMigration: [{ fromCube: "crm/accounts", toCube: "crm/organizations", fromPlugin: "crm-pack" }],
 }
 
