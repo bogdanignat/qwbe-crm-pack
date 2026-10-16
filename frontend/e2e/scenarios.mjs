@@ -507,9 +507,9 @@ export async function scenarioLogout() {
 
 // --- 10. create an organization through the F1 form ------------------------------
 // (Numbered 10 at authoring time; it runs between 05 and 07 in runAll.) The
-// create form is the F1 surface: the page names the basic field set, the
-// metadata supplies labels and required flags, the submit goes through the
-// server proxy and lands on the new row's detail page. externalId must NOT be
+// create form is the shared organization form (T-1815): vtiger's blocks, the
+// required fields marked, the submit through the server proxy, landing on the
+// new row's detail page. externalId must NOT be
 // offered: it carries the import identity, and
 // its unique partial index turns a hand-typed duplicate into a 500, not a
 // refusal.
@@ -521,7 +521,7 @@ export async function scenarioCreateOrganization(api) {
   let snap = snapshot()
   shot("10-create-form")
   const externalOffered = Object.values(snap.refs).some((v) => (v.name ?? "") === "External Id")
-  const nameBox = await clickStable((v) => v.role === "textbox" && v.name === "Name", "Name")
+  const nameBox = await clickStable((v) => v.role === "textbox" && v.name === "Organization Name", "Name")
   if (!nameBox || externalOffered) {
     shot("10-create-RED", { full: true })
     return record(
@@ -532,12 +532,28 @@ export async function scenarioCreateOrganization(api) {
     )
   }
   type(orgName)
-  const industryBox = await clickStable((v) => v.role === "textbox" && v.name === "Industry", "Industry")
-  if (industryBox) type("e2e manufacturing")
-  const submit = await clickStable((v) => v.role === "button" && v.name === "Create", "Create")
+  // Industry is required: a select of vtiger's P4 values (pick the first one
+  // offered); typed only if it is ever a text input again.
+  const industryRef = await findStable((v) => (v.role === "combobox" || v.role === "textbox") && v.name === "Industry")
+  const industryRole = industryRef ? snapshot().refs[industryRef]?.role : null
+  if (industryRole === "textbox") {
+    await clickStable((v) => v.role === "textbox" && v.name === "Industry", "Industry")
+    type("e2e manufacturing")
+  } else {
+    const option = industryRef && (await openSelect(industryRef))
+      ? Object.entries(snapshot().refs).find(([, v]) => v.role === "option")?.[0]
+      : null
+    if (!option) {
+      shot("10-create-RED", { full: true })
+      return record(name, "RED", "no Industry select with P4 values on the form", "10-create-RED.png")
+    }
+    click(option, snapshot().refs[option]?.name)
+    await pause()
+  }
+  const submit = await clickStable((v) => v.role === "button" && v.name === "Save", "Save")
   if (!submit) {
     shot("10-create-RED", { full: true })
-    return record(name, "RED", "no Create button on the form", "10-create-RED.png")
+    return record(name, "RED", "no Save button on the form", "10-create-RED.png")
   }
   // The detail route is /organizations/<id>; /organizations/new must NOT match.
   const landed = await waitForUrl("organizations/(?!new)", 20_000)

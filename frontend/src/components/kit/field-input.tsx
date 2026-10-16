@@ -2,26 +2,28 @@
 
 // The one kit input per editable field, derived from the metadata alone --
 // the same classifier the list's inline editor uses (renderKindOf): an enum
-// is a SelectInput, a boolean a BooleanInput, an integer or number a
-// TextInput of type number, a declared relation the kit's ReferenceInput +
-// AutocompleteInput, everything else a TextInput. REAL shadcn-admin-kit 1.0.7
-// components; no homemade input per field. Used by the in-place form of the
+// is a select (EnumSelectInput), every boolean a checkbox (CheckboxInput), an
+// integer or number a TextInput of type number, a declared relation the kit's
+// ReferenceInput + AutocompleteInput, everything else a TextInput. The kit's
+// own inputs where they show errors and take focus; the two exceptions are
+// built on its form field parts. Used by the in-place form of the
 // reusable detail renderer (cube-show.tsx) for every entity.
 
 import { useEffect, useState } from "react"
-import { required as requiredValidator } from "ra-core"
-import {
-  AutocompleteInput,
-  BooleanInput,
-  ReferenceInput,
-  SelectInput,
-  TextInput,
-} from "shadcn-admin-kit"
+import { required as requiredValidator, type Validator } from "ra-core"
+import { AutocompleteInput, ReferenceInput, TextInput } from "shadcn-admin-kit"
 
 import { relationMeta, renderKindOf, type CubeMetadata, type FieldMetadata } from "@/lib/cube.ts"
+import { CheckboxInput } from "./checkbox-input"
+import { EnumSelectInput } from "./enum-select-input"
 
-export function KitFieldInput({ field }: { field: FieldMetadata }) {
-  const validate = field.required ? requiredValidator() : undefined
+// A caller with its own rules (the organization form) passes `validate`,
+// marks the input required for assistive tech, asks for a text area or adds a
+// hint under the input.
+export type KitFieldOptions = { validate?: Validator; required?: boolean; multiline?: boolean; helperText?: string }
+
+export function KitFieldInput({ field, options = {} }: { field: FieldMetadata; options?: KitFieldOptions }) {
+  const validate = options.validate ?? (field.required ? requiredValidator() : undefined)
 
   if (field.relation) {
     // The metadata guarantees a declared target once relation is set.
@@ -29,31 +31,36 @@ export function KitFieldInput({ field }: { field: FieldMetadata }) {
   }
 
   if (renderKindOf(field) === "select") {
-    return (
-      <SelectInput
-        source={field.name}
-        label={field.label}
-        validate={validate}
-        choices={(field.enum ?? []).map((value) => ({ id: value, name: value }))}
-        emptyText={field.nullable ? "—" : undefined}
-      />
-    )
+    return <EnumSelectInput field={field} validate={validate} required={options.required ?? field.required} />
   }
-  if (renderKindOf(field) === "checkbox") {
-    return <BooleanInput source={field.name} label={field.label} />
-  }
+  // Every boolean, the cube's too: its form value is already a boolean
+  // (initialValuesOf). The list cell keeps renderKindOf's text editing for a
+  // cube boolean.
+  if (field.type === "boolean") return <CheckboxInput field={field} />
   // A number edits in a native number input; the value stays a string in the
   // form and is coerced by type on save (coerce), so a cleared nullable
   // number still travels as null, not 0.
   const numeric = field.type === "integer" || field.type === "number"
-  return (
+  const input = (
     <TextInput
       source={field.name}
       label={field.label}
       validate={validate}
+      multiline={options.multiline}
+      aria-description={options.helperText}
+      aria-required={options.required || undefined}
       type={numeric ? "number" : undefined}
       step={field.type === "integer" ? 1 : field.type === "number" ? "any" : undefined}
     />
+  )
+  // The hint is rendered here: the kit's TextInput leaks its helperText prop
+  // onto the DOM input.
+  if (!options.helperText) return input
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      {input}
+      <p className="text-sm text-muted-foreground">{options.helperText}</p>
+    </div>
   )
 }
 

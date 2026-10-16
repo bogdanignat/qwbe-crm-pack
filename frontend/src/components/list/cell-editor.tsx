@@ -12,6 +12,7 @@
 import { useEffect, useRef } from "react"
 
 import { renderKindOf, type FieldMetadata } from "@/lib/cube"
+import { selectChoicesOf } from "@/lib/select-choices"
 import type { EditState } from "@/hooks/use-cell-edits"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -63,7 +64,8 @@ export function CellEditor({
           <SelectContent>
             {/* An optional field can be cleared ("not required" is the only signal). */}
             {!field.required && <SelectItem value={CLEAR}>—</SelectItem>}
-            {(field.enum ?? []).map((v) => (
+            {/* A stored value the list lacks stays first, as-is. */}
+            {selectChoicesOf(field.enum ?? [], edit.value).map((v) => (
               <SelectItem key={v} value={v}>
                 {v}
               </SelectItem>

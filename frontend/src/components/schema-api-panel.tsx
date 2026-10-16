@@ -9,11 +9,19 @@
 // finds it without expanding anything. Every link goes through the
 // same-origin /api/qwbe proxy, which adds the Bearer from the httpOnly
 // session cookie server-side; no token ever reaches this markup.
+//
+// A developer's panel: shown to admins only (nothing while /auth/me is on its
+// way or failed). The API keeps its own permissions; this only hides the links.
+"use client"
+
 import Link from "next/link"
 
+import { useCurrentUser } from "@/hooks/use-current-user"
 import { OPENAPI_API_PATH, metadataApiPath, recordApiPath } from "@/lib/cube"
 
 export function SchemaApiPanel({ cube, id }: { cube: string; id: string }) {
+  const { user } = useCurrentUser()
+  if (!user?.admin) return null
   const record = recordApiPath(cube, id)
   return (
     <details className="rounded-md border p-3 text-sm">

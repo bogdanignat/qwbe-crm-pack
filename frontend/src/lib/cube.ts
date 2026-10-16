@@ -34,6 +34,8 @@ export type FieldMetadata = {
   // groups of four. qwbe does not publish it yet; the mock and the
   // organization page supply it.
   format?: FieldFormat
+  // The longest value accepted, when the backend publishes one (not yet).
+  maxLength?: number
 }
 
 export type FieldFormat = "email" | "phone" | "url" | "iban"

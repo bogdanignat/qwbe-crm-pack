@@ -213,12 +213,14 @@ A mechanical deletion, all under `frontend/`. Nothing outside this list refers t
    `VTIGER_PLACEMENT` and goes with the mock.
 8. `src/components/cube-create-form.tsx`: the `withMockFields` import and call.
 9. `src/app/organizations/[id]/page.tsx`: the `demoOrganizationOf` import and the `demo` flag.
-10. `src/lib/cube.ts`: `mock?` in `FieldMetadata`, `&& !field.mock` in `canEdit`, the
+10. `src/lib/organization-display.ts`: the `picklists.json` import and `ORGANIZATION_ENUMS`
+    (with their test), once the backend publishes the three enums (§9).
+11. `src/lib/cube.ts`: `mock?` in `FieldMetadata`, `&& !field.mock` in `canEdit`, the
     `!(field.mock && field.custom)` part of `visible` in `columnsFromFields`, the mock
     refusal in `saveCell`, the mock skip in `createPayloadOf`, and the `demoRows`
     parameter of `listWindowOf` (with the "+N demo" part of its label).
-11. `src/lib/kit-form.ts`: the mock skip in `updatePayloadOf`.
-12. `src/lib/global-search.ts`: the `DEMO_ORGANIZATIONS` and `ORGANIZATIONS_CUBE` imports,
+12. `src/lib/kit-form.ts`: the mock skip in `updatePayloadOf`.
+13. `src/lib/global-search.ts`: the `DEMO_ORGANIZATIONS` and `ORGANIZATIONS_CUBE` imports,
     `DEMO_ROWS`, `DEMO_EXTRA_SEARCH`, and `demoRows` (in `SearchModule`, `SEARCH_MODULES` and
     `searchModule`).
 
@@ -322,6 +324,53 @@ The detail page follows vtiger 5.4 (spec §3.6): header, the "Organization Infor
       built; a plain map link needs nothing from the backend, a stored geocode would.
 - [ ] **Inline edit validation** as in the form: CUI unique + check digit, IBAN, email, lengths
       (same rules in both places, §4 above).
-- [ ] **Duplicate** copies only the fields the create form shows today (name, industry, phone,
-      email, website, required custom fields). A full prefilled copy needs every field of §1 in
-      the cube and in the create form.
+- [ ] **Duplicate** (T-1815) copies every editable field the backend publishes, except
+      `externalId` and Organization No. A full prefilled copy needs every field of §1 in the cube.
+
+## 9. Create / edit form (step 5, T-1815)
+
+What the organization form (create, Duplicate, Edit all; spec §4.5) needs from the backend. The form checks these rules in the browser, but a browser check is only a convenience: the backend must refuse the same mistakes, for the form, inline edit, import and any API client.
+
+### Validations the backend must enforce
+
+The rules the form already applies on the client. Each needs the same check, and a per-field message, on create and update.
+
+- [ ] **Required:** Organization Name, Form, TVA, CUI, Assigned To, Industry, Billing State
+      (vtiger `~M`). Publish them as `required` in the metadata; today only `name` is, so the
+      form keeps its own list (`ORGANIZATION_REQUIRED`). Industry is required by vtiger but
+      optional in the cube: decide which wins (the form requires it, so a real organization
+      with an empty Industry cannot be saved through Edit all until it is filled). TVA is a
+      boolean: "required" means "never null", not "true".
+- [ ] **CUI:** digits only, 2 to 10 digits, check digit with the key 753217532 (the "RO"
+      prefix refused, not stripped), and **unique** among non-deleted organizations. The
+      refusal should name the existing organization (id and name), so the form can link to it.
+- [ ] **IBAN:** RO format (RO, 2 check digits, 4-letter bank code, 16 letters or digits) and the
+      mod-97 checksum; store it without spaces, upper case.
+- [ ] **Email:** Email and Other Email, a valid address. Publish `format: "email"` for both (the
+      frontend attaches it today: `organization-display.ts` for Email, the mock for Other Email).
+- [ ] **Lengths:** publish `maxLength` per string field in the metadata (the form already reads it)
+      and refuse longer values; until then the form uses the declared ones (CUI 20, Reg no 20,
+      IBAN 50, Industry Spec 50, Other Industry Spec 255, Comp Mobile Phone 15, Other Fax 15).
+- [ ] **Whole numbers:** Employees, Annual Revenue; Account Turnover numeric without decimals.
+
+- [ ] **Picklists:** publish `enum` for `organizationType` (P3), `industry` (P4) and `rating` (P5),
+      and refuse a value outside it on create and update. The frontend attaches vtiger's values
+      today (`ORGANIZATION_ENUMS` in `organization-display.ts`); a published enum wins. Decide what
+      happens to the stored values outside the list (legacy Industry values): the UI keeps them
+      visible and selectable, so a migration or an "other" mapping is needed before the backend
+      refuses them.
+
+### Other needs found
+
+What else the form relies on or works around. None blocks the form; each removes a stand-in.
+
+- [ ] **Refusals per field:** a 422 with `issues` (path + message) per field, so the form can
+      show the message under its field instead of above the form.
+- [ ] **Organization No** generated on create (vtiger `ACC<n>`) and read-only; today it is a
+      plain editable string, so the form edits it, and Duplicate leaves it empty.
+- [ ] **Assigned To** as a relation to users and groups (vtiger's User / Group choice); the form
+      shows it disabled until then, and takes the existing user picker once it is published.
+- [ ] **Shipping address, PO Box and Billing State** as real fields: the two address copy
+      buttons are disabled ("Needs backend") until every target field is editable.
+- [ ] **ANAF lookup** by CUI (name, address, Trade Register no., VAT) for a "Fill from ANAF"
+      action: an idea, not built.

@@ -4,7 +4,8 @@
 // header, then two tabs. "Organization Information" holds the collapsible
 // blocks beside the Actions box and the activity feed; "More Information" the
 // related lists (Contacts only, for now) and Sharing. The active tab lives in
-// the URL.
+// the URL. Edit all swaps the first tab for the shared organization form
+// (spec §4.5), full width, as vtiger's edit view drops the sidebar.
 //
 // The row comes through the ra-core data provider (a demo organization from
 // the mock, never from qwbe), the metadata with the mock fields merged under
@@ -31,6 +32,7 @@ import { ORGANIZATIONS_CUBE } from "@/lib/organization-display"
 import { ORGANIZATION_BLOCKS, ORGANIZATION_HIDDEN } from "@/lib/organization-layout"
 import { relationRefsOf } from "@/lib/relation-batch"
 import { ActionsSidebar } from "./actions-sidebar"
+import { OrganizationForm } from "./organization-form"
 import { OrganizationHeader } from "./organization-header"
 import { OrganizationInfo } from "./organization-info"
 import { ORGANIZATION_TABS, OrganizationTabs } from "./organization-tabs"
@@ -86,24 +88,36 @@ export function OrganizationDetail({ id, demo }: { id: string; demo: boolean }) 
         onTabChange={setTab}
         locked={edit.editing !== null}
         info={
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
-            <OrganizationInfo
-              blocks={blocks}
+          meta && edit.editing === "all" ? (
+            <OrganizationForm
+              fields={meta.fields}
+              defaultValues={edit.initial}
               record={flatRow}
-              edit={edit}
-              editable={editable}
-              resolveTitle={resolveTitle}
+              onSubmit={edit.onSubmit}
+              onCancel={edit.cancel}
+              pending={edit.isPending}
+              refusal={edit.refusal}
             />
-            <aside className="flex min-w-0 flex-col gap-4" aria-label="Actions and activity">
-              <ActionsSidebar row={row} />
-              {/* qwbe has no history for a demo id: a read-only preview instead. */}
-              {demo ? (
-                <ActivityPreview reason="Activity is available on real organizations." />
-              ) : (
-                <ActivityFeed cube={ORGANIZATIONS_CUBE} entityId={id} />
-              )}
-            </aside>
-          </div>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
+              <OrganizationInfo
+                blocks={blocks}
+                record={flatRow}
+                edit={edit}
+                editable={editable}
+                resolveTitle={resolveTitle}
+              />
+              <aside className="flex min-w-0 flex-col gap-4" aria-label="Actions and activity">
+                <ActionsSidebar row={row} />
+                {/* qwbe has no history for a demo id: a read-only preview instead. */}
+                {demo ? (
+                  <ActivityPreview reason="Activity is available on real organizations." />
+                ) : (
+                  <ActivityFeed cube={ORGANIZATIONS_CUBE} entityId={id} />
+                )}
+              </aside>
+            </div>
+          )
         }
         more={
           <div className="flex flex-col gap-4">

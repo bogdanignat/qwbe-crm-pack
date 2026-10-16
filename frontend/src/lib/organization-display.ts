@@ -1,8 +1,10 @@
 // How the organization fields are shown, where the published metadata says
-// nothing yet: UI decisions on real fields, independent of the mockup layer
-// (src/mock). What the backend publishes itself always wins.
+// nothing yet: UI decisions on real fields. What the backend publishes itself
+// always wins. The one tie to the mockup layer is vtiger's picklist values for
+// three real fields (ORGANIZATION_ENUMS), until the backend publishes them.
 
 import type { CubeMetadata, FieldFormat } from "./cube.ts"
+import picklists from "../mock/organizations/picklists.json" with { type: "json" }
 
 export const ORGANIZATIONS_CUBE = "crm/organizations"
 
@@ -32,16 +34,27 @@ const ORGANIZATION_FORMATS: Record<string, FieldFormat> = {
   iban: "iban",
 }
 
+// vtiger's picklists for the real fields published as plain strings: Type
+// (P3), Industry (P4) and Company status (P5). With an `enum` they edit as a
+// select everywhere (renderKindOf). Ownership stays free text, as in vtiger.
+const ORGANIZATION_ENUMS: Record<string, string[]> = {
+  organizationType: picklists.P3.values,
+  industry: picklists.P4.values,
+  rating: picklists.P5.values,
+}
+
 export function withOrganizationDisplay(meta: CubeMetadata): CubeMetadata {
   if (meta.cube !== ORGANIZATIONS_CUBE) return meta
   return {
     ...meta,
     fields: meta.fields.map((f) => {
       const format = f.format ?? ORGANIZATION_FORMATS[f.name]
+      const values = f.enum && f.enum.length > 0 ? f.enum : (ORGANIZATION_ENUMS[f.name] ?? f.enum)
       return {
         ...f,
         label: ORGANIZATION_LABELS[f.name] ?? f.label,
         ...(format ? { format } : {}),
+        enum: values,
       }
     }),
   }

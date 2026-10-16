@@ -26,6 +26,9 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { useCurrentUser, type CurrentUserState } from "@/hooks/use-current-user"
 import { APP_PAGES } from "@/lib/app-pages"
 
+const SIDEBAR_COLUMN =
+  "[&>[data-slot=sidebar][data-state=expanded]]:bg-sidebar [&>[data-slot=sidebar][data-state=expanded]]:shadow-[inset_-1px_0_0_var(--color-sidebar-border)]"
+
 // Routes reachable without a session: a menu there would only lead back to /login.
 const SIGNED_OUT = ["/login"]
 
@@ -40,7 +43,10 @@ function SignedInShell({ children }: { children: React.ReactNode }) {
   return (
     // One TooltipProvider for every tooltip of the signed-in pages.
     <TooltipProvider>
-      <SidebarProvider>
+      {/* The menu itself is fixed at the viewport's height (h-svh). Its column
+          in the page flow takes the menu's colour and edge too, so the menu's
+          strip runs the page's full height, a full-page capture included. */}
+      <SidebarProvider className={SIDEBAR_COLUMN}>
         <AppSidebar admin={me.user?.admin ?? false} />
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background px-3">

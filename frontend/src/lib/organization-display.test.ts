@@ -56,6 +56,18 @@ describe("withOrganizationDisplay", () => {
     assert.deepEqual(formats, [undefined, undefined, "phone", "email"])
   })
 
+  it("offers vtiger's picklists for Type, Industry and Company status, unless the backend publishes an enum", () => {
+    const published = meta("crm/organizations")
+    published.fields = [field("industry", "Industry"), field("organizationType", "Type"), field("ownership", "Ownership")]
+    published.fields[1] = { ...published.fields[1], enum: ["Published"] }
+    const [industry, type, ownership] = withOrganizationDisplay(published).fields
+    assert.ok((industry.enum ?? []).length > 10)
+    assert.deepEqual(type.enum, ["Published"])
+    assert.equal(ownership.enum, null)
+    const [rating] = withOrganizationDisplay({ ...meta("crm/organizations"), fields: [field("rating", "Rating")] }).fields
+    assert.deepEqual(rating.enum?.slice(0, 2), ["Activ", "Inactiv"])
+  })
+
   it("leaves every other cube untouched", () => {
     const contacts = meta("crm/contacts")
     assert.equal(withOrganizationDisplay(contacts), contacts)

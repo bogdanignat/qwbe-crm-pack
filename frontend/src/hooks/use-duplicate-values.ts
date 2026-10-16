@@ -4,7 +4,8 @@
 // backend publishes, read from one existing organization. Never the id, the
 // bookkeeping columns or a mock field, nor the import identity and the record
 // number, which belong to one record alone. A demo organization is not in the
-// backend, so it is refused before any request.
+// backend, so it is refused before any request. No id (a plain create): no
+// values to wait for.
 
 import { useEffect, useState } from "react"
 
@@ -28,12 +29,14 @@ async function duplicateValuesFor(id: string): Promise<Record<string, string>> {
   return duplicateValuesOf(meta.fields, (await response.json()) as Row, NOT_COPIED)
 }
 
-export function useDuplicateValues(id: string): DuplicateValues {
-  const demo = demoOrganizationOf(ORGANIZATIONS_CUBE, id) !== undefined
+const NONE: DuplicateValues = { values: {}, error: null }
+
+export function useDuplicateValues(id: string | null): DuplicateValues {
+  const demo = id !== null && demoOrganizationOf(ORGANIZATIONS_CUBE, id) !== undefined
   const [state, setState] = useState<DuplicateValues>({ values: null, error: null })
 
   useEffect(() => {
-    if (demo) return
+    if (id === null || demo) return
     let alive = true
     duplicateValuesFor(id).then(
       (values) => alive && setState({ values, error: null }),
@@ -44,5 +47,6 @@ export function useDuplicateValues(id: string): DuplicateValues {
     }
   }, [id, demo])
 
+  if (id === null) return NONE
   return demo ? { values: null, error: DEMO_REFUSAL } : state
 }

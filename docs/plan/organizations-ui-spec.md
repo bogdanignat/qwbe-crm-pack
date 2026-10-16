@@ -577,12 +577,59 @@ The short form vtiger opens from the header. Its fields are the minimum an organ
 
 Observation from the code: Save in Quick Create calls `AjaxDuplicateValidate('Accounts','accountname',…)`, which sends the name, not the CUI. Save.php validates `cf_666` from the request (missing), so it answers "CUI invalid" and the record is not saved. Not verified in the browser.
 
-### 4.5 [modern proposal]
+### 4.5 [built, T-1815] The organization form
 
-Ideas for the rebuilt form. They aim at fewer bad records: live checks and less typing.
-- Form in sections (Company data, Contact, Addresses, Financial, Description), live validation: CUI (check digit + uniqueness, with a link to the existing organization), IBAN (RO format + checksum), email, lengths.
-- CUI field with a "Fill from ANAF" action (name, address, Trade Register no., VAT). Only as an idea; needs a backend.
-- A "Copy billing address" button on shipping; the county on shipping from the same list.
+What the rebuilt form does today. One form serves create, Duplicate and the detail's Edit all, so the three never drift apart; the rules below apply to every field the backend publishes as editable.
+
+- **Layout:** vtiger's 3 blocks in the detail's order and rows (Organization Information,
+  Address Information, Description Information), without Created/Modified Time; the
+  future custom fields stay in their vtiger block. Two label/value columns that fold to one
+  when the form is narrower than 42rem (a phone). The blocks are not collapsible. **Save / Cancel** sit
+  above and below the blocks.
+- **Where:** `/organizations/new` ("New organization"); `/organizations/new?duplicate=<id>`
+  ("Duplicate organization", started from the source's editable values, without
+  `externalId` and Organization No); the detail's **Edit** (`?edit=all`), which replaces the
+  first tab with the form, full width, as vtiger's edit view drops the sidebar. The pencil on
+  a single field still edits it in place.
+- **Controls:** Industry (P4), Type (P3) and Company status (P5) are selects with vtiger's
+  values, attached in the UI until the backend publishes them as `enum`; the same select
+  serves create, Edit all, the detail's pencil and the list cell. A stored value the list
+  lacks (an older Industry, for instance) stays first in the list, shown as-is, so it is
+  never blanked out. Ownership stays free text, as in vtiger. Every boolean, editable or
+  not, is a checkbox, as in vtiger. On create, Organization No carries the hint "Generated on
+  save once the backend numbers records".
+- **Mock fields** (MOCK / CUSTOM marker) show as disabled inputs or checkboxes, with their
+  marker and, on Edit, the value they hold. They are not part of the form and never travel
+  in a POST or PATCH. **Assigned To** is one of them: it shows disabled until the backend
+  publishes it, then it takes the existing user picker (a relation input).
+- **Required:** the 7 fields of §4.2 carry a red asterisk and `aria-required`. Only the real
+  editable ones are enforced: Organization Name and Industry today (Industry is required by
+  vtiger although the metadata says optional). TVA is a checkbox, so it is marked but never
+  refused, as in vtiger. A field the metadata marks required is always required too.
+- **Checks** (pure functions in `lib/`, wired by field name, so each applies on its own once
+  its field becomes real):
+  - **CUI:** digits only, 2 to 10 of them, check digit with the key 753217532. The **RO
+    prefix is refused** with a hint ("Enter the CUI without the RO prefix: digits only"),
+    not stripped, as vtiger refuses it; the user sees what is stored.
+  - **IBAN:** a Romanian IBAN (RO, 2 check digits, 4-letter bank code, 16 letters or digits),
+    spaces and case ignored, with the mod-97 checksum.
+  - **Email:** the fields with the email format (Email, Other Email), `name@domain.tld`.
+  - **Whole numbers:** every integer field (Employees today).
+  - **Lengths:** the metadata's `maxLength` when published, else the declared lengths of
+    §4.3 (CUI 20, Reg no 20, IBAN 50, Industry Spec 50, Other Industry Spec 255, Comp
+    Mobile Phone 15, Other Fax 15).
+  Errors show inline under the field on blur and on Save; a refused Save moves the focus to
+  the first invalid field and sends nothing. The backend's own refusal shows above the form.
+- **Address copy:** "Copy billing to shipping" and "Copy shipping to billing" in the Address
+  block header (vtiger's two radios). Each is disabled ("Needs backend") while any of its
+  target fields is not editable, which is the case today (shipping, PO Box and State are mock).
+- **Unsaved changes:** with a changed form, leaving through a link, Cancel or a page reload
+  or close asks "Leave this page? Your changes are not saved." Once the save went through
+  the prompt is off, so opening the new record never asks. The browser's Back button is not
+  guarded (Next's App Router has no route-change hook).
+- **Not built:** the CUI uniqueness check with a link to the existing organization and
+  "Fill from ANAF" (name, address, Trade Register no., VAT) need a backend; the county
+  picklist on shipping waits for the shipping fields.
 
 ---
 
