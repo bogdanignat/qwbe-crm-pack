@@ -1,6 +1,8 @@
 // The organizations list. Nothing entity-specific here but the cube name:
-// columns, sorting, search and paging all come from the cube metadata.
+// columns, sorting, search and paging all come from the cube metadata. The
+// demo organizations of the mockup layer ride read-only on the first page.
 import { CubeList } from "@/components/cube-list"
+import { DEMO_ORGANIZATIONS } from "@/mock/organizations"
 
 export default function OrganizationsPage() {
   return (
@@ -11,6 +13,7 @@ export default function OrganizationsPage() {
         createHref="/organizations/new"
         addLabel="Add organization"
         emptyMessage="No organizations yet."
+        demoRows={DEMO_ORGANIZATIONS}
       />
     </main>
   )

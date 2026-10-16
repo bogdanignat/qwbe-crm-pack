@@ -20,6 +20,7 @@ import { KitContext } from "@/components/kit/kit-context"
 import { SchemaApiPanel } from "@/components/schema-api-panel"
 import { SharingPanel } from "@/components/sharing-panel"
 import { type FieldGroupSpec, routeOf } from "@/lib/cube"
+import { demoOrganizationOf } from "@/mock/organizations"
 
 const ORGANIZATION_GROUPS: FieldGroupSpec[] = [
   {
@@ -45,6 +46,15 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
 
 async function Detail({ id }: { id: Promise<{ id: string }> }) {
   const { id: resolved } = await id
+  // A demo organization (mockup layer) is read from the mock and shown alone:
+  // sharing, activity and contacts would ask qwbe about an id it does not have.
+  if (demoOrganizationOf("crm/organizations", resolved)) {
+    return (
+      <KitContext>
+        <CubeKitShow cube="crm/organizations" id={resolved} groups={ORGANIZATION_GROUPS} demo />
+      </KitContext>
+    )
+  }
   return (
     <div className="flex flex-col gap-6">
       <KitContext>

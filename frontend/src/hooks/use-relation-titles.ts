@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useReducer, useRef } from "react"
 
 import { apiFetch, relationMeta } from "@/lib/cube"
-import { batchListApiPath, titlesOfPage, type RelationRef } from "@/lib/relation-batch"
+import { batchListApiPath, demoTitleOf, titlesOfPage, type RelationRef } from "@/lib/relation-batch"
 import type { PageOf, Row } from "@/lib/cube"
 
 export function useRelationTitles(
@@ -85,7 +85,7 @@ export function useRelationTitles(
   }, [refs])
 
   const resolve = useCallback(
-    (target: string, id: string) => cache.current.get(target)?.get(id) ?? null,
+    (target: string, id: string) => cache.current.get(target)?.get(id) ?? demoTitleOf(target, id),
     [],
   )
   return resolve

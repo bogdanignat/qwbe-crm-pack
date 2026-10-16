@@ -66,6 +66,8 @@ export function updatePayloadOf(
   const payload: Record<string, unknown> = {}
   const missing: string[] = []
   for (const field of fields) {
+    // A mock field has no backend column: it never travels in a PATCH.
+    if (field.mock) continue
     if (field.type === "boolean") {
       payload[field.name] = values[field.name] === true
       continue

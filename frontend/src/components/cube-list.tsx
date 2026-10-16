@@ -30,6 +30,7 @@ import {
   hrefForRelation,
   rowHref,
   listApiPath,
+  listWindowOf,
   listControlsOf,
   metadataApiPath,
   pageFromInput,
@@ -38,7 +39,11 @@ import {
   sortRequestFor,
   withSavedValue,
   requestFailure,
+  valueTextOf,
 } from "@/lib/cube"
+import { withMockFields } from "@/mock/organizations"
+import { withOrganizationLabels } from "@/lib/organization-labels"
+import { MockTag } from "@/components/mock-tag"
 import { relationRefsOf } from "@/lib/relation-batch"
 import { readPrefs } from "@/lib/field-prefs"
 import { PAGE_SIZES, type AppliedView, type SavedViewRow } from "@/lib/views"
@@ -81,6 +86,9 @@ export function CubeList({
   // empty table. The caller names the entity; the default keeps a generic list
   // honest without pretending to know what the rows are.
   emptyMessage = "No rows yet.",
+  // Read-only demo records (mockup data) shown on top of the first unfiltered
+  // page; they never count in the range or the total.
+  demoRows = [],
 }: {
   cube: string
   // Server-side equality filters pinned by the caller (for example the derived
@@ -89,6 +97,7 @@ export function CubeList({
   createHref?: string
   addLabel?: string
   emptyMessage?: string
+  demoRows?: readonly Row[]
 }) {
   const [meta, setMeta] = useState<CubeMetadata | null>(null)
   const [metaError, setMetaError] = useState<string | null>(null)
@@ -136,7 +145,7 @@ export function CubeList({
     apiFetch(metadataApiPath(cube))
       .then(async (r) => {
         if (!r.ok) throw await requestFailure("metadata", r)
-        return (await r.json()) as CubeMetadata
+        return withOrganizationLabels(withMockFields((await r.json()) as CubeMetadata))
       })
       .then((m) => {
         if (alive) setMeta(m)
@@ -250,6 +259,10 @@ export function CubeList({
   const showViews = Object.keys(fixedFilters ?? {}).length === 0
   const total = page?.total
   const rowCount = page?.rows.length ?? 0
+  const filtered = prefix.trim() !== "" || Object.keys(effectiveFilters).length > 0
+  const view = page ? listWindowOf(page, demoRows, filtered) : null
+  // Nothing to show at all: no server row and no demo row.
+  const empty = page !== null && page.rows.length === 0 && view?.demo.length === 0
   const { currentPage, lastPage } = pageWindow(offset, pageSize, total)
 
   // A stale cell error must not survive a change of page, sort or filter: the
@@ -406,14 +419,14 @@ export function CubeList({
       </div>
       )}
       {listError && <p role="alert">{listError}</p>}
-      {page && page.rows.length === 0 ? (
+      {empty ? (
         // The empty state replaces the silent empty table. A
         // wiped or never-populated cube gets the message and the create
         // action; a filtered search that finds nothing is a different
         // message, with the filters -- not the create button -- as the way
         // out. The prefix search narrows too; trimmed, because qwbe trims
         // `q` and treats whitespace as no search.
-        prefix.trim() !== "" || Object.keys(effectiveFilters).length > 0 ? (
+        filtered ? (
           <p className="text-sm text-muted-foreground">No rows match the current filters.</p>
         ) : (
           <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed p-8 text-center">
@@ -441,9 +454,13 @@ export function CubeList({
                   >
                     {column.field.label}
                     {sortBy === column.field.name ? (descending ? " ↓" : " ↑") : ""}
+                    {column.field.mock && <MockTag />}
                   </Button>
                 ) : (
-                  <span className="text-sm font-medium">{column.field.label}</span>
+                  <span className="text-sm font-medium">
+                    {column.field.label}
+                    {column.field.mock && <MockTag />}
+                  </span>
                 )}
               </TableHead>
             ))}
@@ -460,6 +477,28 @@ export function CubeList({
                 ))}
               </TableRow>
             ))}
+          {view?.demo.map((row) => (
+            <TableRow key={`demo:${String(row.id)}`} className="bg-muted/40" data-demo-row={String(row.id)}>
+              {columns.map((column, i) => (
+                <TableCell key={column.field.name} className="align-top">
+                  <div className="flex items-start gap-1">
+                    <Cell
+                      row={row}
+                      column={column}
+                      isTitle={column.field.name === titleFieldName}
+                      rowLink={rowHref(cube, String(row.id))}
+                      edit={null}
+                      setEdit={setEdit}
+                      interactive={false}
+                      resolveTitle={resolveTitle}
+                      onSave={() => undefined}
+                    />
+                    {i === 0 && <MockTag>demo</MockTag>}
+                  </div>
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
           {page?.rows.map((row) => (
             <TableRow key={String(row.id)}>
               {columns.map((column) => (
@@ -483,14 +522,10 @@ export function CubeList({
         </TableBody>
       </Table>
       )}
-      {(!page || page.rows.length > 0) && (
+      {!empty && (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-sm text-muted-foreground" aria-live="polite">
-          {page
-            ? total !== undefined
-              ? `${page.offset + 1}-${page.offset + rowCount} of ${total}`
-              : `${page.offset + 1}-${page.offset + rowCount}`
-            : "loading"}
+          {view?.label ?? "loading"}
         </span>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -700,11 +735,11 @@ function Cell({
   } else if (field.type === "boolean" && !boolAbsent) {
     content = value ? "yes" : "no"
   } else {
-    content = value === null || value === undefined ? "—" : String(value)
+    content = value === null || value === undefined ? "—" : valueTextOf(value)
   }
   // One long custom text value must not destroy the table layout: clamp the
   // cell, keep the full value in the title tooltip.
-  const textValue = value === null || value === undefined ? null : String(value)
+  const textValue = value === null || value === undefined ? null : valueTextOf(value)
   const cellText = (node: React.ReactNode) => (
     <span className="block max-w-56 truncate sm:max-w-72" title={textValue ?? undefined}>
       {node}

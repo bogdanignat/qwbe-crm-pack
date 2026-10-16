@@ -42,6 +42,8 @@ import {
   type Row,
   requestFailure,
 } from "@/lib/cube"
+import { withMockFields } from "@/mock/organizations"
+import { withOrganizationLabels } from "@/lib/organization-labels"
 import { readPrefs } from "@/lib/field-prefs"
 import { RelationTypeahead } from "@/components/relation-typeahead"
 import { Button } from "@/components/ui/button"
@@ -86,7 +88,7 @@ export function CubeCreateForm({
     apiFetch(metadataApiPath(cube))
       .then(async (r) => {
         if (!r.ok) throw await requestFailure("metadata", r)
-        return (await r.json()) as CubeMetadata
+        return withOrganizationLabels(withMockFields((await r.json()) as CubeMetadata))
       })
       .then((m) => {
         if (alive) setMeta(m)

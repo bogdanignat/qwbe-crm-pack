@@ -16,6 +16,7 @@ import {
   type FieldMetadata,
   type Row,
 } from "./cube.ts"
+import { demoOrganizationOf } from "../mock/organizations/index.ts"
 
 // One relation value the page must resolve: the target cube and the opaque id.
 export type RelationRef = { target: string; id: string }
@@ -41,7 +42,8 @@ export function relationRefsOf(
       const value = customValueOf(row, field)
       if (value === null || value === undefined) continue
       const id = String(value)
-      if (id === "") continue
+      // A demo organization is resolved locally (demoTitleOf), never asked of qwbe.
+      if (id === "" || demoOrganizationOf(target, id)) continue
       const key = `${target}|${id}`
       if (seen.has(key)) continue
       seen.add(key)
@@ -49,6 +51,12 @@ export function relationRefsOf(
     }
   }
   return refs
+}
+
+// The title of a demo organization a relation points at, or null.
+export function demoTitleOf(target: string, id: string): string | null {
+  const row = demoOrganizationOf(target, id)
+  return row ? String(row.name) : null
 }
 
 /**

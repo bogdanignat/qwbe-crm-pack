@@ -23,6 +23,9 @@ export type FieldMetadata = {
   // True when the field is a runtime-defined custom field. Its value
   // lives in the row's reserved `custom` sub-object, not at the row's top level.
   custom: boolean
+  // True for a field the backend does not publish yet, merged in from the
+  // mockup layer (src/mock). Shown marked, never edited, never sent.
+  mock?: boolean
 }
 
 // The list query contract a cube publishes (qwbe core/src/metadata/schemas.ts
@@ -262,9 +265,33 @@ export function columnsFromFields(fields: FieldMetadata[]): ColumnSpec[] {
 }
 
 // A cell is editable exactly when the metadata says so. A field that is not
-// editable refuses editing, whatever the caller asks.
+// editable refuses editing, whatever the caller asks; a mock field has no
+// backend column to save into.
 export function canEdit(field: FieldMetadata): boolean {
-  return field.editable
+  return field.editable && !field.mock
+}
+
+// The text of one value: a reference object ({id, name}, e.g. an owner) shows
+// its name, anything else its string form.
+export function valueTextOf(value: unknown): string {
+  const name = value && typeof value === "object" ? (value as Row).name : undefined
+  return typeof name === "string" ? name : String(value)
+}
+
+// What the list shows around one server page. Demo rows (mockup data, never
+// from the server) ride on top of the first unfiltered page only, and never
+// count: the range and the total stay the server's ("0 of 0" when the server
+// has no rows and only demo rows show).
+export function listWindowOf(
+  page: PageOf<Row>,
+  demoRows: readonly Row[],
+  filtered: boolean,
+): { demo: readonly Row[]; label: string } {
+  const range = page.rows.length === 0 ? "0" : `${page.offset + 1}-${page.offset + page.rows.length}`
+  return {
+    demo: page.offset === 0 && !filtered ? demoRows : [],
+    label: page.total === undefined ? range : `${range} of ${page.total}`,
+  }
 }
 
 // The sort a column click produces: undefined for a column the metadata does
@@ -456,6 +483,7 @@ export function createPayloadOf(
   const payload: Record<string, unknown> = {}
   const missing: string[] = []
   for (const field of fields) {
+    if (field.mock) continue
     const value = (values[field.name] ?? "").trim()
     if (value === "" && field.type !== "boolean") {
       if (field.required) missing.push(field.label)
@@ -541,6 +569,7 @@ export async function saveCell(opts: {
   doFetch: typeof fetch
 }): Promise<SaveResult> {
   const { rowPath, row, field, next, doFetch } = opts
+  if (field.mock) return { status: "refused", message: "mock field: not saved" }
   const current = customValueOf(row, field)
   if (next === String(current ?? "")) return { status: "unchanged" }
   // One path for static AND custom fields: a custom field is saved through the

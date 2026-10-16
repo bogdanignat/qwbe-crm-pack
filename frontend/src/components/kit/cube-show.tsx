@@ -50,7 +50,11 @@ import {
   type FieldSection,
   type Row,
   requestFailure,
+  valueTextOf,
 } from "@/lib/cube.ts"
+import { withMockFields } from "@/mock/organizations"
+import { withOrganizationLabels } from "@/lib/organization-labels"
+import { MockTag } from "@/components/mock-tag"
 import {
   changedPayloadOf,
   copyText,
@@ -70,9 +74,12 @@ export function CubeKitShow({
   cube,
   id,
   groups,
+  demo = false,
 }: {
   cube: string
   id: string
+  // A demo record (mockup data): marked, and read-only -- no Edit, no pencils.
+  demo?: boolean
   // Fieldsets by field NAME (lib/cube.ts groupFields); leftovers and custom
   // fields get their own sections, so nothing published is hidden.
   groups: readonly FieldGroupSpec[]
@@ -89,7 +96,7 @@ export function CubeKitShow({
     apiFetch(metadataApiPath(cube))
       .then(async (r) => {
         if (!r.ok) throw await requestFailure("metadata", r)
-        return (await r.json()) as CubeMetadata
+        return withOrganizationLabels(withMockFields((await r.json()) as CubeMetadata))
       })
       .then((m) => {
         if (alive) setMeta(m)
@@ -121,8 +128,8 @@ export function CubeKitShow({
     [meta, row],
   )
   const editableFields = useMemo(
-    () => sections.flatMap((s) => s.fields).filter(canEdit),
-    [sections],
+    () => (demo ? [] : sections.flatMap((s) => s.fields).filter(canEdit)),
+    [sections, demo],
   )
 
   // In-place editing: the form mounts when Edit (all fields) or a pencil (one
@@ -191,7 +198,12 @@ export function CubeKitShow({
     <RecordField
       key={field.name}
       source={field.name}
-      label={field.label}
+      label={
+        <>
+          {field.label}
+          {field.mock && <MockTag />}
+        </>
+      }
       className="min-w-0 gap-1 break-words text-sm"
       render={(record: Row) => {
         const text = textOf(field, record, resolveTitle)
@@ -201,7 +213,7 @@ export function CubeKitShow({
             {text !== null && <CopyButton label={field.label} text={text} />}
             {/* The pencil exists only while no draft is open: an open draft
                 must be saved or cancelled before another field or Edit all. */}
-            {editing === null && canEdit(field) && (
+            {editing === null && !demo && canEdit(field) && (
               <Button
                 type="button"
                 variant="ghost"
@@ -257,7 +269,10 @@ export function CubeKitShow({
       <Card>
         <CardHeader className="border-b">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Record details</p>
-          <CardTitle className="text-2xl">{titleOf(meta, row as Row)}</CardTitle>
+          <CardTitle className="text-2xl">
+            {titleOf(meta, row as Row)}
+            {demo && <MockTag>demo</MockTag>}
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {editing === "all" ? (
@@ -407,7 +422,7 @@ function textOf(field: FieldMetadata, record: Row, resolveTitle: ResolveTitle): 
     return resolveTitle(field.relation.target, id) ?? id
   }
   if (field.type === "boolean") return value ? "yes" : "no"
-  return String(value)
+  return valueTextOf(value)
 }
 
 // The rendered value: the text, linked to the target's page for a relation

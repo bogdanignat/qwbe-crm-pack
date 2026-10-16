@@ -40,6 +40,7 @@ import {
   type PageOf,
   type Row,
 } from "./cube.ts"
+import { demoOrganizationOf } from "../mock/organizations/index.ts"
 
 // ra-core's default sort is the record id; qwbe sorts only on the fields its
 // metadata marks sortable, and a request without sortBy is accepted (the same
@@ -125,11 +126,12 @@ export function qwbeDataProvider(doFetch: typeof fetch): DataProvider {
       return { data: response.rows as RecordType[], total: response.total }
     },
 
+    // A demo organization (mockup layer) opens from the mock, never from qwbe.
     getOne: async <RecordType extends RaRecord = RaRecord>(
       cube: string,
       { id }: GetOneParams<RecordType>,
     ): Promise<GetOneResult<RecordType>> => ({
-      data: (await readJson(rowApiPath(cube, id))) as RecordType,
+      data: (demoOrganizationOf(cube, String(id)) ?? (await readJson(rowApiPath(cube, id)))) as RecordType,
     }),
 
     // The batch read the kit's reference fields resolve titles with: qwbe's
@@ -164,6 +166,7 @@ export function qwbeDataProvider(doFetch: typeof fetch): DataProvider {
       cube: string,
       { id, data, previousData }: UpdateParams<RecordType>,
     ): Promise<UpdateResult<RecordType>> => {
+      if (demoOrganizationOf(cube, String(id))) throw new HttpError("Demo records are read-only", 403)
       if (Object.keys(data ?? {}).length === 0) return { data: previousData as RecordType }
       const response = await doFetch(rowApiPath(cube, id), {
         method: "PATCH",
