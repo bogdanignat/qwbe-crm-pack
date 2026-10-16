@@ -18,19 +18,33 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCubeMetadata } from "@/hooks/use-cube-metadata"
 import { rowHref, type Row } from "@/lib/cube"
-import { CONTACTS_CUBE, CONTACTS_PAGE_SIZE, contactColumnsOf, contactsRangeOf } from "@/lib/related-contacts"
+import { editAllHref } from "@/lib/edit-link"
+import {
+  CONTACTS_CUBE,
+  CONTACTS_PAGE_SIZE,
+  contactColumnsOf,
+  contactsRangeOf,
+  contactsSortOf,
+  sortedRowsOf,
+} from "@/lib/related-contacts"
 import { demoContactsOf } from "@/mock/organizations"
 import { ContactsTable } from "./contacts-table"
 
 export function RelatedContacts({ organizationId, demo }: { organizationId: string; demo: boolean }) {
   const [page, setPage] = useState(1)
   const { meta, error: metaError } = useCubeMetadata(CONTACTS_CUBE)
+  const sortBy = meta ? contactsSortOf(meta) : undefined
   const { data, total, isPending, error } = useGetList<Row & { id: string }>(
     CONTACTS_CUBE,
-    { pagination: { page, perPage: CONTACTS_PAGE_SIZE }, filter: { organizationId } },
-    { enabled: !demo },
+    {
+      pagination: { page, perPage: CONTACTS_PAGE_SIZE },
+      sort: sortBy ? { field: sortBy, order: "ASC" } : undefined,
+      filter: { organizationId },
+    },
+    // The order comes from the metadata: ask once it is known.
+    { enabled: !demo && meta !== undefined },
   )
-  const demoRows = demo ? demoContactsOf(organizationId) : []
+  const demoRows = demo ? sortedRowsOf(demoContactsOf(organizationId), sortBy) : []
   const rows = demo ? demoRows.slice((page - 1) * CONTACTS_PAGE_SIZE, page * CONTACTS_PAGE_SIZE) : (data ?? [])
   const count = demo ? demoRows.length : total
   const lastPage = count === undefined ? undefined : Math.max(1, Math.ceil(count / CONTACTS_PAGE_SIZE))
@@ -78,6 +92,10 @@ export function RelatedContacts({ organizationId, demo }: { organizationId: stri
             columns={contactColumnsOf(meta)}
             rows={rows}
             hrefOf={(row) => (demo ? null : rowHref(CONTACTS_CUBE, String(row.id)))}
+            editHrefOf={(row) => {
+              const href = demo ? null : rowHref(CONTACTS_CUBE, encodeURIComponent(String(row.id)))
+              return href && editAllHref(href)
+            }}
           />
           <div className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm text-muted-foreground">
             <span>Showing {contactsRangeOf(page, rows.length, count)}</span>

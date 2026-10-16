@@ -54,6 +54,7 @@ import { FieldValue } from "./field-value"
 import { FocusOnMount } from "./focus-on-mount"
 import { relationRefsOf } from "@/lib/relation-batch.ts"
 import { useCubeMetadata } from "@/hooks/use-cube-metadata"
+import { useEditOnOpen } from "@/hooks/use-edit-on-open"
 import { useInPlaceEdit } from "@/hooks/use-in-place-edit"
 import { useRelationTitles } from "@/hooks/use-relation-titles"
 import { Form, RecordContextProvider, useGetOne } from "ra-core"
@@ -110,6 +111,8 @@ export function CubeKitShow({
     flatRow,
     editableFields,
   })
+  // "edit" from a related list opens the record in edit mode (?edit=all).
+  useEditOnOpen(flatRow !== null, editableFields.length > 0, () => open("all"))
 
   if (error) return <p role="alert">{error}</p>
   if (!meta || !row || !flatRow) return <Skeleton className="h-64 w-full" />

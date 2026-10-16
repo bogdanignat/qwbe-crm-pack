@@ -1,5 +1,7 @@
 # Organizations: what the backend needs for the mock to disappear
 
+The backend work the Organizations UI waits for, step by step. Until it is done the UI shows made-up fields and records, marked and read-only; once it is done that mock layer can be deleted.
+
 Epic T-1809. This document says WHAT is needed, not HOW. Each UI step completes it.
 Full specification: `organizations-ui-spec.md` (§5 fields, §8 the base list).
 
@@ -9,6 +11,8 @@ A mock field disappears on its own as soon as `GET /catalog/crm%2Forganizations/
 publishes a field with the same name; the frontend does not change.
 
 ## 1. Fields missing from the cube (step 1, T-1811)
+
+The 33 vtiger fields the organizations cube does not have yet. Without them the detail page and the list show mock values instead of real data.
 
 All 33, with the names below, readable and writable (except the read-only ones).
 Type, required flag, length and picklist are the vtiger ones (§5.2); the exact source
@@ -26,10 +30,13 @@ become runtime custom fields of `crm/organizations`, under the same names.
 - **custom (9):** otherIndustry, otherIndustrySpec, productCategory, otherFax, billingPoBox,
   shippingPoBox, tickerSymbol, notifyOwner, parentOrganizationId.
 
-The UI already treats the 9 as custom fields (`custom: true`, value in `row.custom`): they
-show in the detail's "Custom fields" section and are hidden in the list by default. Once
-they are real custom fields, the list shows them like any custom field (QWB-52); hiding
-them by default is then a Settings preference per browser, or a decision to take.
+The UI already treats the 9 as custom fields (`custom: true`, value in `row.custom`, a
+CUSTOM marker after the label). On the detail page they stay in their vtiger blocks, where
+`src/lib/organization-layout.ts` names them (Other Industry in Organization Information,
+the PO Boxes in Address Information, and so on), and a test keeps them there; only a
+runtime custom field the layout does not name goes to the "Custom fields" block. In the
+list they are hidden by default and can be picked in Columns. Once they are real custom
+fields nothing moves: the layout names them, and the list keeps them out of its defaults.
 
 | Name | Label (en_us) | Target | Type | Req. | Length | Picklist | Notes |
 |---|---|---|---|---|---|---|---|
@@ -69,6 +76,8 @@ them by default is then a Settings preference per browser, or a decision to take
 
 ### Import and data notes
 
+Points to settle when vtiger's data is imported into the new fields. They keep the import from losing or inventing data.
+
 - [ ] `tickerSymbol` and `notifyOwner` hold no data (0%): the import can skip them.
 - [ ] `parentOrganizationId` is a relation (Member Of): check whether custom fields support a
       relation to `crm/organizations`; if not, it needs another home.
@@ -84,6 +93,8 @@ them by default is then a Settings preference per browser, or a decision to take
 - [ ] `otherEmail` (6,1%) and the `shipping*` fields (7,9%) are sparsely filled.
 
 ## 2. Metadata
+
+What the cube's metadata must publish so the UI can build itself from it. Today the frontend fills these gaps by hand, and each hand-made piece can drift from the backend.
 
 - [ ] Picklists as `enum` in the metadata, with the vtiger values and order: P1, P2,
       P6–P9 on the new fields; P3 on `organizationType`, P4 on `industry`, P5 on `rating`
@@ -106,15 +117,37 @@ them by default is then a Settings preference per browser, or a decision to take
 - [ ] `parentOrganizationId` published as a relation to `crm/organizations`.
 - [ ] `modifiedAt`, `modifiedBy`, `createdAt` read-only (`editable: false`).
 
-## 3. List
+## 3. List (step 4, T-1813)
 
-- [ ] Sorting on any displayed column (today only name, industry, createdAt); default
-      Modified Time descending, as in vtiger.
-- [ ] Text search on name, CUI, email, phone (partial).
-- [ ] Exact filters at least on billingState, legalForm, rating, assignedTo.
-- [ ] Total in the list response (exists today) and a configurable page size.
+What the Organizations list needs from the backend to work like vtiger's. Until then the controls stay hidden or disabled, so the list never promises what it cannot do.
+
+The list follows vtiger 5.4 (spec §2.6). What it cannot do yet:
+
+- [ ] **Sorting on every displayed column.** The contract sorts on `name`, `industry` and
+      `createdAt` only, so Organization No, CUI, Billing City/State, Website, Phone and
+      Assigned To have no sort button. Default sort Modified Time descending, as in vtiger
+      (needs `modifiedAt`, §8).
+- [ ] **Quick search on name, CUI, email and phone, partial.** `q` scans `name`, `industry` and
+      `externalId` as a prefix of the whole value; the search box says "Name or industry starts
+      with…". CUI is not published yet (§1); email and phone are not search fields.
+- [ ] **A-Z letter bar** (Organization Name *starts with* a letter): needs a prefix filter on the
+      name alone; `q` would also match the industry. Not built.
+- [ ] **Exact filters** at least on billingState, legalForm, rating, assignedTo, and filters with
+      operators (contains, greater than) for the vtiger filter conditions (spec §2.3). Today: `name`,
+      `industry`, `externalId`, behind "Filters" with a chip each.
+- [ ] **Mass actions** on the selection, shown disabled ("Needs backend") in the selection bar:
+      Delete (with confirmation), Mass Edit (the `masseditable` fields, an "apply" tick per
+      field), Send Mail (choose Email or Other Email, compose, keep the history), Mailer Export
+      (organization and contact emails, opt-out rules), Send SMS (an SMS provider).
+- [ ] **Selection over the whole result** ("Select all N records"): the mass endpoints must accept
+      the current filter, not only ids. Today the selection is the page in view.
+- [ ] **Single delete** from the row menu (shown disabled, "Needs backend").
+- [ ] Total in the list response (exists) and page sizes 25/50/100 (all within `maxPageSize`).
+- [ ] Export / Import / Find Duplicates of the vtiger toolbar (spec §2.2): not built.
 
 ## 4. The rest of §8 (the next steps detail it)
+
+The remaining items of the spec's base list, not yet tied to a UI step. They are kept here so none is forgotten.
 
 - [ ] Assigned To: list of active users and groups; "mine" filter.
 - [ ] Single delete with confirmation; optionally a recycle bin.
@@ -131,6 +164,8 @@ them by default is then a Settings preference per browser, or a decision to take
 
 ## 5. What disappears from the frontend when the backend is ready
 
+What each backend piece removes from the frontend on its own, without a code change. It shows which work brings real data to the pages fastest.
+
 - A field of §1 published under the same name: its mock disappears automatically.
 - Picklists published as `enum`: `picklists.json` is no longer needed.
 - The 9 custom-target fields defined as custom fields under the same names: their mocks
@@ -140,6 +175,8 @@ them by default is then a Settings preference per browser, or a decision to take
 - The `rating` label stays: it is a UI decision, not part of the mock.
 
 ## 6. Retiring the mock layer
+
+The exact list of frontend code to delete once the backend has everything. Kept current with each step, so the cleanup is mechanical and nothing mock is left behind.
 
 A mechanical deletion, all under `frontend/`. Nothing outside this list refers to the mock.
 
@@ -154,9 +191,15 @@ A mechanical deletion, all under `frontend/`. Nothing outside this list refers t
    `relationRefsOf`, and `demoTitleOf`.
 5. `src/hooks/use-relation-titles.ts`: the `demoTitleOf` import and its `??` fallback in
    `resolve` (back to `?? null`).
-6. `src/components/cube-list.tsx`: the `withMockFields` and `MockTag` imports and calls,
-   the `demoRows` prop, the demo rows in the table body, and `listWindowOf`'s `demo`
-   (`empty` becomes `page.rows.length === 0`).
+6. The list (T-1813): `src/hooks/use-list-query.ts` (the `withMockFields` import and call),
+   `src/components/cube-list.tsx` (the `demoRows` prop, `demoRowsMatching`, and `empty` becomes
+   `page.rows.length === 0`), `src/components/list/list-table.tsx` (the demo rows, their
+   disabled checkbox and the `MockTag`; the `FieldMarker` in the headers),
+   `src/components/list/demo-row-checkbox.tsx`, `listWindowOf`'s demo rows and its demo counts
+   in `src/lib/cube.ts`,
+   `src/components/organizations/organization-list.tsx` (`DEMO_ORGANIZATIONS`, the demo branch of
+   the row menu) and `src/lib/demo-search.ts` with its test (keep `matchesPrefix` if the palette
+   still needs it).
 7. `src/hooks/use-cube-metadata.ts`: the `withMockFields` import and call.
    `src/components/kit/cube-show.tsx`: the `MockTag` import and call, and the `demo` prop with
    its three uses (editable fields, pencil, title tag).
@@ -165,18 +208,19 @@ A mechanical deletion, all under `frontend/`. Nothing outside this list refers t
    `src/components/field-marker.tsx`, and the `demo` prop (organization-detail,
    organization-header, related-contacts, with the `demoContactsOf` slice there).
    `src/hooks/use-duplicate-values.ts`: the `demoOrganizationOf` guard. The read-only previews
-   `src/components/sharing-preview.tsx` and `activity-preview.tsx` go with their `demo` branches. `src/lib/organization-layout.ts` keeps the vtiger rows; a test there
-   reads `VTIGER_PLACEMENT` and goes with the mock.
+   `src/components/sharing-preview.tsx` and `activity-preview.tsx` go with their `demo`
+   branches. `src/lib/organization-layout.ts` keeps the vtiger rows; a test there reads
+   `VTIGER_PLACEMENT` and goes with the mock.
 8. `src/components/cube-create-form.tsx`: the `withMockFields` import and call.
-9. `src/app/organizations/page.tsx`: the `DEMO_ORGANIZATIONS` import and the `demoRows` prop.
-   `src/app/organizations/[id]/page.tsx`: the `demoOrganizationOf` import and the `demo` flag.
+9. `src/app/organizations/[id]/page.tsx`: the `demoOrganizationOf` import and the `demo` flag.
 10. `src/lib/cube.ts`: `mock?` in `FieldMetadata`, `&& !field.mock` in `canEdit`, the
     `!(field.mock && field.custom)` part of `visible` in `columnsFromFields`, the mock
     refusal in `saveCell`, the mock skip in `createPayloadOf`, and the `demoRows`
     parameter of `listWindowOf` (with the "+N demo" part of its label).
 11. `src/lib/kit-form.ts`: the mock skip in `updatePayloadOf`.
 12. `src/lib/global-search.ts`: the `DEMO_ORGANIZATIONS` and `ORGANIZATIONS_CUBE` imports,
-    `DEMO_ROWS`, and `demoRows` (in `SearchModule`, `SEARCH_MODULES` and `searchModule`).
+    `DEMO_ROWS`, `DEMO_EXTRA_SEARCH`, and `demoRows` (in `SearchModule`, `SEARCH_MODULES` and
+    `searchModule`).
 
 What stays: `withOrganizationDisplay` (`src/lib/organization-display.ts`: the `rating` label
 and the link formats), `format?` in `FieldMetadata` with `formatHrefOf` and
@@ -184,6 +228,8 @@ and the link formats), `format?` in `FieldMetadata` with `formatHrefOf` and
 value), and `valueTextOf` (reference objects such as `assignedTo`).
 
 ## 7. Main menu (step 2, T-1812)
+
+What the app shell (menu, global search, "+ New") needs from the backend. Without it some modules and searches are missing or limited.
 
 The shell (sidebar, ⌘K search, "+ New", account menu; spec §1.5) works on what exists today.
 What it cannot do without the backend:
@@ -199,9 +245,13 @@ What it cannot do without the backend:
       contact's organization), so two hits with the same name can be told apart.
 - [ ] **The user's display name** in `/auth/me` (first and last name); today only `username`,
       which is what the account menu shows.
+- [ ] **Partial global search across several fields with a module filter**: one search over at
+      least name, CUI, email and phone, matching inside the value, with a filter on the module
+      (Organizations, Contacts, ...). Today the demo organizations are found by CUI, email and
+      phone in the palette (they are local), the real ones by `q` only.
 - [ ] Optional: a capability in `/auth/me` saying whether the user may open Settings. Today the
-      menu shows Settings when `roles` contains `admin` (the test the activity feed uses); the
-      page and the backend still check `customfields:write` themselves.
+      menu shows Settings and Echo when `roles` contains `admin` (the test the activity feed
+      uses); the Settings page and the backend still check `customfields:write` themselves.
 - [ ] **Notifications** (🔔 in §1.5): a per-user notification source. No bell until it exists.
 - [ ] **Favorites** (★ in §1.5): per-user storage of pinned records or views.
 
@@ -221,19 +271,23 @@ dropped (§1.5).
 | Tools | Documents, Calendar, Emails / Mail Manager, Comments, Recycle Bin, PDF Maker, EMAIL Maker, SMS Notifier, PBX Manager, Integration |
 
 `crm/contracts` is already a cube but has no page: that one is frontend work, not backend.
-In the menu today: Sales → Organizations, Contacts; Tools → Echo (the activity feed);
-Settings (admin) at the bottom; Preferences (`/me`) in the account menu.
+In the menu today: Sales → Organizations, Contacts; Settings and Echo (the activity feed, a
+developer page) under Administration at the bottom, for admins only; Preferences (`/me`) in
+the account menu.
 
 ## 8. Detail view (step 3, T-1814)
+
+What the organization's detail page needs from the backend. Until then those actions are disabled, with the reason shown.
 
 The detail page follows vtiger 5.4 (spec §3.6): header, the "Organization Information" and
 "More Information" tabs, the Actions box. What it cannot do without the backend:
 
 - [ ] **Delete** (single, with confirmation; optionally a recycle bin and restore). The button is
       shown disabled ("Needs backend"); the data provider refuses `delete` today.
-- [ ] **Previous / next record and "jump"** within the list the user came from (vtiger's ◀ ▶ and
-      the record dropdown): the list's current filter and sort, and the neighbours of a record in
-      it. Not shown until then.
+- [ ] **Previous / next across pages and "jump"**: the arrows (T-1813) walk the list page the
+      record was opened from, kept in the tab's sessionStorage; at the page's ends they stop.
+      Crossing pages, and vtiger's record dropdown, need the neighbours of a record under the
+      list's filter and sort (or a cursor).
 - [ ] **Modification time and author** published on every organization (`modifiedAt`,
       `modifiedBy`), so the header says "Updated <when> by <who>" for real records; today it falls
       back to "Created <when>".
@@ -241,7 +295,10 @@ The detail page follows vtiger 5.4 (spec §3.6): header, the "Organization Infor
       recognizes them by their ISO value today.
 - [ ] **Contacts:** the vtiger columns the contacts cube does not publish: `lastName`,
       `firstName`, `mobilePhone`, `title`, `assignedTo` (shown marked MOCK and empty; one "Name"
-      column stands in for Last/First Name). Optionally a sort on the related list.
+      column stands in for Last/First Name). The related list sorts by `lastName` once the cube
+      publishes it as sortable (vtiger's order); until then by `name`, which starts with the first
+      name. The row's **del** is disabled until contacts can be deleted; **edit** opens the
+      contact's page in edit mode.
 - [ ] **The other 18 related lists of spec §3.5**, each needing its module (cube with metadata and
       a list filter on the organization): Opportunities (Potentials), Quotes, Sales Order, Invoice,
       Activities (Events, To Do), Emails, Activity History, Documents, Trouble Tickets (HelpDesk),

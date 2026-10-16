@@ -1,5 +1,7 @@
 # UI Specification – Organizations (Accounts), vtiger CRM 5.4 → crm-pack
 
+What the Organizations module looks like in vtiger CRM 5.4 today, and how crm-pack rebuilds it. Each area pairs the verified vtiger facts with the proposal, so the rebuild keeps what the users rely on and drops what they never use.
+
 Source: the code in `vtiger-tools` (Smarty/templates, modules/Accounts, include/utils, include/js) and the local DB (SELECT statements only, counts only).
 Basis: **61.347 active organizations** (`vtiger_crmentity.deleted=0`); 8.007 deleted (in the Recycle Bin).
 Legend: **[vtiger 5.4]** = what exists today (fact verified in the code/DB) · **[modern proposal]** = suggestion for the rebuild.
@@ -33,7 +35,11 @@ The code rules every step of this rebuild follows (they are also global rules fo
 
 ## 1. Main menu
 
+How users reach the modules: vtiger's header and tab groups, then the menu crm-pack shows. The menu decides what feels like "the CRM", so it follows vtiger's groups and drops the unused modules.
+
 ### 1.1 [vtiger 5.4] Header (`Header.tpl`)
+
+The bar at the top of every vtiger page. It is the reference for the app's own header: search, quick create and the account menu.
 
 ```
 +--------+------------------------------------------+---------------------------------------+
@@ -62,7 +68,9 @@ The code rules every step of this rebuild follows (they are also global rules fo
 
 ### 1.2 [vtiger 5.4] `vtiger_parenttab` / `vtiger_parenttabrel` groups (in order)
 
-The tables exist and are populated, but today's menu uses `vtiger_tab.parent` + `tabsequence` (the `getMenuStructure` function). Listed for completeness:
+The menu groups vtiger stores in its database. They are listed only for completeness: the menu users see is built differently (§1.3).
+
+The tables exist and are populated; the menu uses `vtiger_tab.parent` + `tabsequence` instead (the `getMenuStructure` function).
 
 | # | Parent tab | Modules (parenttabrel order) |
 |---|---|---|
@@ -77,6 +85,8 @@ The tables exist and are populated, but today's menu uses `vtiger_tab.parent` + 
 
 ### 1.3 [vtiger 5.4] The effective menu
 
+The menu vtiger actually shows, by area. It is the list crm-pack's sidebar is built from.
+
 | Area | Modules |
 |---|---|
 | Top tabs (`tabsequence` order) | 1 Organizations · 2 Contacts · 3 Quotes · 4 Documents · 5 Vendors · 6 Purchase Order · 7 Service Contracts · 8 Devize · 9 Products · 10 Projects |
@@ -89,9 +99,13 @@ The tables exist and are populated, but today's menu uses `vtiger_tab.parent` + 
 
 ### 1.4 [vtiger 5.4] Quick Create (modules with at least one `quickcreate=0` field, sorted alphabetically by tablabel)
 
+The modules a record can be created in from the header without leaving the page. It tells which modules need a "+ New" entry.
+
 Modules (the option is "New <singular>"): Accounts, Assets, Calendar (To Do), Campaigns, ModComments, Contacts, Devize, Documents, Events, HelpDesk, Leads, Potentials, PriceBooks, Products, Project, ProjectMilestone, ProjectTask, Procesverbalout, Procesverbalin, ServiceContracts, Services, Vendors (filtered by the user's EditView permission).
 
 ### 1.5 [modern proposal]
+
+The crm-pack shell: a sidebar with collapsible groups, a command-palette search and a "+ New" menu. It keeps vtiger's groups so users find modules where they expect them.
 
 ```
 +----------------+---------------------------------------------------------------+
@@ -119,7 +133,11 @@ Modules (the option is "New <singular>"): Accounts, Assets, Calendar (To Do), Ca
 
 ## 2. Organizations list view
 
+The page users open most: all organizations, searchable, filterable and sortable. The vtiger facts come first (§2.1–2.5), then what crm-pack built (§2.6).
+
 ### 2.1 [vtiger 5.4] Layout
+
+How the vtiger list page is arranged, top to bottom. It is the layout §2.6 follows.
 
 ```
 Organizations | [+] [🔍] | [📅][🕒][🧮][💬][⏱ Last Viewed] | [Import][Export][Find Duplicates] | [⚙ module settings]
@@ -137,6 +155,8 @@ Organizations | [+] [🔍] | [📅][🕒][🧮][💬][⏱ Last Viewed] | [Import
 
 ### 2.2 [vtiger 5.4] Toolbar (`Buttons_List.tpl`)
 
+The buttons above the vtiger list and what each does. They show which list actions users expect to find.
+
 | Button | What it does |
 |---|---|
 | ➕ Add | new EditView (Create Organization) |
@@ -149,6 +169,8 @@ Organizations | [+] [🔍] | [📅][🕒][🧮][💬][⏱ Last Viewed] | [Import
 | ⚙ | Module Manager → the module's settings (admin only) |
 
 ### 2.3 [vtiger 5.4] Filters (custom views)
+
+vtiger's saved filters: a named set of columns, conditions and sorting, picked from a dropdown. They are the model for crm-pack's saved views.
 
 **Picker:** `Filters : [<select>]` + the links `Create Filter | Edit | Delete` (Edit/Delete disabled on "All" and when the user lacks the right). On pending filters the admin also sees an approve/reject link (Approve/Deny).
 
@@ -192,6 +214,8 @@ Note: there are series of 20+ nearly identical filters (the same 6 columns, 4 co
 
 ### 2.4 [vtiger 5.4] Search
 
+The ways the vtiger list can be searched. They set what the quick search and the filters should cover.
+
 | Type | Details |
 |---|---|
 | Basic | `Search for [text] in [field]` + Search Now; the field list = the current filter's columns |
@@ -200,6 +224,8 @@ Note: there are series of 20+ nearly identical filters (the same 6 columns, 4 co
 | Tooltip | hovering Organization Name shows TVA, CUI, Reg no (`vtiger_quickview`) |
 
 ### 2.5 [vtiger 5.4] Sorting, selection, paging
+
+How the vtiger list is sorted, selected and paged. These are the habits the rebuilt list keeps.
 
 | Aspect | Details |
 |---|---|
@@ -214,26 +240,85 @@ Note: there are series of 20+ nearly identical filters (the same 6 columns, 4 co
 | Sidebar | **none** in the list view; the tag cloud appears only in the detail view |
 | No records | "No Organization Found! You can create an Organization now" box + Create / Import link |
 
-### 2.6 [modern proposal]
+### 2.6 [modern proposal] – built in T-1813
+
+The Organizations list as crm-pack built it. It keeps vtiger's columns, selection and paging, offers only what the backend honours, and marks everything that still waits for the backend.
+
+vtiger's ListView in the app's own style (shadcn + Tailwind). Code: the generic
+`frontend/src/components/cube-list.tsx` (pieces in `src/components/list/`, state in
+`src/hooks/use-list-*.ts`, `use-row-selection.ts`, `use-cell-edits.ts`), configured for
+Organizations in `src/components/organizations/organization-list.tsx` and
+`src/lib/organization-list.ts`. Contacts uses the same list without selection or row menu.
 
 ```
-Organizations                                 [Import] [Export ▼] [+ New organization]
-[View: All ▼] [★ Save view]  [🔍 Search name / CUI / email...] [Filters (3) ▼] [Columns ▼]
- chips: County = Cluj ×   Industry contains "Constructii" ×   Status = Activ ×
-+---+--------------+----------------------+---------+----------+---------+------------+-----+
-|☐ | No.          | Name                 | CUI     | County   | Phone   | Owner      | ⋯   |
-+---+--------------+----------------------+---------+----------+---------+------------+-----+
- On selection: bar "12 selected · Select all 1.240" [Mass edit] [Export] [Email] [Delete]
- Paging: 25/50/100 per page · total shown
+Organizations
+[View: All ▼] [Save view …]                                   (saved views, list-views)
+[🔍 Name or industry starts with…] [Filters (1)] [Columns ▼]          [+ New Organization]
+ chips: Search: "exe" ×   Industry: Construction ×   [Clear all]
+ on the first tick: 2 selected [Clear selection] [Delete] [Mass Edit] [Send Mail]
+                                                 [Mailer Export] [Send SMS]  (disabled)
++---+--------+-------------------+-----+---------+---------+---------+-------+--------+---+
+|☐ | Org No | Organization Name↑| CUI | Billing | Billing | Website | Phone | Assign | ⋯ |
+|   |        |                   |     | City    | State   |         |       | ed To  |   |
++---+--------+-------------------+-----+---------+---------+---------+-------+--------+---+
+ demo rows on top (tinted, "demo" tag, checkbox disabled), then the server rows
+ 1-25 of 120 organizations (+3 demo)   [<] Page [1] of 5 [>]       Rows per page [25 ▼]
 ```
-- Saved views = filters (personal/shared), without an approval workflow.
-- Quick search on name + CUI + email; the condition builder stays for "Filters".
+
+- **Columns.** Default: Organization No, Organization Name, CUI, Billing City, Billing State,
+  Website, Phone, Assigned To (vtiger's "All" plus CUI and Billing State), labels as on the
+  detail page, values formatted ro-RO. Fields added later (custom fields) stay hidden until
+  picked. The **Columns** menu ticks fields on and off (new ones go to the right, the name
+  cannot be removed), "Reset columns" returns to the default; the choice is kept per browser
+  (`localStorage`). While a saved view is applied, its columns win, the picker edits them and
+  "Reset columns" returns to the view's own, leaving the personal choice alone. Mock fields
+  carry their marker in the header.
+- **Cells.** A website shows without `http(s)://` (`exemplu.test`); the link keeps the whole
+  address, on the detail page too. The inline-edit pencil next to a link shows on the row's
+  hover or keyboard focus (always on a touch screen), in space kept for it, so nothing shifts.
+- **Quick search** is the contract's `q`: a prefix of name, industry or externalId, hence the
+  placeholder. CUI, email and phone are not searchable in the list until the backend allows it
+  (organizations-backend.md §3); the global search finds the demo rows by them.
+- **Filters** opens the contract's exact filters (name, industry, externalId). Each active
+  filter and the search shows as a chip with ×; "Clear all" clears them.
+- **Sorting** on the server, on the sortable columns only (name, industry, createdAt today);
+  ↑ / ↓ on the active one, `aria-sort` on the header.
+- **Selection and mass actions.** A checkbox per row, named after the row ("Select Exemplu
+  Construct SRL"), and "select all on this page", which shows a partial selection as mixed.
+  The selection bar appears with the first tick and goes with the last; the selection
+  resets when the query changes. Delete, Mass Edit, Send Mail, Mailer Export and Send
+  SMS are disabled with the reason "Needs backend" in a tooltip. Demo rows cannot be selected;
+  their checkbox says "Demo row, read-only" on hover and focus.
+  "Select all N" over the whole result is not offered.
+- **Row menu** ⋯: Open; Edit (opens the detail with every block in edit mode, `?edit=all`;
+  unavailable on demo rows); Delete (disabled, "Needs backend").
+- **Paging** 25 / 50 / 100, on the server. When everything is in view the label counts it
+  ("3 organizations (3 demo)", "5 organizations (2 + 3 demo)"), else it gives the range and the
+  total ("1-25 of 120 organizations (+3 demo)"). Changing the size keeps the first row in view;
+  a page past the end falls back to the last one.
+- **The query in the URL.** Search, filters, sort, page and page size live in the address
+  (`?q=exe&f.industry=…&sort=-name&page=2&size=50`, defaults left out), so Back from a record
+  and a reload keep the list where it was. Every value is checked on read; an unknown filter
+  or sort field, a bad page or size falls back to the default. The applied saved view is not
+  in the URL: after Back its query stays, its columns return to the personal choice.
+- **Empty states.** No organizations: "No organizations yet." with "+ New Organization". No
+  match: "Nothing matches the current search and filters." with "Clear search and filters".
+- **Previous / next on the detail.** The list writes the ids of the page in view to the tab's
+  `sessionStorage`; the detail opened from the list shows ◀ ▶ over that page (disabled at its
+  ends). Opened directly, the arrows are not shown. Crossing pages needs the backend
+  (organizations-backend.md §8).
+- **Not built:** the A-Z letter bar (needs a name-prefix filter; `q` also matches the industry),
+  Import / Export / Find Duplicates, the condition builder (operators), "Select all N".
 
 ---
 
 ## 3. Detail view
 
+One organization on its own page: its fields in blocks, the related records and the actions. It is where users read and edit a record, so it follows vtiger's layout closely.
+
 ### 3.1 [vtiger 5.4] Header and tabs
+
+The top of the vtiger detail page: the record's number and name, and the two tabs. It is the reference for the detail header and tabs (§3.6).
 
 ```
 Organizations | [+][🔍] | … toolbar as in the list view …
@@ -253,6 +338,8 @@ Organizations | [+][🔍] | … toolbar as in the list view …
 | Caution | the More Information tab renders only if `$singlepane_view == 'false'`. In the local `config.inc.php` the variable **is not defined**, so in this installation the tab (and the inline related lists) do not appear; in standard vtiger 5.4 (`'false'`) they do. To be checked on production. |
 
 ### 3.2 [vtiger 5.4] Blocks and fields (vtiger order, 2-column layout)
+
+Where every field sits on the vtiger detail page. Users find fields by place, so crm-pack keeps the same blocks and order.
 
 Fields are laid out in pairs, in `sequence` order (left, right). `displaytype=2` fields (Created/Modified Time) appear only in the detail, read-only. Hidden: `modifiedby` (displaytype 3), `cf_716` Cod import (presence 1). The "Custom Information" block (id 10) **has no fields**, so it is not displayed.
 
@@ -304,6 +391,8 @@ Fields are laid out in pairs, in `sequence` order (left, right). `displaytype=2`
 
 ### 3.3 [vtiger 5.4] Sidebar (right)
 
+The box of actions beside the vtiger detail. It lists the shortcuts users expect next to a record.
+
 | Section | Elements |
 |---|---|
 | Actions | **Send Mail** (pick the address) · **Add Event** · **Add To Do** |
@@ -314,11 +403,15 @@ Fields are laid out in pairs, in `sequence` order (left, right). `displaytype=2`
 
 ### 3.4 [vtiger 5.4] Inline edit (ajax)
 
+How vtiger edits one value without opening the form. crm-pack keeps this way of working.
+
 - Active (`DETAILVIEW_AJAX_EDIT`, true by default). Hovering a value shows the edit cursor; click → inline input/picklist/checkbox + **Save** / **Cancel**, saved through `DetailViewAjax`.
 - Read-only: Created/Modified Time, Organization No.
 - On Organization Name it checks uniqueness ("Organization Name Already Exists!"). For CUI there is **no** check on inline edit (only in the edit form).
 
 ### 3.5 [vtiger 5.4] Related lists (the More Information page), in order
+
+The records linked to an organization (contacts, deals, tickets and more), with how many exist. The counts show which related lists matter first.
 
 | # | Label | Module | Actions | Linked records (DB) | In crm-pack |
 |---|---|---|---|---|---|
@@ -345,6 +438,8 @@ Fields are laid out in pairs, in `sequence` order (left, right). `displaytype=2`
 Each list has a header with the record count, the buttons `Add <Singular>` (ADD) / `Select <Module>` (SELECT, search popup), its own paging and the row actions `edit | del`; on the SELECT lists, `del` means unlink, not delete. Contacts columns (today): Last Name, First Name, Mobile, Email, Office Phone, Title, Assigned To.
 
 ### 3.6 [modern proposal] – built in T-1814
+
+The detail page as crm-pack built it. It keeps vtiger's blocks and tabs, so users find each field where they always did.
 
 The vtiger layout, two tabs and all, in the app's own style (shadcn + Tailwind).
 Code: `frontend/src/components/organizations/` (layout data in `src/lib/organization-layout.ts`).
@@ -423,7 +518,11 @@ More Information tab:
 
 ## 4. Edit / Create
 
+The form that creates or edits a whole organization. It decides which fields are required and which mistakes are caught before saving.
+
 ### 4.1 [vtiger 5.4] Form (`salesEditView.tpl`)
+
+How the vtiger form is laid out. It mirrors the detail page, so users fill fields in the order they read them.
 
 - The same 3 blocks and the same order as in the detail, without Created/Modified Time; Organization No appears read-only (auto-generated on create).
 - **Assigned To**: **User / Group** radio + select (28 active users, 8 groups).
@@ -438,10 +537,14 @@ More Information tab:
 
 ### 4.2 [vtiger 5.4] Required fields (`typeofdata ~M`)
 
+The fields vtiger will not save without. They are the starting point for the rebuilt form's required fields.
+
 Organization Name, Form, TVA, CUI, Assigned To, Industry, Billing State.
 Note: TVA (checkbox, `C~M`) is marked required, but the client validation cannot enforce the check; in the data, 4.458 organizations have TVA = 0.
 
 ### 4.3 [vtiger 5.4] Visible validations
+
+The checks vtiger runs before saving, with their messages. They show which mistakes users are used to being warned about.
 
 | Rule | Fields | Message |
 |---|---|---|
@@ -454,6 +557,8 @@ Note: TVA (checkbox, `C~M`) is marked required, but the client validation cannot
 | unique name | Organization Name | inline edit only |
 
 ### 4.4 [vtiger 5.4] Quick Create (popup from the header), in `quickcreatesequence` order
+
+The short form vtiger opens from the header. Its fields are the minimum an organization is created with.
 
 | # | Field | Required |
 |---|---|---|
@@ -473,6 +578,8 @@ Note: TVA (checkbox, `C~M`) is marked required, but the client validation cannot
 Observation from the code: Save in Quick Create calls `AjaxDuplicateValidate('Accounts','accountname',…)`, which sends the name, not the CUI. Save.php validates `cf_666` from the request (missing), so it answers "CUI invalid" and the record is not saved. Not verified in the browser.
 
 ### 4.5 [modern proposal]
+
+Ideas for the rebuilt form. They aim at fewer bad records: live checks and less typing.
 - Form in sections (Company data, Contact, Addresses, Financial, Description), live validation: CUI (check digit + uniqueness, with a link to the existing organization), IBAN (RO format + checksum), email, lengths.
 - CUI field with a "Fill from ANAF" action (name, address, Trade Register no., VAT). Only as an idea; needs a backend.
 - A "Copy billing address" button on shipping; the county on shipping from the same list.
@@ -481,7 +588,11 @@ Observation from the code: Save in Quick Create calls `AjaxDuplicateValidate('Ac
 
 ## 5. Table of fields missing from the cube
 
+Which vtiger fields crm-pack already has, which are missing, and the picklist values. It is the list the backend works from (organizations-backend.md §1).
+
 ### 5.1 Fields the cube already has (coverage)
+
+The vtiger fields the crm-pack cube already stores, with how often vtiger has them filled. They need no backend work.
 
 | crm-pack | vtiger fieldname | vtiger label | Fill | Notes |
 |---|---|---|---|---|
@@ -506,6 +617,8 @@ Observation from the code: Save in Quick Create calls `AjaxDuplicateValidate('Ac
 | createdAt | createdtime | Created Time | 100% | |
 
 ### 5.2 Missing fields (presence 0,2), in vtiger order
+
+The vtiger fields the cube does not have yet, with type, length and how often they are filled. The fill rate helps decide what to port and what to drop.
 
 Fill = % of 61.347. Length = the declared `LE~N`, otherwise the DB column.
 
@@ -551,6 +664,8 @@ Values in the data that are not in the picklist (worth knowing for the mock/vali
 
 ### 5.3 Picklist values (real, in the order shown in the UI)
 
+The real values of every dropdown, in vtiger's order. The mock and, later, the backend use exactly these values.
+
 **P1 – Form (cf_658), 29 values + "--None--":**
 SCM, SRL-D, SAG, SNC, SCS, SCA, IF, II, RA, fara, CMI, CMA, CMG, SM, SCM1, SCM2, UC, BNP, BEJ, CA, CAA, SCPA, SPRL, ASF, CS, PFA, SA, SRL, Primarie.
 Distribution: SRL 53.822 · SA 3.478 · fara 2.372 · II 436 · PFA 265 · SCM 186 · SCM1 150 · RA 132 · SRL-D 105 · SNC 92 · the rest < 80.
@@ -588,6 +703,8 @@ Groups: Aer comprimat, Aeroterme, Aparate de sudura, Baterii de condensatoare, E
 ---
 
 ## 6. Mockup JSON (made-up data)
+
+The made-up records and fields the UI shows until the backend has them. They let the pages be built and reviewed without real customer data.
 
 The values are fictitious and checked as absent from the DB (names, CUI, Trade Register no., phones, email domain). The picklist values are the real ones.
 
@@ -756,6 +873,8 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
 
 ## 7. What is NOT worth copying
 
+The vtiger fields and features left out of the rebuild, with the reason and the data behind it. Leaving them out keeps the new UI simpler.
+
 | Element [vtiger 5.4] | Reason | Data |
 |---|---|---|
 | Ticker Symbol | Romanian companies, not listed | 0% filled |
@@ -782,6 +901,8 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
 ---
 
 ## 8. What the backend needs (WHAT, not HOW)
+
+The base list of backend work the UI depends on. organizations-backend.md details it step by step.
 
 - [ ] Every field of §5.2 in the cube (read + write), with the proposed names.
 - [ ] Picklists P1–P9 exposed as metadata (values + order); optionally filtered by role, as in 5.4.

@@ -296,11 +296,17 @@ export function displayTextOf(value: unknown): string {
 }
 
 // The text one field's value is shown with: a number of a numeric field
-// grouped by thousands (850,000), anything else as displayTextOf. A number
-// stored in a text field (a CUI, a postal code) is never regrouped.
+// grouped by thousands (850,000), a web address without its http(s):// (and
+// a bare trailing slash), anything else as displayTextOf. A number stored in
+// a text field (a CUI, a postal code) is never regrouped. The link keeps the
+// whole address (formatHrefOf).
 export function fieldDisplayTextOf(field: FieldMetadata, value: unknown): string {
   const numeric = field.type === "integer" || field.type === "number"
-  return numeric && typeof value === "number" ? formatNumber(value) : displayTextOf(value)
+  if (numeric && typeof value === "number") return formatNumber(value)
+  if (field.format === "url" && typeof value === "string") {
+    return value.trim().replace(/^https?:\/\//i, "").replace(/^([^/]+)\/$/, "$1")
+  }
+  return displayTextOf(value)
 }
 
 // The link a formatted value opens (vtiger shows phones, emails and websites as
@@ -316,18 +322,28 @@ export function formatHrefOf(field: FieldMetadata, value: unknown): string | nul
 }
 
 // What the list shows around one server page. Demo rows (mockup data, never
-// from the server) ride on top of the first unfiltered page only, and never
-// count: the range and the total stay the server's ("0 of 0" when the server
-// has no rows), and the label says how many demo rows ride on top.
+// from the server; the caller passes those that match the query,
+// lib/demo-search.ts) ride on top of the first page only. When everything is
+// in view the label counts it all ("5 organizations (2 + 3 demo)"), else it
+// gives the range ("1-25 of 120 organizations (+3 demo)"), so it never reads
+// "0 of 0" over visible rows.
+export type ListNoun = { one: string; other: string }
+
 export function listWindowOf(
   page: PageOf<Row>,
   demoRows: readonly Row[],
-  filtered: boolean,
+  noun: ListNoun,
 ): { demo: readonly Row[]; label: string } {
-  const demo = page.offset === 0 && !filtered ? demoRows : []
-  const range = page.rows.length === 0 ? "0" : `${page.offset + 1}-${page.offset + page.rows.length}`
-  const server = page.total === undefined ? range : `${range} of ${page.total}`
-  return { demo, label: demo.length > 0 ? `${server} · +${demo.length} demo` : server }
+  const demo = page.offset === 0 ? demoRows : []
+  const real = page.rows.length
+  const counted = (n: number) => `${formatNumber(n)} ${n === 1 ? noun.one : noun.other}`
+  if (page.offset === 0 && (real === 0 || real === page.total)) {
+    const parts = demo.length === 0 ? "" : real === 0 ? ` (${demo.length} demo)` : ` (${formatNumber(real)} + ${demo.length} demo)`
+    return { demo, label: `${counted(real + demo.length)}${parts}` }
+  }
+  const range = real === 0 ? "0" : `${formatNumber(page.offset + 1)}-${formatNumber(page.offset + real)}`
+  const of = page.total === undefined ? ` ${noun.other}` : ` of ${counted(page.total)}`
+  return { demo, label: `${range}${of}${demo.length > 0 ? ` (+${demo.length} demo)` : ""}` }
 }
 
 // The sort a column click produces: undefined for a column the metadata does

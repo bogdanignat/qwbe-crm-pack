@@ -265,7 +265,7 @@ describe("applyView", () => {
     assert.equal(applyView({ pageSize: 200 }, { ...meta(), list: { ...list, maxPageSize: 100 } }, controls).pageSize, 100)
     // No stored pageSize -> the cube's default, never an undefined select.
     assert.equal(applyView({}, meta(), controls).pageSize, 50)
-    assert.equal(applyView({ pageSize: 999 }, { ...meta(), list: null }, controls).pageSize, 200)
+    assert.equal(applyView({ pageSize: 999 }, { ...meta(), list: null }, controls).pageSize, 100)
   })
 
   it("reports a page-size adjustment instead of being silent", () => {

@@ -10,7 +10,7 @@
 // the mock, never from qwbe), the metadata with the mock fields merged under
 // it; the layout is lib/organization-layout.ts. A demo record is read-only.
 
-import { useMemo } from "react"
+import { useCallback, useMemo } from "react"
 import { useGetOne } from "ra-core"
 
 import { ActivityFeed } from "@/components/activity-feed"
@@ -19,10 +19,12 @@ import { SharingPanel } from "@/components/sharing-panel"
 import { SharingPreview } from "@/components/sharing-preview"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCubeMetadata } from "@/hooks/use-cube-metadata"
+import { useEditOnOpen } from "@/hooks/use-edit-on-open"
 import { useInPlaceEdit } from "@/hooks/use-in-place-edit"
+import { useListNeighbors } from "@/hooks/use-list-neighbors"
 import { useRelationTitles } from "@/hooks/use-relation-titles"
 import { useUrlTab } from "@/hooks/use-url-tab"
-import { canEdit, type FieldMetadata, type Row } from "@/lib/cube"
+import { canEdit, rowHref, type FieldMetadata, type Row } from "@/lib/cube"
 import { fieldBlocksOf } from "@/lib/field-blocks"
 import { displayRowOf } from "@/lib/kit-form"
 import { ORGANIZATIONS_CUBE } from "@/lib/organization-display"
@@ -56,22 +58,28 @@ export function OrganizationDetail({ id, demo }: { id: string; demo: boolean }) 
   const relationRefs = useMemo(() => (meta && row ? relationRefsOf([row], meta.fields) : []), [meta, row])
   const resolveTitle = useRelationTitles(relationRefs)
 
+  const neighbors = useListNeighbors(ORGANIZATIONS_CUBE, id)
+  const hrefOf = (other: string | null) => (other ? rowHref(ORGANIZATIONS_CUBE, other) : null)
+  const { open: openEdit } = edit
+  const openAll = useCallback(() => {
+    setTab("info")
+    openEdit("all")
+  }, [setTab, openEdit])
+  // "Edit" from a list row: the draft opens once the record is here.
+  useEditOnOpen(Boolean(row && flatRow), editableFields.length > 0, openAll)
+
   const error = metaError ?? (rowError ? (rowError as Error).message : null)
   if (error) return <p role="alert">{error}</p>
   if (!row || !flatRow) return <Skeleton className="h-96 w-full" />
-
-  const editAll = () => {
-    setTab("info")
-    edit.open("all")
-  }
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <OrganizationHeader
         row={row}
         demo={demo}
-        onEdit={edit.editing === null && editableFields.length > 0 ? editAll : undefined}
+        onEdit={edit.editing === null && editableFields.length > 0 ? openAll : undefined}
         duplicateHref={`/organizations/new?duplicate=${encodeURIComponent(id)}`}
+        nav={neighbors && { previousHref: hrefOf(neighbors.previous), nextHref: hrefOf(neighbors.next) }}
       />
       <OrganizationTabs
         tab={tab}

@@ -42,3 +42,17 @@ export function contactsRangeOf(page: number, rows: number, total: number | unde
   const range = rows === 0 ? "0" : `${first}-${first + rows - 1}`
   return total === undefined ? range : `${range} of ${total}`
 }
+
+// vtiger orders a related list by last name. The cube sorts by `name` (first
+// name first) until it publishes a sortable lastName; then that one wins,
+// with no frontend change (organizations-backend.md §8).
+export function contactsSortOf(meta: CubeMetadata): string | undefined {
+  const sortable = meta.list?.sort ?? meta.fields.filter((f) => f.sortable).map((f) => f.name)
+  return ["lastName", "name"].find((name) => sortable.includes(name))
+}
+
+// The demo contacts in the same order, sorted here (they are not on the server).
+export function sortedRowsOf<T extends Record<string, unknown>>(rows: readonly T[], field: string | undefined): T[] {
+  if (!field) return [...rows]
+  return [...rows].sort((a, b) => String(a[field] ?? "").localeCompare(String(b[field] ?? ""), "ro"))
+}

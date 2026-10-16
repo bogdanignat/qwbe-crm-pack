@@ -16,6 +16,7 @@ import {
   type CubeMetadata,
   type FieldMetadata,
 } from "../../lib/cube.ts"
+import { demoRowsMatching } from "../../lib/demo-search.ts"
 import { changedPayloadOf, displayRowOf } from "../../lib/kit-form.ts"
 import { qwbeDataProvider } from "../../lib/qwbe-data-provider.ts"
 import { relationRefsOf } from "../../lib/relation-batch.ts"
@@ -200,24 +201,35 @@ describe("mock fields never leave the browser", () => {
 
 describe("demo rows", () => {
   const page = { rows: [{ id: "a" }, { id: "b" }], offset: 0, limit: 25, total: 61347 }
+  const noun = { one: "organization", other: "organizations" }
 
-  it("ride on the first unfiltered page, outside the server range and total", () => {
-    const view = listWindowOf(page, DEMO_ORGANIZATIONS, false)
+  it("ride on the first page, outside the server range and total", () => {
+    const view = listWindowOf(page, DEMO_ORGANIZATIONS, noun)
     assert.equal(view.demo.length, 3)
-    assert.equal(view.label, "1-2 of 61347 · +3 demo")
+    assert.equal(view.label, "1-2 of 61.347 organizations (+3 demo)")
   })
 
-  it("still show on a cube with no real rows, with a 0 of 0 range", () => {
-    const view = listWindowOf({ rows: [], offset: 0, limit: 25, total: 0 }, DEMO_ORGANIZATIONS, false)
-    assert.equal(view.demo.length, 3)
-    assert.equal(view.label, "0 of 0 · +3 demo")
+  it("are counted with the real rows when everything is in view", () => {
+    const all = listWindowOf({ ...page, total: 2 }, DEMO_ORGANIZATIONS, noun)
+    assert.equal(all.label, "5 organizations (2 + 3 demo)")
   })
 
-  it("are absent on later pages and under a filter, and the label says nothing of them", () => {
-    const later = listWindowOf({ ...page, offset: 25 }, DEMO_ORGANIZATIONS, false)
+  it("still show on a cube with no real rows, and never as 0 of 0", () => {
+    const view = listWindowOf({ rows: [], offset: 0, limit: 25, total: 0 }, DEMO_ORGANIZATIONS, noun)
+    assert.equal(view.demo.length, 3)
+    assert.equal(view.label, "3 organizations (3 demo)")
+  })
+
+  it("are absent on later pages, and the label says nothing of them", () => {
+    const later = listWindowOf({ ...page, offset: 25 }, DEMO_ORGANIZATIONS, noun)
     assert.equal(later.demo.length, 0)
-    assert.equal(later.label, "26-27 of 61347")
-    assert.equal(listWindowOf(page, DEMO_ORGANIZATIONS, true).demo.length, 0)
+    assert.equal(later.label, "26-27 of 61.347 organizations")
+  })
+
+  it("count only those matching the query", () => {
+    const matching = demoRowsMatching(DEMO_ORGANIZATIONS, ["name"], { q: "demo", filters: {} })
+    assert.equal(listWindowOf(page, matching, noun).label, "1-2 of 61.347 organizations (+1 demo)")
+    assert.equal(listWindowOf({ ...page, rows: [{ id: "a" }], total: 1 }, [], noun).label, "1 organization")
   })
 })
 

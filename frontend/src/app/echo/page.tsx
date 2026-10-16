@@ -1,64 +1,25 @@
-// Echo: the general activity feed across every cube that records activity,
-// newest first, filtered by cube. The same ActivityFeed the detail pages use;
-// the kernel hides every row whose target the caller may not read.
-
 "use client"
 
-import { useEffect, useState } from "react"
+// Echo, a developer page (T-1813): the activity feed across every cube. It sits
+// under Administration and opens for admins only; the kernel still hides every
+// row the caller may not read.
 
-import { ActivityFeed } from "@/components/activity-feed"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { fetchActivityCubes, type ActivityCube } from "@/lib/echo"
-
-// "all" is the Select's stand-in for no filter: Radix refuses an empty string
-// as an item value.
-const ALL = "all"
+import { EchoFeed } from "@/components/echo-feed"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useCurrentUser } from "@/hooks/use-current-user"
 
 export default function EchoPage() {
-  const [cube, setCube] = useState(ALL)
-  // The filter's options come from the live catalogue (GET /settings/cubes),
-  // so a cube from any pack can be filtered to. Until it answers, or when it
-  // refuses, only "All cubes" is offered and the refusal is printed beside
-  // the select: the feed itself is never narrowed silently.
-  const [cubes, setCubes] = useState<ActivityCube[]>([])
-  const [cubesError, setCubesError] = useState<string | null>(null)
-  useEffect(() => {
-    let alive = true
-    void fetchActivityCubes().then((result) => {
-      if (!alive) return
-      if (result.ok) setCubes(result.value)
-      else setCubesError(result.message)
-    })
-    return () => {
-      alive = false
-    }
-  }, [])
+  const me = useCurrentUser()
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
       <h1 className="text-xl font-semibold">Echo</h1>
-      <div className="flex flex-wrap items-center gap-2">
-        <Label htmlFor="echo-cube">Cube</Label>
-        <Select value={cube} onValueChange={setCube}>
-          <SelectTrigger id="echo-cube" className="w-full sm:w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All cubes</SelectItem>
-            {cubes.map((c) => (
-              <SelectItem key={c.name} value={c.name}>
-                {c.entity}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {cubesError && (
-          <p role="alert" className="text-sm text-destructive">
-            Cube list unavailable: {cubesError}
-          </p>
-        )}
-      </div>
-      <ActivityFeed cube={cube === ALL ? undefined : cube} title="Activity" />
+      {me.status === "loading" ? (
+        <Skeleton className="h-64 w-full" />
+      ) : me.user?.admin ? (
+        <EchoFeed />
+      ) : (
+        <p className="text-sm text-muted-foreground">Echo is a developer page for administrators.</p>
+      )}
     </main>
   )
 }

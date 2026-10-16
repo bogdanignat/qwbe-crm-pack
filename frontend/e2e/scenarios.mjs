@@ -23,12 +23,14 @@ import {
   qwbeClient,
 } from "./lib.mjs"
 import { CONTACT_LINKED, ORG_A, ORG_B } from "./seed.mjs"
+// Circular on purpose: list-scenarios uses the helpers below, at call time only.
+import { scenarioListActions, scenarioListUrl, scenarioReaderEcho } from "./list-scenarios.mjs"
 
 // Read at call time: the runner sets CONFIG.frontendPort after picking a free port.
 const FE = () => `http://localhost:${CONFIG.frontendPort}`
 
 const tabs = []
-async function open(path) {
+export async function open(path) {
   const r = orca("tab", "create", "--url", `${FE()}${path}`)
   orca("tab", "switch", "--page", r.browserPageId, "--focus")
   tabs.push(r.browserPageId)
@@ -123,7 +125,7 @@ async function loginThroughUi(username, password) {
  * the same ref — a stale ref is re-resolved, never re-clicked blindly.
  * Returns the ref that was clicked, or null when nothing matched.
  */
-async function clickStable(pred, name) {
+export async function clickStable(pred, name) {
   for (let i = 0; i < 8; i++) {
     const snap = snapshot()
     const entry = Object.entries(snap.refs).find(([, v]) => pred(v))
@@ -153,14 +155,14 @@ async function findStable(pred) {
   return null
 }
 
-async function settle(text, timeout = 30_000) {
+export async function settle(text, timeout = 30_000) {
   const ok = await waitForText(text, timeout)
   if (!ok) throw new Error(`page never showed ${JSON.stringify(text)}`)
 }
 
 // Short settle after a click that triggers a React render: the next snapshot
 // must see the DOM the click produced, not the one before it.
-const pause = async (ms = 800) => {
+export const pause = async (ms = 800) => {
   await new Promise((r) => setTimeout(r, ms))
   // Touch the page with a trivial eval: the accessibility snapshot served
   // right after a render can lag the DOM, and this forces Orca to re-read it.
@@ -248,20 +250,20 @@ export async function scenarioList() {
     return record(name, "RED", `list does not show both seeded orgs (${snap.origin})`, "02-organizations-list-RED.png")
   }
 
-  // Sorting: click the Name header's sort BUTTON twice for a descending sort, then
-  // Beta must come first. The role matters: the columnheader cell carries the same
-  // name and clicking it does nothing.
-  const sortBtn = (refs) =>
-    Object.entries(refs).find(([ , v]) => v.role === "button" && (v.name ?? "").startsWith("Name"))?.[0]
-  const header = sortBtn(snap.refs)
-  if (!header) {
+  // Sorting: click the Organization Name header's sort BUTTON twice for a
+  // descending sort, then Beta must come first. The role matters: the
+  // columnheader cell carries the same name and clicking it does nothing. The
+  // demo rows ride on top and contain neither seeded name.
+  const SORT = "Organization Name"
+  const sortBtn = (v) => v.role === "button" && (v.name ?? "").startsWith(SORT)
+  if (!Object.values(snap.refs).some(sortBtn)) {
     shot("02-sort-RED", { full: true })
-    return record(name, "RED", "Name column header not clickable", "02-sort-RED.png")
+    return record(name, "RED", `${SORT} column header not clickable`, "02-sort-RED.png")
   }
-  await clickStable((v) => v.role === "button" && (v.name ?? "").startsWith("Name"))
-  await waitForText("Name ↑")
-  await clickStable((v) => v.role === "button" && (v.name ?? "").startsWith("Name"))
-  await waitForText("Name ↓")
+  await clickStable(sortBtn)
+  await waitForText(`${SORT} ↑`)
+  await clickStable(sortBtn)
+  await waitForText(`${SORT} ↓`)
   snap = snapshot()
   shot("02-organizations-sorted-desc")
   const betaFirst = snap.text.indexOf(ORG_B) >= 0 && snap.text.indexOf(ORG_B) < snap.text.indexOf(ORG_A)
@@ -270,11 +272,12 @@ export async function scenarioList() {
     return record(name, "RED", "sorting by name descending did not put Beta before Alpha", "02-sort-RED.png")
   }
 
-  // Searching: the Name filter narrows the list to Alpha only.
-  const filter = await clickStable((v) => v.role === "textbox" && v.name === "Filter by Name", "Filter by Name")
+  // Searching: the quick search (a prefix of the name) narrows the list to Alpha only.
+  const SEARCH = "Search (prefix match)"
+  const filter = await clickStable((v) => (v.role === "searchbox" || v.role === "textbox") && v.name === SEARCH, SEARCH)
   if (!filter) {
     shot("02-search-RED", { full: true })
-    return record(name, "RED", "Name filter input not found", "02-search-RED.png")
+    return record(name, "RED", "quick search box not found", "02-search-RED.png")
   }
   type(ORG_A)
   // Every operand is a settled value: waitForText is awaited on its own line,
@@ -288,7 +291,7 @@ export async function scenarioList() {
   const narrowed = alphaShown && betaGone
   snap = snapshot()
   shot("02-organizations-searched")
-  return record(name, narrowed ? "PASS" : "RED", narrowed ? "sorted desc and filtered to Alpha" : "filter did not narrow the list", "02-organizations-searched.png")
+  return record(name, narrowed ? "PASS" : "RED", narrowed ? "sorted desc and searched to Alpha" : "search did not narrow the list", "02-organizations-searched.png")
 }
 
 // --- 3. inline edit on an editable field saves without a reload -----------------
@@ -439,7 +442,8 @@ export async function scenarioNonEditable(api) {
 // --- 5. organization -> contact -> back to the organization ---------------------
 export async function scenarioNavigation(seed) {
   const name = "navigation organization to contact and back"
-  await open(`/organizations/${seed.orgA.id}`)
+  // The related contacts are on the More Information tab (T-1814).
+  await open(`/organizations/${seed.orgA.id}?tab=more`)
   await settle(CONTACT_LINKED)
   let snap = snapshot()
   shot("05-organization-detail")
@@ -1422,6 +1426,8 @@ export async function runAll(api, seed) {
     return verdicts
   }
   verdicts.push(await scenarioList())
+  verdicts.push(await scenarioListActions(seed))
+  verdicts.push(await scenarioListUrl())
   verdicts.push(await scenarioInlineEdit(api))
   verdicts.push(await scenarioNonEditable(api))
   verdicts.push(await scenarioNavigation(seed))
@@ -1433,5 +1439,6 @@ export async function runAll(api, seed) {
   verdicts.push(await scenarioCustomFieldTypes(api, seed))
   verdicts.push(await scenarioLogout())
   verdicts.push(await scenarioReader(CONFIG.qwbePort))
+  verdicts.push(await scenarioReaderEcho())
   return verdicts
 }

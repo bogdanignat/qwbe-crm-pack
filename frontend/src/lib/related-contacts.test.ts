@@ -5,7 +5,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
 import type { CubeMetadata } from "./cube.ts"
-import { contactColumnsOf, contactsRangeOf } from "./related-contacts.ts"
+import { contactColumnsOf, contactsRangeOf, contactsSortOf, sortedRowsOf } from "./related-contacts.ts"
 import { testField as field } from "./test-fields.ts"
 
 const meta = (names: string[]): CubeMetadata => ({
@@ -42,5 +42,21 @@ describe("contactsRangeOf", () => {
     assert.equal(contactsRangeOf(3, 3, 23), "21-23 of 23")
     assert.equal(contactsRangeOf(1, 0, 0), "0 of 0")
     assert.equal(contactsRangeOf(2, 10, undefined), "11-20")
+  })
+})
+
+describe("contactsSortOf", () => {
+  const list = (sort: string[]) => ({ ...meta(["name"]), list: { params: [], maxPageSize: 200, defaultPageSize: 25, search: [], filters: [], sort } })
+
+  it("sorts by last name once the cube allows it, by name until then", () => {
+    assert.equal(contactsSortOf(list(["name", "lastName"])), "lastName")
+    assert.equal(contactsSortOf(list(["name", "company"])), "name")
+    assert.equal(contactsSortOf(list(["company"])), undefined)
+  })
+
+  it("orders the demo contacts the same way", () => {
+    const rows = [{ name: "Maria Proba" }, { name: "Ion Exemplu" }]
+    assert.deepEqual(sortedRowsOf(rows, "name").map((r) => r.name), ["Ion Exemplu", "Maria Proba"])
+    assert.deepEqual(sortedRowsOf(rows, undefined).map((r) => r.name), ["Maria Proba", "Ion Exemplu"])
   })
 })

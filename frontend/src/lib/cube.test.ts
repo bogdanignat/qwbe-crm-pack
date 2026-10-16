@@ -19,6 +19,7 @@ import {
   cubeApiPath,
   errorMessage,
   errorBody,
+  fieldDisplayTextOf,
   formatHrefOf,
   requestFailure,
   groupFields,
@@ -854,5 +855,19 @@ describe("formatHrefOf", () => {
     assert.equal(formatHrefOf(field({ format: "phone" }), "n/a"), null)
     assert.equal(formatHrefOf(field({ format: "email" }), ""), null)
     assert.equal(formatHrefOf(field(), "www.exemplu.test"), null)
+  })
+})
+
+describe("fieldDisplayTextOf", () => {
+  it("shows a website without its protocol; the link keeps it", () => {
+    const url = field({ format: "url" })
+    assert.equal(fieldDisplayTextOf(url, "https://demo-instal.test/"), "demo-instal.test")
+    assert.equal(fieldDisplayTextOf(url, "HTTP://exemplu.test/contact/"), "exemplu.test/contact/")
+    assert.equal(fieldDisplayTextOf(url, "www.exemplu.test"), "www.exemplu.test")
+    assert.equal(formatHrefOf(url, "https://demo-instal.test/"), "https://demo-instal.test/")
+  })
+
+  it("leaves other text as it is", () => {
+    assert.equal(fieldDisplayTextOf(field(), "https://x.test"), "https://x.test")
   })
 })

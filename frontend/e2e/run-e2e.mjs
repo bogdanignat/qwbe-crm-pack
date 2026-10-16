@@ -13,17 +13,23 @@
 
 import { execSync, spawnSync } from "node:child_process"
 import { createServer } from "node:net"
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join, dirname } from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { CONFIG, ORCA, isForbiddenPort, record, writeResults } from "./lib.mjs"
 import { makeClient, seedDown, seedUp } from "./seed.mjs"
 import { closeTabs, runAll } from "./scenarios.mjs"
 
-const fail = (msg) => {
+// Drops the run's database (closes its scope); a no-op until the database exists.
+let dropDatabase = async () => {}
+
+// Never returns: callers `await` it so nothing after a stop runs.
+/** @returns {Promise<never>} */
+const fail = async (msg) => {
   console.error(`\nE2E STOP: ${msg}\n`)
   killStack()
+  await dropDatabase().catch((e) => console.error(`stop: dropping the run database failed: ${e.message}`))
   writeResults([`**STOPPED** — ${msg}`])
   process.exit(2)
 }
@@ -47,7 +53,7 @@ const freePort = async () => {
     })
     if (p && !isForbiddenPort(p)) return p
   }
-  fail("could not find a free port")
+  await fail("could not find a free port")
 }
 
 // --- stack startup (nohup in its own process GROUP, PIDs recorded) ----------------
@@ -95,7 +101,7 @@ const killStack = () => {
 // ---------------------------------------------------------------------------------
 
 log("== QWB-51 e2e: copy the merged platform ==")
-if (process.platform !== "linux") fail("this suite drives the Orca desktop app and only runs on the Orca host")
+if (process.platform !== "linux") await fail("this suite drives the Orca desktop app and only runs on the Orca host")
 rmSync(CONFIG.workDir, { recursive: true, force: true })
 rmSync(CONFIG.dataDir, { recursive: true, force: true })
 mkdirSync(CONFIG.workDir, { recursive: true })
@@ -110,7 +116,7 @@ try {
   kernelSha = gitIn(CONFIG.qwbeRepo, `rev-parse --short ${kernelRef}`)
   kernelName = gitIn(CONFIG.qwbeRepo, `rev-parse --abbrev-ref ${kernelRef}`)
 } catch {
-  fail(`QWBE_E2E_KERNEL_REF=${kernelRef} does not resolve in ${CONFIG.qwbeRepo}`)
+  await fail(`QWBE_E2E_KERNEL_REF=${kernelRef} does not resolve in ${CONFIG.qwbeRepo}`)
 }
 log(`== kernel: ${kernelRef} -> ${kernelName} ${kernelSha} (${CONFIG.qwbeRepo}) ==`)
 const kernelDirty = dirtyCount(CONFIG.qwbeRepo)
@@ -176,15 +182,28 @@ const npmEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k
 execSync("npm ci --no-audit --no-fund --loglevel=error", { cwd: join(CONFIG.workDir, "core"), stdio: "inherit", env: /** @type {NodeJS.ProcessEnv} */ (npmEnv) })
 
 // A database of this run's own, never the developer's: qwbe logout is global per account.
-const { createTestDatabase } = await import(join(CONFIG.workDir, "core", "src", "pg", "test-db.ts"))
-const db = process.env.QWBE_DATABASE_URL
-  ? { url: process.env.QWBE_DATABASE_URL, drop: async () => {} }
-  : await createTestDatabase("e2e")
-log(`== database for this run: ${db.url.replace(/:[^:@/]*@/, ":***@")} ==`)
+// The kernel's testDatabase is a scoped Effect: CREATE now, DROP when its scope closes. The
+// scope stays open for the whole run and closes in the teardown or in fail(). Its server comes
+// from the QWBE_PG_* variables (adminUrl reads them from the environment, no layer needed).
+// `effect` is the kernel copy's own ESM entry, the very instance test-db.ts imports.
+/** @returns {Promise<string>} */
+async function createRunDatabase() {
+  const effectDir = join(CONFIG.workDir, "core", "node_modules", "effect")
+  const effectEntry = JSON.parse(readFileSync(join(effectDir, "package.json"), "utf8")).exports["."].import
+  const { Effect, Exit, Scope } = await import(pathToFileURL(join(effectDir, effectEntry)).href)
+  const { testDatabase } = await import(join(CONFIG.workDir, "core", "src", "pg", "test-db.ts"))
+  const scope = Effect.runSync(Scope.make())
+  dropDatabase = () => Effect.runPromise(Scope.close(scope, Exit.void))
+  return Effect.runPromise(Scope.extend(testDatabase("e2e"), scope)).catch((e) =>
+    fail(`could not create the run database: ${e.message}`),
+  )
+}
+const databaseUrl = process.env.QWBE_DATABASE_URL ?? (await createRunDatabase())
+log(`== database for this run: ${databaseUrl.replace(/:[^:@/]*@/, ":***@")} ==`)
 
 const qwbePort = CONFIG.qwbePort || (await freePort())
 const fePort = CONFIG.frontendPort || (await freePort())
-if (isForbiddenPort(qwbePort) || isForbiddenPort(fePort)) fail("picked a forbidden port (4500/4510)")
+if (isForbiddenPort(qwbePort) || isForbiddenPort(fePort)) await fail("picked a forbidden port (4500/4510)")
 CONFIG.qwbePort = qwbePort
 CONFIG.frontendPort = fePort
 const qwbeLog = "/tmp/qwbe-e2e-qwbe.log"
@@ -196,7 +215,7 @@ pids.push(
     `env QWBE_PORT=${qwbePort} QWBE_DATA_DIR=${CONFIG.dataDir} QWBE_ADMIN_PASSWORD=${CONFIG.password} ` +
       // The merged platform stores every cube in one Postgres database;
       // this run has its own, created above.
-      `QWBE_DATABASE_URL=${db.url} ` +
+      `QWBE_DATABASE_URL=${databaseUrl} ` +
       // The committed cube-versions baseline inside the qwbe checkout is
       // currently stale against its own merged main (the account cube's
       // recorded hash no longer matches what main derives). That baseline is
@@ -221,9 +240,9 @@ pids.push(nohup(`env QWBE_API_URL=http://127.0.0.1:${qwbePort} npx next dev -p $
 
 log("== prove both servers are up (curl-poll) ==")
 const qwbeUp = await poll(`http://127.0.0.1:${qwbePort}/openapi.json`, { expect: [200, 401] })
-if (!qwbeUp) fail(`qwbe did not come up on :${qwbePort} — see ${qwbeLog}`)
+if (!qwbeUp) await fail(`qwbe did not come up on :${qwbePort} — see ${qwbeLog}`)
 const feUp = await poll(`http://localhost:${fePort}/login`, { expect: [200], tries: 90 })
-if (!feUp) fail(`frontend did not come up on :${fePort} — see ${feLog}`)
+if (!feUp) await fail(`frontend did not come up on :${fePort} — see ${feLog}`)
 log(`both up: qwbe :${qwbePort}, frontend :${fePort}`)
 
 let api = null
@@ -243,7 +262,7 @@ try {
     body: { targetCube: "crm/contacts", name: "foldProbe", fieldType: "text" },
   })
   if (probeDef.status !== 200) {
-    fail(`fold probe: defining the probe field failed http ${probeDef.status}: ${JSON.stringify(probeDef.body).slice(0, 300)}`)
+    await fail(`fold probe: defining the probe field failed http ${probeDef.status}: ${JSON.stringify(probeDef.body).slice(0, 300)}`)
   }
   const probeRow = (await api.call("/contacts?limit=1")).body?.rows?.[0]
   const probePatch = await api.call(`/contacts/${probeRow.id}`, {
@@ -253,7 +272,7 @@ try {
   const probeBack = (await api.call(`/contacts/${probeRow.id}`)).body
   await api.call(`/customfields/${probeDef.body.id}`, { method: "DELETE" })
   if (probePatch.status !== 200 || probeBack?.custom?.foldProbe !== "fold-probe-on") {
-    fail(
+    await fail(
       `custom-value fold is OFF: PATCH http ${probePatch.status}, read back ` +
         `${JSON.stringify(probeBack?.custom).slice(0, 200)} — a second effect instance turns the fold off silently`,
     )
@@ -268,7 +287,7 @@ try {
 }
 
   // Orca runtime must be ready before any browser step.
-  if (!ORCA_CLI) fail("ORCA_CLI is not set in the environment: no orca CLI to drive the browser steps")
+  if (!ORCA_CLI) await fail("ORCA_CLI is not set in the environment: no orca CLI to drive the browser steps")
   const status = spawnSync(ORCA_CLI, ["status", "--json"], { encoding: "utf8", timeout: 30_000 })
   let ok = false
   try {
@@ -276,7 +295,7 @@ try {
   } catch {
     /* unparsable */
   }
-  if (!ok) fail(`Orca runtime is not ready (orca status did not report state=ready):\n${status.stdout.slice(0, 400)} ${status.stderr.slice(0, 200)}`)
+  if (!ok) await fail(`Orca runtime is not ready (orca status did not report state=ready):\n${status.stdout.slice(0, 400)} ${status.stderr.slice(0, 200)}`)
 
   const { closeStaleTabs } = await import("./scenarios.mjs")
   closeStaleTabs()
@@ -300,7 +319,7 @@ try {
   if (api) await seedDown(api).catch((e) => console.error(`teardown: seed deletion failed: ${e.message}`))
   else console.log("teardown: nothing seeded (no session); the scratch data dir is deleted with the work directory")
   killStack()
-  await db.drop().catch((e) => console.error(`teardown: dropping the run database failed: ${e.message}`))
+  await dropDatabase().catch((e) => console.error(`teardown: dropping the run database failed: ${e.message}`))
   rmSync(CONFIG.workDir, { recursive: true, force: true })
 
   const results = writeResults([

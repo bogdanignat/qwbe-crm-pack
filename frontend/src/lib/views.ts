@@ -34,10 +34,9 @@ export const VIEW_ENTITY_TYPE = "SavedView"
 // it), so it is excluded too.
 export const VIEW_ACTIONS = ["read", "edit"] as const
 
-// The page sizes every list offers; the first is the default. 200 is qwbe's
-// MAX_LIMIT, so nothing larger can be asked for. components/cube-list.tsx
-// imports this one.
-export const PAGE_SIZES = [25, 50, 100, 200] as const
+// The page sizes every list offers; the first is the default (vtiger's 50 is
+// among them). qwbe's own cap is 200 (MAX_LIMIT), so all are allowed.
+export const PAGE_SIZES = [25, 50, 100] as const
 
 // How many views one picker asks for. ponytail: one page of 200 (the kernel
 // MAX_LIMIT); a user with more saved views for one cube needs paging here.

@@ -2,14 +2,15 @@
 
 // The detail header, vtiger's: "[ACC No] Organization Name", "Updated <when>
 // by <who>", the company status and legal form, and Edit / Duplicate / Delete
-// on the right. vtiger's previous/next arrows are left out (they need the
-// list's order from the backend; docs/plan/organizations-backend.md).
+// on the right, after vtiger's previous / next arrows when the record was
+// opened from the list (they walk the list page it was on).
 
 import Link from "next/link"
 import { CopyPlus, PencilIcon, Trash2 } from "lucide-react"
 
 import { DisabledAction } from "@/components/disabled-action"
 import { MockTag } from "@/components/mock-tag"
+import { RecordNav } from "@/components/record-nav"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { Row } from "@/lib/cube"
@@ -22,12 +23,15 @@ export function OrganizationHeader({
   demo,
   onEdit,
   duplicateHref,
+  nav,
 }: {
   row: Row
   demo: boolean
   // Absent while a draft is open: it must be saved or cancelled first.
   onEdit?: () => void
   duplicateHref: string
+  // The neighbours in the list it was opened from; null without one.
+  nav: { previousHref: string | null; nextHref: string | null } | null
 }) {
   const { number, name } = organizationTitleOf(row)
   const updated = updatedLineOf(row)
@@ -57,6 +61,7 @@ export function OrganizationHeader({
       </div>
 
       <div className="flex flex-wrap gap-2">
+        {nav && <RecordNav {...nav} noun="organization" />}
         {demo ? (
           <DisabledAction variant="outline" reason={DEMO_READ_ONLY}>
             <PencilIcon aria-hidden /> Edit

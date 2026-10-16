@@ -5,7 +5,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
-import { matchesPrefix, searchAll, searchModule, SEARCH_LIMIT, SEARCH_MODULES } from "./global-search.ts"
+import { searchAll, searchModule, SEARCH_LIMIT, SEARCH_MODULES } from "./global-search.ts"
 import type { CubeMetadata, Row } from "./cube.ts"
 
 const metaOf = (cube: string, search: string[] = ["name"]): CubeMetadata => ({
@@ -38,22 +38,6 @@ function stub(metas: CubeMetadata[], rows: Record<string, Row[]>, status = 200, 
   return { doFetch, urls, signals }
 }
 
-describe("matchesPrefix", () => {
-  it("matches any search field by case-insensitive prefix, like q", () => {
-    const row = { name: "Exemplu Construct SRL", industry: "IT", externalId: null }
-    assert.equal(matchesPrefix(row, ["name", "industry"], "exem"), true)
-    assert.equal(matchesPrefix(row, ["name", "industry"], " it "), true)
-  })
-
-  it("does not match inside a value, an unsearched field, a null or an empty query", () => {
-    const row = { name: "Exemplu Construct SRL", industry: "IT", externalId: null }
-    assert.equal(matchesPrefix(row, ["name"], "srl"), false)
-    assert.equal(matchesPrefix(row, ["name"], "it"), false)
-    assert.equal(matchesPrefix(row, ["externalId"], "n"), false)
-    assert.equal(matchesPrefix(row, ["name"], "  "), false)
-  })
-})
-
 describe("searchModule", () => {
   it("sends one q request capped at the palette limit and links every hit to its detail", async () => {
     const cube = "t1/organizations"
@@ -79,6 +63,16 @@ describe("searchModule", () => {
       group.hits.map((h) => [h.id, h.demo]),
       [["org_mock_1", true], ["o1", false]],
     )
+  })
+
+  it("finds the demo rows by CUI, email and phone too, which `q` does not scan", async () => {
+    const cube = "t9/organizations"
+    const demoRows = [{ id: "org_mock_1", name: "Acme Demo", cui: "99000001", email: "office@acme.test", phone: "0700 000 001" }]
+    const { doFetch } = stub([metaOf(cube)], {})
+    for (const q of ["9900", "office@", "0700000"]) {
+      const group = await searchModule({ cube, label: "Organizations", demoRows }, q, { doFetch })
+      assert.deepEqual(group.hits.map((h) => h.id), ["org_mock_1"], q)
+    }
   })
 
   it("never lists rows when the module publishes no search fields", async () => {

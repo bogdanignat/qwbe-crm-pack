@@ -28,6 +28,7 @@ export const APP_PAGES: readonly AppPage[] = [
     search: true,
   },
   { href: "/contacts", label: "Contacts", group: "Sales", cube: "crm/contacts", newLabel: "New Contact", search: true },
-  { href: "/echo", label: "Echo", group: "Tools" },
   { href: "/settings", label: "Settings", group: "Administration" },
+  // A developer page: admin only, out of the CRM menu.
+  { href: "/echo", label: "Echo", group: "Administration" },
 ]

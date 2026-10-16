@@ -2,9 +2,14 @@
 // names the contact and opens it (a demo contact has no page, so its name is
 // plain text); the other values show as the detail shows them (FieldValue:
 // phones and the email are links). A column the contacts cube does not
-// publish yet is marked mock and stays empty.
+// publish yet is marked mock and stays empty. Each row ends with vtiger's
+// actions: edit (the contact's page in edit mode) and del (needs backend).
 
 import Link from "next/link"
+import { PencilIcon, Trash2Icon } from "lucide-react"
+
+import { DisabledAction } from "@/components/disabled-action"
+import { Button } from "@/components/ui/button"
 
 import { FieldMarker } from "@/components/field-marker"
 import { FieldValue } from "@/components/kit/field-value"
@@ -17,11 +22,14 @@ export function ContactsTable({
   columns,
   rows,
   hrefOf,
+  editHrefOf,
 }: {
   columns: readonly ContactColumn[]
   rows: readonly Row[]
   // The contact's page, or null when it has none.
   hrefOf: (row: Row) => string | null
+  // The contact's page in edit mode, or null when it cannot be edited (demo).
+  editHrefOf: (row: Row) => string | null
 }) {
   return (
     <Table>
@@ -33,6 +41,7 @@ export function ContactsTable({
               {!column.field && <FieldMarker marker={MOCK_MARKER} />}
             </TableHead>
           ))}
+          <TableHead>Action</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -47,6 +56,9 @@ export function ContactsTable({
                 )}
               </TableCell>
             ))}
+            <TableCell className="py-0.5">
+              <ContactActions name={String(row.name ?? row.id)} editHref={editHrefOf(row)} />
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
@@ -65,4 +77,26 @@ function ContactValue({ field, row, titleLink }: { field: FieldMetadata; row: Ro
     )
   }
   return <FieldValue field={field} record={{ ...row, [field.name]: value }} text={text} />
+}
+
+function ContactActions({ name, editHref }: { name: string; editHref: string | null }) {
+  const edit = <PencilIcon aria-hidden />
+  return (
+    <span className="flex gap-1">
+      {editHref ? (
+        <Button variant="ghost" size="icon" className="size-9" asChild>
+          <Link href={editHref} aria-label={`Edit ${name}`}>
+            {edit}
+          </Link>
+        </Button>
+      ) : (
+        <DisabledAction variant="ghost" size="icon" className="size-9" aria-label={`Edit ${name}`} reason="Demo records are read-only">
+          {edit}
+        </DisabledAction>
+      )}
+      <DisabledAction variant="ghost" size="icon" className="size-9" aria-label={`Delete ${name}`}>
+        <Trash2Icon aria-hidden />
+      </DisabledAction>
+    </span>
+  )
 }

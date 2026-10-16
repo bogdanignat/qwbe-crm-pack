@@ -3,12 +3,13 @@
 // One list request per searchable page of the registry (lib/app-pages.ts) through
 // the list contract's `q`: a case-insensitive PREFIX match over the fields the cube
 // declares under `list.search`, ORed together. The demo organizations of the
-// mockup layer are matched here the same way and marked, because the backend does
-// not have them. What a real search over every module needs is in
-// docs/plan/organizations-backend.md §7.
+// mockup layer are matched here the same way, plus by CUI, email and phone
+// (lib/demo-search.ts), and marked, because the backend does not have them. What
+// a real search over every module needs is in docs/plan/organizations-backend.md §7.
 
 import { APP_PAGES } from "./app-pages.ts"
 import { apiFetch, listApiPath, relationMeta, rowHref, titleOf, type CubeMetadata, type PageOf, type Row } from "./cube.ts"
+import { DEMO_EXTRA_SEARCH, demoRowsMatching } from "./demo-search.ts"
 import { ORGANIZATIONS_CUBE } from "./organization-display.ts"
 import { DEMO_ORGANIZATIONS } from "../mock/organizations/index.ts"
 
@@ -30,13 +31,6 @@ export type SearchGroup = { label: string; hits: SearchHit[]; error: string | nu
 
 // `signal` cancels the list requests of a search the user has typed past.
 export type SearchOptions = { doFetch?: typeof fetch; signal?: AbortSignal }
-
-// Whether a row matches `q` the way the list contract does.
-export function matchesPrefix(row: Row, fields: readonly string[], q: string): boolean {
-  const needle = q.trim().toLowerCase()
-  if (needle === "") return false
-  return fields.some((field) => String(row[field] ?? "").toLowerCase().startsWith(needle))
-}
 
 function hitsOf(module: SearchModule, meta: CubeMetadata, rows: Row[], demo: boolean): SearchHit[] {
   return rows.flatMap((row) => {
@@ -70,7 +64,7 @@ export async function searchModule(module: SearchModule, q: string, options: Sea
   if (fields.length === 0) return group([], "This module is not searchable.")
   const rows = await pageRowsOf(module, q.trim(), options)
   if (!rows) return group([], "Search failed.")
-  const demo = (module.demoRows ?? []).filter((row) => matchesPrefix(row, fields, q))
+  const demo = demoRowsMatching(module.demoRows ?? [], [...fields, ...DEMO_EXTRA_SEARCH], { q, filters: {} })
   return group([...hitsOf(module, meta, demo, true), ...hitsOf(module, meta, rows, false)])
 }
 
