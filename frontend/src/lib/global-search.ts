@@ -9,7 +9,7 @@
 
 import { APP_PAGES } from "./app-pages.ts"
 import { apiFetch, listApiPath, relationMeta, rowHref, titleOf, type CubeMetadata, type PageOf, type Row } from "./cube.ts"
-import { ORGANIZATIONS_CUBE } from "./organization-labels.ts"
+import { ORGANIZATIONS_CUBE } from "./organization-display.ts"
 import { DEMO_ORGANIZATIONS } from "../mock/organizations/index.ts"
 
 export type SearchModule = { cube: string; label: string; demoRows?: Row[] }

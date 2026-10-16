@@ -9,7 +9,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ChevronDown, LogOut, Plus, UserRound } from "lucide-react"
 
-import { AppSidebar } from "@/components/app-sidebar"
+import { AppSidebar, PageIcon } from "@/components/app-sidebar"
 import { SearchPalette } from "@/components/search-palette"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -68,7 +68,7 @@ function NewMenu() {
         {APP_PAGES.filter((page) => page.newLabel).map((page) => (
           <DropdownMenuItem key={page.href} asChild>
             <Link href={`${page.href}/new`}>
-              <page.icon aria-hidden />
+              <PageIcon href={page.href} />
               {page.newLabel}
             </Link>
           </DropdownMenuItem>

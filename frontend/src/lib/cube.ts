@@ -28,7 +28,12 @@ export type FieldMetadata = {
   // True for a field the backend does not publish yet, merged in from the
   // mockup layer (src/mock). Shown marked, never edited, never sent.
   mock?: boolean
+  // How a text value is shown: a mailto:, tel: or http link. qwbe does not
+  // publish it yet; the mock and the organization page supply it.
+  format?: FieldFormat
 }
+
+export type FieldFormat = "email" | "phone" | "url"
 
 // The list query contract a cube publishes (qwbe core/src/metadata/schemas.ts
 // ListContract): what its list route actually honours. `search` names the fields
@@ -249,7 +254,8 @@ export function listApiPath(cube: string, params: ListParams): string {
 // Columns are DERIVED from metadata. The default column set is metadata-driven
 // too: a field absent from the create payload (editable: false) is a backend
 // bookkeeping column (id, type, version, deleted, createdAt) and is hidden by
-// default, so a 60k-row list does not render five dead columns per row.
+// default, so a 60k-row list does not render five dead columns per row. A mock
+// field bound for a custom field (src/mock) is hidden by default too.
 export type ColumnSpec = {
   field: FieldMetadata
   sortable: boolean
@@ -262,7 +268,7 @@ export function columnsFromFields(fields: FieldMetadata[]): ColumnSpec[] {
     field,
     sortable: field.sortable,
     editable: field.editable,
-    visible: field.editable,
+    visible: field.editable && !(field.mock && field.custom),
   }))
 }
 
@@ -280,20 +286,31 @@ export function valueTextOf(value: unknown): string {
   return typeof name === "string" ? name : String(value)
 }
 
+// The link a formatted value opens (vtiger shows phones, emails and websites as
+// links), or null. A website without http(s):// gets http:// in front, as in
+// vtiger, so a stored "javascript:..." can only ever become a plain web address.
+export function formatHrefOf(field: FieldMetadata, value: unknown): string | null {
+  const text = typeof value === "string" ? value.trim() : ""
+  if (text === "") return null
+  if (field.format === "email") return `mailto:${text}`
+  if (field.format === "url") return /^https?:\/\//i.test(text) ? text : `http://${text}`
+  const digits = text.replace(/[^\d+]/g, "")
+  return field.format === "phone" && digits !== "" ? `tel:${digits}` : null
+}
+
 // What the list shows around one server page. Demo rows (mockup data, never
 // from the server) ride on top of the first unfiltered page only, and never
 // count: the range and the total stay the server's ("0 of 0" when the server
-// has no rows and only demo rows show).
+// has no rows), and the label says how many demo rows ride on top.
 export function listWindowOf(
   page: PageOf<Row>,
   demoRows: readonly Row[],
   filtered: boolean,
 ): { demo: readonly Row[]; label: string } {
+  const demo = page.offset === 0 && !filtered ? demoRows : []
   const range = page.rows.length === 0 ? "0" : `${page.offset + 1}-${page.offset + page.rows.length}`
-  return {
-    demo: page.offset === 0 && !filtered ? demoRows : [],
-    label: page.total === undefined ? range : `${range} of ${page.total}`,
-  }
+  const server = page.total === undefined ? range : `${range} of ${page.total}`
+  return { demo, label: demo.length > 0 ? `${server} · +${demo.length} demo` : server }
 }
 
 // The sort a column click produces: undefined for a column the metadata does

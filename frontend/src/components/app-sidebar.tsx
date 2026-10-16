@@ -7,7 +7,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ChevronRight } from "lucide-react"
+import { Activity, Building2, ChevronRight, Settings, Users, type LucideIcon } from "lucide-react"
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
@@ -25,6 +25,19 @@ import {
 } from "@/components/ui/sidebar"
 import { APP_PAGES, type AppPage } from "@/lib/app-pages"
 
+// The icon of each page, by href; the registry (lib/app-pages.ts) stays free of UI.
+const PAGE_ICONS: Record<string, LucideIcon> = {
+  "/organizations": Building2,
+  "/contacts": Users,
+  "/echo": Activity,
+  "/settings": Settings,
+}
+
+export function PageIcon({ href }: { href: string }) {
+  const Icon = PAGE_ICONS[href]
+  return Icon ? <Icon aria-hidden /> : null
+}
+
 // The groups in registry order; the admin-only block goes to the bottom.
 const GROUPS = [...new Set(APP_PAGES.map((page) => page.group))]
   .filter((group) => group !== "Administration")
@@ -40,7 +53,7 @@ function NavLink({ entry }: { entry: AppPage }) {
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={current}>
         <Link href={entry.href} aria-current={current ? "page" : undefined} onClick={() => setOpenMobile(false)}>
-          <entry.icon aria-hidden />
+          <PageIcon href={entry.href} />
           <span>{entry.label}</span>
         </Link>
       </SidebarMenuButton>

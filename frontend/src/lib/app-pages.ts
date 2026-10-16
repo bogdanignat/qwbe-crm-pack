@@ -5,8 +5,6 @@
 // A vtiger module gets an entry here once it has a page; the missing ones are in
 // docs/plan/organizations-backend.md §7.
 
-import { Activity, Building2, Settings, Users, type LucideIcon } from "lucide-react"
-
 // The vtiger 5.4 groups that have a page today; "Administration" is the admin-only
 // block at the bottom of the menu.
 export type MenuGroup = "Sales" | "Tools" | "Administration"
@@ -14,7 +12,6 @@ export type MenuGroup = "Sales" | "Tools" | "Administration"
 export type AppPage = {
   href: string
   label: string
-  icon: LucideIcon
   group: MenuGroup
   cube?: string
   newLabel?: string
@@ -25,13 +22,12 @@ export const APP_PAGES: readonly AppPage[] = [
   {
     href: "/organizations",
     label: "Organizations",
-    icon: Building2,
     group: "Sales",
     cube: "crm/organizations",
     newLabel: "New Organization",
     search: true,
   },
-  { href: "/contacts", label: "Contacts", icon: Users, group: "Sales", cube: "crm/contacts", newLabel: "New Contact", search: true },
-  { href: "/echo", label: "Echo", icon: Activity, group: "Tools" },
-  { href: "/settings", label: "Settings", icon: Settings, group: "Administration" },
+  { href: "/contacts", label: "Contacts", group: "Sales", cube: "crm/contacts", newLabel: "New Contact", search: true },
+  { href: "/echo", label: "Echo", group: "Tools" },
+  { href: "/settings", label: "Settings", group: "Administration" },
 ]

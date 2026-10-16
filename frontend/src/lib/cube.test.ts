@@ -19,6 +19,7 @@ import {
   cubeApiPath,
   errorMessage,
   errorBody,
+  formatHrefOf,
   requestFailure,
   groupFields,
   hrefForRelation,
@@ -837,5 +838,21 @@ describe("withSavedValue", () => {
   it("creates the `custom` sub-object when the row had none", () => {
     const bare: Row = { id: "r2", name: "Bare" }
     assert.deepEqual(withSavedValue(bare, field({ name: "cui", custom: true }), "y").custom, { cui: "y" })
+  })
+})
+
+describe("formatHrefOf", () => {
+  it("links an email, a phone and a website the way vtiger does", () => {
+    assert.equal(formatHrefOf(field({ format: "email" }), " office@exemplu.test "), "mailto:office@exemplu.test")
+    assert.equal(formatHrefOf(field({ format: "phone" }), "0700 000 001"), "tel:0700000001")
+    assert.equal(formatHrefOf(field({ format: "url" }), "www.exemplu.test"), "http://www.exemplu.test")
+    assert.equal(formatHrefOf(field({ format: "url" }), "https://demo-instal.test"), "https://demo-instal.test")
+  })
+
+  it("never yields a script link, and nothing for an empty or unformatted value", () => {
+    assert.equal(formatHrefOf(field({ format: "url" }), "javascript:alert(1)"), "http://javascript:alert(1)")
+    assert.equal(formatHrefOf(field({ format: "phone" }), "n/a"), null)
+    assert.equal(formatHrefOf(field({ format: "email" }), ""), null)
+    assert.equal(formatHrefOf(field(), "www.exemplu.test"), null)
   })
 })

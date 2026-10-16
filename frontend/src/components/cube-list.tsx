@@ -29,6 +29,7 @@ import {
   cubeApiPath,
   hrefForRelation,
   rowHref,
+  formatHrefOf,
   listApiPath,
   listWindowOf,
   listControlsOf,
@@ -42,8 +43,10 @@ import {
   valueTextOf,
 } from "@/lib/cube"
 import { withMockFields } from "@/mock/organizations"
-import { withOrganizationLabels } from "@/lib/organization-labels"
+import { withOrganizationDisplay } from "@/lib/organization-display"
 import { MockTag } from "@/components/mock-tag"
+import { FormatLink } from "@/components/format-link"
+import { PencilIcon } from "lucide-react"
 import { relationRefsOf } from "@/lib/relation-batch"
 import { readPrefs } from "@/lib/field-prefs"
 import { PAGE_SIZES, type AppliedView, type SavedViewRow } from "@/lib/views"
@@ -145,7 +148,7 @@ export function CubeList({
     apiFetch(metadataApiPath(cube))
       .then(async (r) => {
         if (!r.ok) throw await requestFailure("metadata", r)
-        return withOrganizationLabels(withMockFields((await r.json()) as CubeMetadata))
+        return withOrganizationDisplay(withMockFields((await r.json()) as CubeMetadata))
       })
       .then((m) => {
         if (alive) setMeta(m)
@@ -740,10 +743,35 @@ function Cell({
   // One long custom text value must not destroy the table layout: clamp the
   // cell, keep the full value in the title tooltip.
   const textValue = value === null || value === undefined ? null : valueTextOf(value)
+  const external = formatHrefOf(field, value)
   const cellText = (node: React.ReactNode) => (
     <span className="block max-w-56 truncate sm:max-w-72" title={textValue ?? undefined}>
       {node}
     </span>
+  )
+
+  // The inline edit affordance: the whole cell, or a pencil next to a link.
+  const editButton = (children: React.ReactNode) => (
+    <button
+      type="button"
+      className="min-h-9 cursor-text rounded-sm text-left hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring"
+      title={`Edit ${field.label}`}
+      // The accessible name must say what the button does; the cell value
+      // alone left a screen reader no way to find the edit affordance.
+      aria-label={`Edit ${field.label}`}
+      // A REAL (trusted) click moves focus to this button; when the
+      // editor replaces it, the browser's delayed focus lands on the
+      // node that no longer exists, blurs the freshly mounted editor
+      // input, and the input's commit-on-blur closes the editor before
+      // anyone could type (trusted click, handler
+      // ran, editor mounted and focused, then a blurred input closed it).
+      // Suppressing the mousedown focus transfer removes the window;
+      // the editor's own autoFocus then holds the focus.
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={startEdit}
+    >
+      {children}
+    </button>
   )
 
   return (
@@ -809,27 +837,15 @@ function Cell({
         <Link className="underline" href={rowLink} title={textValue ?? undefined}>
           {content}
         </Link>
+      ) : external ? (
+        <span className="flex items-center gap-1">
+          <FormatLink field={field} href={external}>
+            {cellText(content)}
+          </FormatLink>
+          {editable && editButton(<PencilIcon aria-hidden className="size-3.5" />)}
+        </span>
       ) : editable ? (
-        <button
-          type="button"
-          className="min-h-9 cursor-text rounded-sm text-left hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring"
-          title={`Edit ${field.label}`}
-          // The accessible name must say what the button does; the cell value
-          // alone left a screen reader no way to find the edit affordance.
-          aria-label={`Edit ${field.label}`}
-          // A REAL (trusted) click moves focus to this button; when the
-          // editor replaces it, the browser's delayed focus lands on the
-          // node that no longer exists, blurs the freshly mounted editor
-          // input, and the input's commit-on-blur closes the editor before
-          // anyone could type (trusted click, handler
-          // ran, editor mounted and focused, then a blurred input closed it).
-          // Suppressing the mousedown focus transfer removes the window;
-          // the editor's own autoFocus then holds the focus.
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={startEdit}
-        >
-          {cellText(content)}
-        </button>
+        editButton(cellText(content))
       ) : field.relation || (isTitle && rowLink) ? (
         content
       ) : (

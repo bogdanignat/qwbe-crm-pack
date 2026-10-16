@@ -10,15 +10,15 @@
 //   same name wins and its mock vanishes, with no frontend change.
 // - Demo records are read-only and never come from or go to the backend.
 
-import type { CubeMetadata, FieldMetadata, Row } from "../../lib/cube.ts"
-import { ORGANIZATIONS_CUBE } from "../../lib/organization-labels.ts"
+import type { CubeMetadata, FieldFormat, FieldMetadata, Row } from "../../lib/cube.ts"
+import { ORGANIZATIONS_CUBE } from "../../lib/organization-display.ts"
 import fieldsJson from "./fields.json" with { type: "json" }
 import organizationsJson from "./organizations.json" with { type: "json" }
 import picklistsJson from "./picklists.json" with { type: "json" }
 
-// P1-P9 from §5.3, in the order vtiger shows them. `total` is the size of the
-// real list; P4, P6 and P9 carry only the first 20 values the spec lists.
-export type Picklist = { field: string; label: string; total: number; values: string[] }
+// P1-P9, complete, in the order vtiger shows them (checked against the vtiger
+// database; normalized, without "--None--").
+export type Picklist = { field: string; label: string; values: string[] }
 export const PICKLISTS: Record<string, Picklist> = picklistsJson
 
 // Where vtiger places each mock field: its own field name, block, sequence in
@@ -29,11 +29,14 @@ export const VTIGER_PLACEMENT: Record<string, VtigerPlacement> = Object.fromEntr
 )
 
 // Never sortable or searchable: the server cannot sort or search a column it
-// does not have.
+// does not have. A field whose target is "custom" (Bogdan's cube/custom split,
+// docs/plan/organizations-backend.md) is shaped as a runtime custom field, so
+// the UI treats it exactly like one: its value in `row.custom`, its own section.
 export const MOCK_FIELDS: FieldMetadata[] = fieldsJson.map((f) => ({
   name: f.name,
   label: f.label,
   type: f.type,
+  ...(f.format ? { format: f.format as FieldFormat } : {}),
   required: f.required,
   editable: f.editable,
   sortable: false,
@@ -41,7 +44,7 @@ export const MOCK_FIELDS: FieldMetadata[] = fieldsJson.map((f) => ({
   nullable: f.nullable,
   enum: f.picklist ? PICKLISTS[f.picklist].values : null,
   relation: f.relation,
-  custom: false,
+  custom: f.target === "custom",
   mock: true,
 }))
 
@@ -55,8 +58,18 @@ export function withMockFields(meta: CubeMetadata): CubeMetadata {
 }
 
 // The three demo organizations of §6, shown read-only on the list's first page
-// and opened from here, never from the backend.
-export const DEMO_ORGANIZATIONS: Row[] = organizationsJson
+// and opened from here, never from the backend. The JSON is §6 verbatim (flat);
+// the values of the custom-target fields move to `row.custom`, where the
+// backend keeps a custom field's value.
+const CUSTOM_NAMES = new Set(MOCK_FIELDS.filter((f) => f.custom).map((f) => f.name))
+
+export const DEMO_ORGANIZATIONS: Row[] = organizationsJson.map((flat: Row) => {
+  const entries = Object.entries(flat)
+  return {
+    ...Object.fromEntries(entries.filter(([name]) => !CUSTOM_NAMES.has(name))),
+    custom: Object.fromEntries(entries.filter(([name]) => CUSTOM_NAMES.has(name))),
+  }
+})
 
 export function demoOrganizationOf(cube: string, id: string): Row | undefined {
   return cube === ORGANIZATIONS_CUBE ? DEMO_ORGANIZATIONS.find((row) => row.id === id) : undefined

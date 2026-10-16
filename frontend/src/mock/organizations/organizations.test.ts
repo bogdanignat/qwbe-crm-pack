@@ -5,8 +5,18 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
-import { canEdit, createPayloadOf, listWindowOf, saveCell, type CubeMetadata, type FieldMetadata } from "../../lib/cube.ts"
-import { changedPayloadOf } from "../../lib/kit-form.ts"
+import {
+  canEdit,
+  columnsFromFields,
+  createPayloadOf,
+  customValueOf,
+  groupFields,
+  listWindowOf,
+  saveCell,
+  type CubeMetadata,
+  type FieldMetadata,
+} from "../../lib/cube.ts"
+import { changedPayloadOf, displayRowOf } from "../../lib/kit-form.ts"
 import { qwbeDataProvider } from "../../lib/qwbe-data-provider.ts"
 import { relationRefsOf } from "../../lib/relation-batch.ts"
 import { DEMO_ORGANIZATIONS, MOCK_FIELDS, PICKLISTS, VTIGER_PLACEMENT, withMockFields } from "./index.ts"
@@ -56,7 +66,33 @@ describe("mock data", () => {
 
   it("has the P1-P9 picklists with the sizes of §5.3", () => {
     const sizes = Object.fromEntries(Object.entries(PICKLISTS).map(([k, p]) => [k, p.values.length]))
-    assert.deepEqual(sizes, { P1: 29, P2: 43, P3: 12, P4: 20, P5: 9, P6: 20, P7: 4, P8: 53, P9: 20 })
+    assert.deepEqual(sizes, { P1: 29, P2: 43, P3: 12, P4: 123, P5: 9, P6: 83, P7: 4, P8: 53, P9: 102 })
+  })
+
+  it("splits the fields 24 for the cube and 9 for custom fields", () => {
+    const custom = MOCK_FIELDS.filter((f) => f.custom).map((f) => f.name)
+    assert.equal(MOCK_FIELDS.length - custom.length, 24)
+    assert.deepEqual(custom.sort(), [
+      "billingPoBox",
+      "notifyOwner",
+      "otherFax",
+      "otherIndustry",
+      "otherIndustrySpec",
+      "parentOrganizationId",
+      "productCategory",
+      "shippingPoBox",
+      "tickerSymbol",
+    ])
+  })
+
+  it("formats the extra phones and the other email as links", () => {
+    const formats = MOCK_FIELDS.filter((f) => f.format).map((f) => [f.name, f.format])
+    assert.deepEqual(formats, [
+      ["otherPhone", "phone"],
+      ["mobilePhone", "phone"],
+      ["fax", "phone"],
+      ["otherEmail", "email"],
+    ])
   })
 
   it("has the three fictitious organizations of §6", () => {
@@ -86,6 +122,32 @@ describe("withMockFields", () => {
   it("leaves every other cube untouched", () => {
     const contacts = meta([field()], "crm/contacts")
     assert.equal(withMockFields(contacts), contacts)
+  })
+})
+
+describe("custom-target fields", () => {
+  const merged = withMockFields(meta([field()]))
+  const demo = DEMO_ORGANIZATIONS[2]
+
+  it("land in the Custom fields section, not in Other", () => {
+    const sections = groupFields(merged.fields, [{ legend: "Organization", fields: ["name"] }])
+    const custom = sections.find((s) => s.legend === "Custom fields")!.fields.map((f) => f.name)
+    const other = sections.find((s) => s.legend === "Other")!.fields.map((f) => f.name)
+    assert.equal(custom.length, 9)
+    assert.ok(!other.includes("productCategory") && other.includes("cui"))
+  })
+
+  it("are hidden in the list by default, the cube-bound ones are not", () => {
+    const visible = columnsFromFields(merged.fields).filter((c) => c.visible).map((c) => c.field.name)
+    assert.ok(visible.includes("cui") && !visible.includes("productCategory"))
+  })
+
+  it("keep the demo values readable, from row.custom like a real custom field", () => {
+    const parent = merged.fields.find((f) => f.name === "parentOrganizationId")!
+    assert.equal(demo.productCategory, undefined)
+    assert.equal(customValueOf(demo, parent), "org_mock_002")
+    assert.equal(displayRowOf(merged, demo).productCategory, "Pompe - Motopompe")
+    assert.equal(demo.cui, "99000003")
   })
 })
 
@@ -119,20 +181,22 @@ describe("mock fields never leave the browser", () => {
 describe("demo rows", () => {
   const page = { rows: [{ id: "a" }, { id: "b" }], offset: 0, limit: 25, total: 61347 }
 
-  it("ride on the first unfiltered page and stay out of the range and total", () => {
+  it("ride on the first unfiltered page, outside the server range and total", () => {
     const view = listWindowOf(page, DEMO_ORGANIZATIONS, false)
     assert.equal(view.demo.length, 3)
-    assert.equal(view.label, "1-2 of 61347")
+    assert.equal(view.label, "1-2 of 61347 · +3 demo")
   })
 
   it("still show on a cube with no real rows, with a 0 of 0 range", () => {
     const view = listWindowOf({ rows: [], offset: 0, limit: 25, total: 0 }, DEMO_ORGANIZATIONS, false)
     assert.equal(view.demo.length, 3)
-    assert.equal(view.label, "0 of 0")
+    assert.equal(view.label, "0 of 0 · +3 demo")
   })
 
-  it("are absent on later pages and under a filter", () => {
-    assert.equal(listWindowOf({ ...page, offset: 25 }, DEMO_ORGANIZATIONS, false).demo.length, 0)
+  it("are absent on later pages and under a filter, and the label says nothing of them", () => {
+    const later = listWindowOf({ ...page, offset: 25 }, DEMO_ORGANIZATIONS, false)
+    assert.equal(later.demo.length, 0)
+    assert.equal(later.label, "26-27 of 61347")
     assert.equal(listWindowOf(page, DEMO_ORGANIZATIONS, true).demo.length, 0)
   })
 })

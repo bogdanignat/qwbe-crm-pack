@@ -40,6 +40,7 @@ import {
 import {
   apiFetch,
   canEdit,
+  formatHrefOf,
   groupFields,
   hrefForRelation,
   metadataApiPath,
@@ -53,8 +54,9 @@ import {
   valueTextOf,
 } from "@/lib/cube.ts"
 import { withMockFields } from "@/mock/organizations"
-import { withOrganizationLabels } from "@/lib/organization-labels"
+import { withOrganizationDisplay } from "@/lib/organization-display"
 import { MockTag } from "@/components/mock-tag"
+import { FormatLink } from "@/components/format-link"
 import {
   changedPayloadOf,
   copyText,
@@ -96,7 +98,7 @@ export function CubeKitShow({
     apiFetch(metadataApiPath(cube))
       .then(async (r) => {
         if (!r.ok) throw await requestFailure("metadata", r)
-        return withOrganizationLabels(withMockFields((await r.json()) as CubeMetadata))
+        return withOrganizationDisplay(withMockFields((await r.json()) as CubeMetadata))
       })
       .then((m) => {
         if (alive) setMeta(m)
@@ -427,14 +429,23 @@ function textOf(field: FieldMetadata, record: Row, resolveTitle: ResolveTitle): 
 
 // The rendered value: the text, linked to the target's page for a relation
 // when this app has a route for it (Next's Link -- the organization relation
-// keeps its navigation), a dash when empty.
+// keeps its navigation), a tel:/mailto:/http link for a formatted value, a
+// dash when empty.
 function showValueOf(field: FieldMetadata, record: Row, text: string | null): React.ReactNode {
   if (text === null) return "—"
   const href = field.relation ? hrefForRelation(field.relation.target, String(record[field.name])) : null
-  return href ? (
-    <Link className="underline" href={href}>
+  if (href) {
+    return (
+      <Link className="underline" href={href}>
+        {text}
+      </Link>
+    )
+  }
+  const external = formatHrefOf(field, record[field.name])
+  return external ? (
+    <FormatLink field={field} href={external}>
       {text}
-    </Link>
+    </FormatLink>
   ) : (
     text
   )

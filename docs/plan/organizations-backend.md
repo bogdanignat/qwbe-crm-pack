@@ -12,55 +12,90 @@ publishes a field with the same name; the frontend does not change.
 
 All 33, with the names below, readable and writable (except the read-only ones).
 Type, required flag, length and picklist are the vtiger ones (§5.2); the exact source
-is `frontend/src/mock/organizations/fields.json`.
+is `frontend/src/mock/organizations/fields.json`. The 33 fields and the picklists P1, P2,
+P3, P5, P7 and P8 were checked against the vtiger database; P4, P6 and P9 are complete
+lists from it (vtiger order, normalized, without "--None--").
 
-| Name | Label (en_us) | Type | Req. | Length | Picklist | Notes |
-|---|---|---|---|---|---|---|
-| modifiedAt | Modified Time | datetime | – | – | – | read-only |
-| otherIndustry | Other Industry | picklist | no | 255 | P6 | |
-| legalForm | Form | picklist | yes | 255 | P1 | |
-| otherIndustrySpec | Other Industry Spec | text | no | 255 | – | |
-| vatPayer | TVA | boolean | yes (formal) | – | – | |
-| cui | CUI | text (digits) | yes | 20 | – | unique + check digit |
-| tradeRegisterNo | Reg no | text | no | 20 | – | |
-| customerCategory | Category | picklist | no | 255 | P7 | |
-| bank | Bank | picklist | no | 255 | P8 | |
-| productCategory | Product Category | picklist | no | 255 | P9 | |
-| iban | IBAN | text | no | 50 | – | |
-| assignedTo | Assigned To | user or group | yes | – | – | `{type, id, name}` |
-| parentOrganizationId | Member Of | relation to crm/organizations | no | – | – | |
-| otherPhone | Other Phone | phone | no | 30 | – | |
-| mobilePhone | Comp Mobile Phone | phone | no | 15 | – | |
-| annualRevenue | Annual Revenue | integer (EUR) | no | – | – | |
-| fax | Fax | phone | no | 30 | – | |
-| otherFax | Other Fax | text | no | 15 | – | |
-| caenCode | SIC Code | text | no | 50 | – | "NNNN Description" |
-| tickerSymbol | Ticker Symbol | text | no | 30 | – | 0% used, decide whether it stays |
-| otherEmail | Other Email | email | no | 100 | – | |
-| turnoverEur | Account Turnover (€) | integer | no | 10 digits | – | |
-| notifyOwner | Notify Owner | boolean | no | – | – | 0% used, decide whether it stays |
-| industrySpec | Industry Spec | text | no | 50 | – | |
-| modifiedBy | Last Modified By | user | – | – | – | read-only, `{id, name}` |
-| shippingStreet | Shipping Address | textarea | no | 250 | – | |
-| billingPoBox | Billing PO Box | text | no | 30 | – | |
-| shippingPoBox | Shipping PO Box | text | no | 30 | – | |
-| shippingCity | Shipping City | text | no | 30 | – | |
-| billingState | Billing State | picklist | yes | 30 | P2 | |
-| shippingState | Shipping State | text (P2 proposed) | no | 30 | – | |
-| shippingCode | Shipping Postal Code | text | no | 30 | – | |
-| shippingCountry | Shipping Country | text | no | 30 | – | |
+**Target** (Bogdan's decision): only the fields worth porting go into the cube, the rest
+become runtime custom fields of `crm/organizations`, under the same names.
+
+- **cube (24):** cui, legalForm, vatPayer, tradeRegisterNo, customerCategory, caenCode,
+  industrySpec, assignedTo, modifiedAt, modifiedBy, otherPhone, mobilePhone, fax, otherEmail,
+  annualRevenue, turnoverEur, bank, iban, billingState, shippingStreet, shippingCity,
+  shippingState, shippingCode, shippingCountry.
+- **custom (9):** otherIndustry, otherIndustrySpec, productCategory, otherFax, billingPoBox,
+  shippingPoBox, tickerSymbol, notifyOwner, parentOrganizationId.
+
+The UI already treats the 9 as custom fields (`custom: true`, value in `row.custom`): they
+show in the detail's "Custom fields" section and are hidden in the list by default. Once
+they are real custom fields, the list shows them like any custom field (QWB-52); hiding
+them by default is then a Settings preference per browser, or a decision to take.
+
+| Name | Label (en_us) | Target | Type | Req. | Length | Picklist | Notes |
+|---|---|---|---|---|---|---|---|
+| modifiedAt | Modified Time | cube | datetime | – | – | – | read-only |
+| otherIndustry | Other Industry | custom | picklist | no | 255 | P6 | |
+| legalForm | Form | cube | picklist | yes | 255 | P1 | |
+| otherIndustrySpec | Other Industry Spec | custom | text | no | 255 | – | |
+| vatPayer | TVA | cube | boolean | yes (formal) | – | – | |
+| cui | CUI | cube | text (digits) | yes | 20 | – | unique + check digit |
+| tradeRegisterNo | Reg no | cube | text | no | 20 | – | |
+| customerCategory | Category | cube | picklist | no | 255 | P7 | |
+| bank | Bank | cube | picklist | no | 255 | P8 | |
+| productCategory | Product Category | custom | picklist | no | 255 | P9 | |
+| iban | IBAN | cube | text | no | 50 | – | |
+| assignedTo | Assigned To | cube | user or group | yes | – | – | `{type, id, name}` |
+| parentOrganizationId | Member Of | custom | relation to crm/organizations | no | – | – | |
+| otherPhone | Other Phone | cube | phone | no | 30 | – | |
+| mobilePhone | Comp Mobile Phone | cube | phone | no | 15 | – | |
+| annualRevenue | Annual Revenue | cube | integer (EUR) | no | – | – | |
+| fax | Fax | cube | phone | no | 30 | – | |
+| otherFax | Other Fax | custom | text | no | 15 | – | |
+| caenCode | SIC Code | cube | text | no | 50 | – | "NNNN Description" |
+| tickerSymbol | Ticker Symbol | custom | text | no | 30 | – | 0% used, skipped at import |
+| otherEmail | Other Email | cube | email | no | 100 | – | |
+| turnoverEur | Account Turnover (€) | cube | integer | no | 10 digits | – | |
+| notifyOwner | Notify Owner | custom | boolean | no | – | – | 0% used, skipped at import |
+| industrySpec | Industry Spec | cube | text | no | 50 | – | |
+| modifiedBy | Last Modified By | cube | user | – | – | – | read-only, `{id, name}` |
+| shippingStreet | Shipping Address | cube | textarea | no | 250 | – | |
+| billingPoBox | Billing PO Box | custom | text | no | 30 | – | |
+| shippingPoBox | Shipping PO Box | custom | text | no | 30 | – | |
+| shippingCity | Shipping City | cube | text | no | 30 | – | |
+| billingState | Billing State | cube | picklist | yes | 30 | P2 | |
+| shippingState | Shipping State | cube | text (P2 proposed) | no | 30 | – | |
+| shippingCode | Shipping Postal Code | cube | text | no | 30 | – | |
+| shippingCountry | Shipping Country | cube | text | no | 30 | – | |
+
+### Import and data notes
+
+- [ ] `tickerSymbol` and `notifyOwner` hold no data (0%): the import can skip them.
+- [ ] `parentOrganizationId` is a relation (Member Of): check whether custom fields support a
+      relation to `crm/organizations`; if not, it needs another home.
+- [ ] Bank values in vtiger carry NBSP (U+00A0); the import must normalize them to plain
+      spaces, otherwise they do not match the P8 picklist.
+- [ ] IBAN is filled mostly on real customers (53% of the organizations with an IBAN have
+      quotes or orders): import it without loss.
+- [ ] **Open decision for Bogdan:** `turnoverEur` (8,9% filled, used in 2 filter columns)
+      seems to duplicate `annualRevenue` (35,5% filled, 68 filter columns). Keep one or both?
+- [ ] `otherEmail` (6,1%) and the `shipping*` fields (7,9%) are sparsely filled.
 
 ## 2. Metadata
 
 - [ ] Picklists as `enum` in the metadata, with the vtiger values and order: P1, P2,
       P6–P9 on the new fields; P3 on `organizationType`, P4 on `industry`, P5 on `rating`
       (all three are `enum: null` today). Optionally filtered by role, as in 5.4.
-- [ ] The complete lists for P4 (123), P6 (83) and P9 (102); the mock has only the first 20.
+- [ ] A display format for text fields: `email`, `phone`, `url`. Today the metadata publishes
+      `phone`, `email` and `website` as plain `type: "string"`, with no format, so the UI
+      supplies one to show them as tel:/mailto:/http links, as vtiger does: for the real
+      fields in `frontend/src/lib/organization-display.ts`, for the mock ones in
+      `fields.json` (otherPhone, mobilePhone, fax: phone; otherEmail: email). A format the
+      backend publishes wins over the UI's.
 - [ ] The vtiger en_us labels on the existing fields, where they differ: Type (today
       "Organization Type"), Billing Address ("Billing Street"), Billing Postal Code
       ("Billing Code"), Created Time ("Created At"), Organization Name ("Name").
       `rating` is shown as "Company status" (in vtiger it is the company's legal status);
-      that one is a UI decision and stays in the frontend (`lib/organization-labels.ts`).
+      that one is a UI decision and stays in the frontend (`lib/organization-display.ts`).
 - [ ] The maximum length of every text field, so the UI can validate before saving.
 - [ ] A published type for the user/group references (`assignedTo`, `modifiedBy`); the UI
       shows `name`.
@@ -94,6 +129,8 @@ is `frontend/src/mock/organizations/fields.json`.
 
 - A field of §1 published under the same name: its mock disappears automatically.
 - Picklists published as `enum`: `picklists.json` is no longer needed.
+- The 9 custom-target fields defined as custom fields under the same names: their mocks
+  disappear the same way (a real field, custom or not, wins by name).
 - The demo organizations (`organizations.json`, `org_mock_001..003`) need nothing from
   the backend; they go once the real organizations carry the new data.
 - The `rating` label stays: it is a UI decision, not part of the mock.
@@ -120,15 +157,18 @@ A mechanical deletion, all under `frontend/`. Nothing outside this list refers t
 8. `src/components/cube-create-form.tsx`: the `withMockFields` import and call.
 9. `src/app/organizations/page.tsx`: the `DEMO_ORGANIZATIONS` import and the `demoRows` prop.
    `src/app/organizations/[id]/page.tsx`: the `demoOrganizationOf` import and the demo branch.
-10. `src/lib/cube.ts`: `mock?` in `FieldMetadata`, `&& !field.mock` in `canEdit`, the mock
+10. `src/lib/cube.ts`: `mock?` in `FieldMetadata`, `&& !field.mock` in `canEdit`, the
+    `!(field.mock && field.custom)` part of `visible` in `columnsFromFields`, the mock
     refusal in `saveCell`, the mock skip in `createPayloadOf`, and the `demoRows`
-    parameter of `listWindowOf`.
+    parameter of `listWindowOf` (with the "+N demo" part of its label).
 11. `src/lib/kit-form.ts`: the mock skip in `updatePayloadOf`.
 12. `src/lib/global-search.ts`: the `DEMO_ORGANIZATIONS` and `ORGANIZATIONS_CUBE` imports,
     `DEMO_ROWS`, and `demoRows` (in `SearchModule`, `SEARCH_MODULES` and `searchModule`).
 
-What stays: `withOrganizationLabels` (`src/lib/organization-labels.ts`) and
-`valueTextOf` (reference objects such as `assignedTo` once the backend publishes them).
+What stays: `withOrganizationDisplay` (`src/lib/organization-display.ts`: the `rating` label
+and the link formats), `format?` in `FieldMetadata` with `formatHrefOf` and
+`src/components/format-link.tsx` (until the backend publishes formats, then they read its
+value), and `valueTextOf` (reference objects such as `assignedTo`).
 
 ## 7. Main menu (step 2, T-1812)
 
