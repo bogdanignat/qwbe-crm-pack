@@ -6,7 +6,7 @@
 // detail and inline editor already use. Schema metadata stays authoritative:
 // nothing here hard-codes a field of a specific cube.
 
-import { coerce, type FieldMetadata, type Row } from "./cube.ts"
+import { canEdit, coerce, customValueOf, fieldDisplayTextOf, type FieldMetadata, type Row } from "./cube.ts"
 
 // Field grouping lives in cube.ts (groupFields, FieldGroupSpec): ONE
 // distribution of the published fields over a page's named sections, with the
@@ -145,4 +145,54 @@ export async function copyText(
   } catch (e: unknown) {
     return e instanceof Error ? e.message : String(e)
   }
+}
+
+// The displayed text of one field in a flattened row, or null when empty: a
+// relation shows the target's title (or its id until resolved), a boolean
+// yes/no, a timestamp the local date and time, a number grouped by thousands,
+// anything else its text. This
+// is exactly what Copy copies.
+export type ResolveTitle = (target: string, id: string) => string | null
+
+export function fieldTextOf(field: FieldMetadata, record: Row, resolveTitle: ResolveTitle): string | null {
+  const value = record[field.name]
+  if (value === null || value === undefined || value === "") return null
+  if (field.relation) {
+    const id = String(value)
+    return resolveTitle(field.relation.target, id) ?? id
+  }
+  if (field.type === "boolean") return value ? "yes" : "no"
+  return fieldDisplayTextOf(field, value)
+}
+
+// The refusal shown on an in-place form: qwbe's own message, followed by each
+// per-field issue the provider mapped (HttpError body.errors) under the
+// field's label, so the user learns WHICH input was refused.
+export function refusalTextOf(e: unknown, fields: readonly FieldMetadata[]): string {
+  const message = e instanceof Error ? e.message : String(e)
+  const errors = (e as { body?: { errors?: Record<string, string> } }).body?.errors ?? {}
+  const details = Object.entries(errors).map(([name, text]) => {
+    const label = fields.find((f) => f.name === name)?.label ?? name
+    return `${label}: ${text}`
+  })
+  return details.length > 0 ? `${message} (${details.join("; ")})` : message
+}
+
+// The create form's starting values copied from an existing row (Duplicate):
+// only what a user may edit and the backend stores -- never the id, the
+// bookkeeping columns or a mock field -- minus the names the caller skips (an
+// import identity, an auto-generated record number). Text, as the form holds it.
+export function duplicateValuesOf(
+  fields: readonly FieldMetadata[],
+  row: Row,
+  skip: ReadonlySet<string> = new Set(),
+): Record<string, string> {
+  const values: Record<string, string> = {}
+  for (const field of fields) {
+    if (!canEdit(field) || skip.has(field.name)) continue
+    const value = customValueOf(row, field)
+    if (value === null || value === undefined || typeof value === "object") continue
+    values[field.name] = String(value)
+  }
+  return values
 }

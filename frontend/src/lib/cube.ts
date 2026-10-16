@@ -9,6 +9,8 @@
 // stays in the httpOnly cookie and never reaches browser-visible code.
 
 import { APP_PAGES } from "./app-pages.ts"
+import { formatDateTime, isIsoDateTime } from "./date-time.ts"
+import { formatNumber } from "./number-format.ts"
 
 // The published field metadata (qwbe core/src/metadata/schemas.ts).
 export type FieldMetadata = {
@@ -28,12 +30,13 @@ export type FieldMetadata = {
   // True for a field the backend does not publish yet, merged in from the
   // mockup layer (src/mock). Shown marked, never edited, never sent.
   mock?: boolean
-  // How a text value is shown: a mailto:, tel: or http link. qwbe does not
-  // publish it yet; the mock and the organization page supply it.
+  // How a text value is shown: a mailto:, tel: or http link, or an IBAN in
+  // groups of four. qwbe does not publish it yet; the mock and the
+  // organization page supply it.
   format?: FieldFormat
 }
 
-export type FieldFormat = "email" | "phone" | "url"
+export type FieldFormat = "email" | "phone" | "url" | "iban"
 
 // The list query contract a cube publishes (qwbe core/src/metadata/schemas.ts
 // ListContract): what its list route actually honours. `search` names the fields
@@ -284,6 +287,20 @@ export function canEdit(field: FieldMetadata): boolean {
 export function valueTextOf(value: unknown): string {
   const name = value && typeof value === "object" ? (value as Row).name : undefined
   return typeof name === "string" ? name : String(value)
+}
+
+// The text a value is shown with: a timestamp in the reader's local date and
+// time (never the raw ISO text), anything else as valueTextOf.
+export function displayTextOf(value: unknown): string {
+  return isIsoDateTime(value) ? formatDateTime(value) : valueTextOf(value)
+}
+
+// The text one field's value is shown with: a number of a numeric field
+// grouped by thousands (850,000), anything else as displayTextOf. A number
+// stored in a text field (a CUI, a postal code) is never regrouped.
+export function fieldDisplayTextOf(field: FieldMetadata, value: unknown): string {
+  const numeric = field.type === "integer" || field.type === "number"
+  return numeric && typeof value === "number" ? formatNumber(value) : displayTextOf(value)
 }
 
 // The link a formatted value opens (vtiger shows phones, emails and websites as

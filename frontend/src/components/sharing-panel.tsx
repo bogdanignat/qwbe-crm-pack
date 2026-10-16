@@ -45,14 +45,14 @@ import { useCurrentUser } from "@/hooks/use-current-user"
 
 const PAGE = 50
 
-const CAPABILITY_NOTE =
+export const CAPABILITY_NOTE =
   "Sharing opens this record only. Editing also needs the cube write capability, managed separately. A grantee cannot manage or re-share this record."
 const TOTAL_NOTE = "TOTAL includes transfer: this grantee can take ownership of the record."
 
 type Access = "loading" | "manage" | "denied" | "failed"
 
-const ALL_LEVELS: ReadonlyArray<ShareLevel> = ["total", "read", "custom"]
-const LEVEL_LABELS: Record<ShareLevel, string> = {
+export const ALL_LEVELS: ReadonlyArray<ShareLevel> = ["total", "read", "custom"]
+export const LEVEL_LABELS: Record<ShareLevel, string> = {
   total: "Full access (TOTAL)",
   read: "Read only",
   custom: "Custom",

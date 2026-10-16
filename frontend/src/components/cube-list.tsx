@@ -40,7 +40,7 @@ import {
   sortRequestFor,
   withSavedValue,
   requestFailure,
-  valueTextOf,
+  fieldDisplayTextOf,
 } from "@/lib/cube"
 import { withMockFields } from "@/mock/organizations"
 import { withOrganizationDisplay } from "@/lib/organization-display"
@@ -738,11 +738,11 @@ function Cell({
   } else if (field.type === "boolean" && !boolAbsent) {
     content = value ? "yes" : "no"
   } else {
-    content = value === null || value === undefined ? "—" : valueTextOf(value)
+    content = value === null || value === undefined ? "—" : fieldDisplayTextOf(field, value)
   }
   // One long custom text value must not destroy the table layout: clamp the
   // cell, keep the full value in the title tooltip.
-  const textValue = value === null || value === undefined ? null : valueTextOf(value)
+  const textValue = value === null || value === undefined ? null : fieldDisplayTextOf(field, value)
   const external = formatHrefOf(field, value)
   const cellText = (node: React.ReactNode) => (
     <span className="block max-w-56 truncate sm:max-w-72" title={textValue ?? undefined}>
@@ -751,10 +751,10 @@ function Cell({
   )
 
   // The inline edit affordance: the whole cell, or a pencil next to a link.
-  const editButton = (children: React.ReactNode) => (
+  const editButton = (children: React.ReactNode, className = "min-h-9 cursor-text text-left") => (
     <button
       type="button"
-      className="min-h-9 cursor-text rounded-sm text-left hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring"
+      className={`${className} rounded-sm hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring`}
       title={`Edit ${field.label}`}
       // The accessible name must say what the button does; the cell value
       // alone left a screen reader no way to find the edit affordance.
@@ -842,7 +842,12 @@ function Cell({
           <FormatLink field={field} href={external}>
             {cellText(content)}
           </FormatLink>
-          {editable && editButton(<PencilIcon aria-hidden className="size-3.5" />)}
+          {editable &&
+            editButton(
+              <PencilIcon aria-hidden className="size-3.5" />,
+              // A finger-sized target (36px) next to the link, not a text cell.
+              "inline-flex size-9 shrink-0 cursor-pointer items-center justify-center",
+            )}
         </span>
       ) : editable ? (
         editButton(cellText(content))

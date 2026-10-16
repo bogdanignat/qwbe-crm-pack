@@ -63,15 +63,20 @@ import { Skeleton } from "@/components/ui/skeleton"
 export function CubeCreateForm({
   cube,
   fields,
+  initialValues = {},
 }: {
   cube: string
   // The static field names to show, in display order.
   fields: string[]
+  // Starting values by field name (Duplicate, Add Contact from an
+  // organization). Only the fields the form shows can travel: the payload is
+  // built from the form's own fields, never from this object.
+  initialValues?: Record<string, string>
 }) {
   const router = useRouter()
   const [meta, setMeta] = useState<CubeMetadata | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [values, setValues] = useState<Record<string, string>>({})
+  const [values, setValues] = useState<Record<string, string>>(initialValues)
   const [refusal, setRefusal] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   // The submit only exists once the client has hydrated: before that, typed

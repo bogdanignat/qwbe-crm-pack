@@ -12,6 +12,7 @@
 
 import type { CubeMetadata, FieldFormat, FieldMetadata, Row } from "../../lib/cube.ts"
 import { ORGANIZATIONS_CUBE } from "../../lib/organization-display.ts"
+import contactsJson from "./contacts.json" with { type: "json" }
 import fieldsJson from "./fields.json" with { type: "json" }
 import organizationsJson from "./organizations.json" with { type: "json" }
 import picklistsJson from "./picklists.json" with { type: "json" }
@@ -73,4 +74,13 @@ export const DEMO_ORGANIZATIONS: Row[] = organizationsJson.map((flat: Row) => {
 
 export function demoOrganizationOf(cube: string, id: string): Row | undefined {
   return cube === ORGANIZATIONS_CUBE ? DEMO_ORGANIZATIONS.find((row) => row.id === id) : undefined
+}
+
+// The made-up contacts of the demo organizations (Maria Proba, Ion Exemplu on
+// org_mock_001), for the Contacts related list. Read-only, never from or to
+// the backend, and they have no contact page.
+export const DEMO_CONTACTS: Row[] = contactsJson
+
+export function demoContactsOf(organizationId: string): Row[] {
+  return DEMO_CONTACTS.filter((contact) => contact.organizationId === organizationId)
 }

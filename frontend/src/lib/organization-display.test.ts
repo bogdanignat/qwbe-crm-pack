@@ -30,9 +30,23 @@ const meta = (cube: string): CubeMetadata => ({
 })
 
 describe("withOrganizationDisplay", () => {
-  it("labels the published rating Company status and leaves the rest", () => {
+  it("uses vtiger's labels (Organization Name, Company status) and leaves the rest", () => {
     const labels = withOrganizationDisplay(meta("crm/organizations")).fields.map((f) => f.label)
-    assert.deepEqual(labels, ["Name", "Company status", "Phone", "Website"])
+    assert.deepEqual(labels, ["Organization Name", "Company status", "Phone", "Website"])
+  })
+
+  it("uses vtiger's en_us labels for the address and the creation time", () => {
+    const published = meta("crm/organizations")
+    published.fields = [field("billingStreet", "Billing Street"), field("billingCode", "Billing Code"), field("createdAt", "Created At")]
+    const labels = withOrganizationDisplay(published).fields.map((f) => f.label)
+    assert.deepEqual(labels, ["Billing Address", "Billing Postal Code", "Created Time"])
+  })
+
+  it("names the currency of the two amounts: EUR, the single currency for now", () => {
+    const amounts = meta("crm/organizations")
+    amounts.fields = [field("annualRevenue", "Annual Revenue"), field("turnoverEur", "Account Turnover (€)")]
+    const labels = withOrganizationDisplay(amounts).fields.map((f) => f.label)
+    assert.deepEqual(labels, ["Annual Revenue (EUR)", "Account Turnover (EUR)"])
   })
 
   it("formats phone, email and website as links, unless the backend publishes a format", () => {

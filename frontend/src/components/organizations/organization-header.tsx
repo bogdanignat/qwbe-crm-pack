@@ -1,0 +1,86 @@
+"use client"
+
+// The detail header, vtiger's: "[ACC No] Organization Name", "Updated <when>
+// by <who>", the company status and legal form, and Edit / Duplicate / Delete
+// on the right. vtiger's previous/next arrows are left out (they need the
+// list's order from the backend; docs/plan/organizations-backend.md).
+
+import Link from "next/link"
+import { CopyPlus, PencilIcon, Trash2 } from "lucide-react"
+
+import { DisabledAction } from "@/components/disabled-action"
+import { MockTag } from "@/components/mock-tag"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import type { Row } from "@/lib/cube"
+import { headerBadgesOf, organizationTitleOf, updatedLineOf } from "@/lib/organization-summary"
+
+const DEMO_READ_ONLY = "Demo records are read-only"
+
+export function OrganizationHeader({
+  row,
+  demo,
+  onEdit,
+  duplicateHref,
+}: {
+  row: Row
+  demo: boolean
+  // Absent while a draft is open: it must be saved or cancelled first.
+  onEdit?: () => void
+  duplicateHref: string
+}) {
+  const { number, name } = organizationTitleOf(row)
+  const updated = updatedLineOf(row)
+  const badges = headerBadgesOf(row)
+
+  return (
+    <header className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <h1 className="text-xl font-semibold break-words">
+          {number && <span className="mr-1.5 text-muted-foreground">[{number}]</span>}
+          {name}
+          {demo && <MockTag>demo</MockTag>}
+        </h1>
+        {updated && <p className="text-sm text-muted-foreground">{updated}</p>}
+        {badges.length > 0 && (
+          <ul className="flex flex-wrap gap-1.5" aria-label="Status">
+            {badges.map((badge) => (
+              <li key={badge.label}>
+                <Badge variant="secondary" title={badge.label}>
+                  <span className="sr-only">{badge.label}: </span>
+                  {badge.value}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {demo ? (
+          <DisabledAction variant="outline" reason={DEMO_READ_ONLY}>
+            <PencilIcon aria-hidden /> Edit
+          </DisabledAction>
+        ) : (
+          <Button variant="outline" disabled={!onEdit} onClick={onEdit}>
+            <PencilIcon aria-hidden /> Edit
+          </Button>
+        )}
+        {demo ? (
+          <DisabledAction variant="outline" reason={DEMO_READ_ONLY}>
+            <CopyPlus aria-hidden /> Duplicate
+          </DisabledAction>
+        ) : (
+          <Button variant="outline" asChild>
+            <Link href={duplicateHref}>
+              <CopyPlus aria-hidden /> Duplicate
+            </Link>
+          </Button>
+        )}
+        <DisabledAction variant="outline">
+          <Trash2 aria-hidden /> Delete
+        </DisabledAction>
+      </div>
+    </header>
+  )
+}

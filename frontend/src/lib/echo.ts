@@ -16,6 +16,7 @@
 // edits, author or moderator deletes), never to grant anything.
 
 import { apiFetch, errorBody, errorMessage } from "./cube.ts"
+import { formatDateTime } from "./date-time.ts"
 
 // FeedComment (echo/index.ts): `body` is "" once deleted; the log never carries text.
 export type FeedComment = {
@@ -326,9 +327,9 @@ export function commentActions(
 
 // A date for display, or the raw text when it is not a date at all -- the
 // feed never crashes on a timestamp it cannot read.
+// In the app's locale and time zone (lib/locale.ts), with seconds.
 export function formatAt(iso: string): string {
-  const t = Date.parse(iso)
-  return Number.isNaN(t) ? iso : new Date(t).toLocaleString()
+  return formatDateTime(iso, { seconds: true })
 }
 
 // Rows of a later page appended after the current ones; a row already shown

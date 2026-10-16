@@ -8,6 +8,29 @@ Numbers keep the source notation: a dot separates thousands (61.347), a comma ma
 
 ---
 
+## Implementation rules
+
+The code rules every step of this rebuild follows (they are also global rules for the projects):
+
+- Small files with one responsibility each, under ~200 lines; a growing file is split into
+  pieces with clear names, not grown further. The Organizations pieces live in
+  `frontend/src/components/organizations/`.
+- Logic (field grouping, ordering, labels, date formatting, payloads) lives in `src/lib` or in
+  hooks, not in JSX. Components only render.
+- Reusable components stay generic: a collapsible block or a field grid knows nothing about
+  Organizations.
+- TypeScript only. Styling with Tailwind classes only: no `style={{}}`, no new CSS files.
+- UI primitives come from `src/components/ui` (shadcn/Radix); a missing one is added there in
+  shadcn style without new npm packages. A primitive that would need a new package is raised
+  first, not installed.
+- Use what the project already has: react-query, react-hook-form, zod, lucide, sonner, the
+  data provider and the existing hooks.
+- Simple and readable top to bottom; no speculative abstraction.
+- Mock fields are marked (MockTag), read-only and never sent to the API; demo records are
+  read-only and never go to the backend.
+
+---
+
 ## 1. Main menu
 
 ### 1.1 [vtiger 5.4] Header (`Header.tpl`)
@@ -321,24 +344,80 @@ Fields are laid out in pairs, in `sequence` order (left, right). `displaytype=2`
 
 Each list has a header with the record count, the buttons `Add <Singular>` (ADD) / `Select <Module>` (SELECT, search popup), its own paging and the row actions `edit | del`; on the SELECT lists, `del` means unlink, not delete. Contacts columns (today): Last Name, First Name, Mobile, Email, Office Phone, Title, Assigned To.
 
-### 3.6 [modern proposal]
+### 3.6 [modern proposal] – built in T-1814
+
+The vtiger layout, two tabs and all, in the app's own style (shadcn + Tailwind).
+Code: `frontend/src/components/organizations/` (layout data in `src/lib/organization-layout.ts`).
 
 ```
-+---------------------------------------------------------------------------------+
-| ← Organizations  ACC12345 · Exemplu Construct SRL   [Activ] [SRL]   [Edit] [⋯]  |
-| CUI 99000001 · J99/0001/2020 · Cluj · Owner: <user>                             |
-+---------------------------------------------------------------------------------+
-| [Details] [Contacts 3] [Quotes 12] [Devize 4] [PVS 7] [Documents 2] [Activity]   |
-+-------------------------------------------+-------------------------------------+
-| ▸ Company data    (2 columns)             | Quick actions: Email, Activity,     |
-| ▸ Contact                                  |   Document                          |
-| ▸ Billing address | Shipping address       | Comments (timeline)                 |
-| ▸ Financial data                           |                                     |
-| ▸ Description                              |                                     |
-+-------------------------------------------+-------------------------------------+
++------------------------------------------------------------------------------------+
+| [ACC12345] Exemplu Construct SRL                       [Edit] [Duplicate] [Delete]  |
+| Updated 02.11.2025, 17:40 by <user>                                                 |
+| [Activ] [SRL]                                                                       |
++------------------------------------------------------------------------------------+
+| [Organization Information] [More Information]        (?tab=more keeps the tab)     |
++---------------------------------------------------------+--------------------------+
+| v Organization Information                              | Actions                  |
+|   Created Time | <local dt> | Modified Time | <local dt>|   Send Mail (mailto:)    |
+|   Organization Name | …     | Other Industry| …         |   Add Event        (off) |
+|   …  (rows of §3.2, mock fields with a marker)          |   Add To Do        (off) |
+| v Address Information  (billing left, shipping right)   |   Add Note         (off) |
+| v Description Information  (full width)                 |   Show Org. Hierarchy (off)|
+| v Custom fields  (runtime custom fields only)           |   Send SMS         (off) |
+|                                                         | Activity (comments feed) |
++---------------------------------------------------------+--------------------------+
+More Information tab:
+| v Contacts [n]                                                     [Add Contact]   |
+|   Name | Mobile | Email | Office Phone | Title | Assigned To                        |
+|   Showing 1-10 of n                                                  [<] [>]        |
+| Sharing                                                                            |
 ```
-- Inline edit per field (click → edit → Enter/Esc), as in 5.4, but with the same validations as the form (CUI included).
-- Related lists as tabs with a counter; in phase 1 only Contacts has real data.
+
+- **Header:** `[Organization No] Name`, "Updated <local date and time> by <Last Modified By>"
+  ("Created <date>" while the cube publishes no modification time), badges for Company status
+  (`rating`) and Form (`legalForm`). Edit turns every editable value into its input under one
+  Save/Cancel bar; Duplicate opens the create form prefilled (`/organizations/new?duplicate=<id>`,
+  without the id, the bookkeeping columns, the mock fields, External Id and Organization No);
+  Delete is disabled with a "Needs backend" tooltip. vtiger's ◀ / jump / ▶ navigation is left out.
+- **Blocks:** collapsible (chevron in the header), all open by default; the open/closed state is
+  remembered per block in the viewer's browser (localStorage). The vtiger 4-cell rows (right-aligned
+  label, value, label, value) collapse to one column (label above value) when the block is narrow
+  (phone width), read column by column: all the left fields, then all the right ones (in Address,
+  all of billing, then all of shipping). The DOM has that order too, so tab order, screen readers
+  and Edit follow what the reader sees at every width. Hidden: Id, Type, Deleted, External Id (technical; vtiger has no such field and
+  Schema & API still shows it) and Last Modified By (it is in the header). A published field no
+  block names joins the end of block 1; a runtime custom field the "Custom fields" block. The nine
+  fields bound to become runtime custom fields (Other Industry, Other Industry Spec, Product
+  Category, Other Fax, the two PO Boxes, Ticker Symbol, Notify Owner, Member Of) are named by the
+  layout, so once real they stay in their vtiger place (a test keeps it so).
+- **Labels:** vtiger's en_us labels where the frontend supplies them: "Organization Name",
+  "Created Time", "Billing Address", "Billing Postal Code", "Type", "Company status".
+- **Mock markers:** a small icon after the label, with a tooltip and a screen-reader label, so the
+  label stays on one line: MOCK (dashed circle) for a field bound for the cube, CUSTOM (puzzle
+  piece) for one bound to be a runtime custom field; screen readers hear the full description. Both are read-only and never sent.
+- **Inline edit:** the pencil (and Copy) follow the value in space of their own (they never cover
+  it) and appear on hover where there is a mouse, always on touch; only on real editable fields,
+  never on mock fields or demo records. Phone, email and website stay links. While a draft is open
+  the other tab is locked (save or cancel first), so no edit is dropped silently; the locked tab
+  stays focusable and says why on hover and focus.
+- **Dates and numbers:** one fixed locale, ro-RO (Europe/Bucharest), from `src/lib/locale.ts`,
+  everywhere (header, detail, list, contacts, activity): 16.10.2026, 19:21 and 850.000, never raw
+  ISO.
+- **IBAN:** shown in groups of four that never break mid-group; Copy copies the raw value.
+- **Currency:** one currency, EUR, for now: "Annual Revenue (EUR)", "Account Turnover (EUR)". It
+  will be configured at qwbe level 0.
+- **Related lists:** only Contacts (`organizationId` filter), with a count, paging (10 per page)
+  and "Add Contact" (`/contacts/new?organizationId=<id>`, organization preselected). The other 18
+  lists of §3.5 are not shown until their modules exist (organizations-backend.md §8).
+- **Sidebar:** on the first tab only, as in vtiger. Mail Merge and EMAILMaker are left out.
+- **Sharing:** on the More Information tab, under the related lists; the Schema & API panel stays
+  below the tabs.
+- The three demo organizations open read-only and send no request about the record: no pencils,
+  Edit/Duplicate/Add Contact disabled; Duplicate of a demo id says "Demo records are read-only".
+  ACC90001 (org_mock_001) lists two made-up contacts from the mock (Maria Proba, Ion Exemplu,
+  read-only, no contact page). Sharing and Activity keep their place and layout as read-only
+  previews marked DEMO, every control disabled ("Sharing is available on real organizations");
+  no Schema & API panel.
 
 ---
 

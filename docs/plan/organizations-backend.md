@@ -48,13 +48,13 @@ them by default is then a Settings preference per browser, or a decision to take
 | parentOrganizationId | Member Of | custom | relation to crm/organizations | no | – | – | |
 | otherPhone | Other Phone | cube | phone | no | 30 | – | |
 | mobilePhone | Comp Mobile Phone | cube | phone | no | 15 | – | |
-| annualRevenue | Annual Revenue | cube | integer (EUR) | no | – | – | |
+| annualRevenue | Annual Revenue | cube | integer (EUR) | no | – | – | UI label "Annual Revenue (EUR)" |
 | fax | Fax | cube | phone | no | 30 | – | |
 | otherFax | Other Fax | custom | text | no | 15 | – | |
 | caenCode | SIC Code | cube | text | no | 50 | – | "NNNN Description" |
 | tickerSymbol | Ticker Symbol | custom | text | no | 30 | – | 0% used, skipped at import |
 | otherEmail | Other Email | cube | email | no | 100 | – | |
-| turnoverEur | Account Turnover (€) | cube | integer | no | 10 digits | – | |
+| turnoverEur | Account Turnover (€) | cube | integer (EUR) | no | 10 digits | – | UI label "Account Turnover (EUR)" |
 | notifyOwner | Notify Owner | custom | boolean | no | – | – | 0% used, skipped at import |
 | industrySpec | Industry Spec | cube | text | no | 50 | – | |
 | modifiedBy | Last Modified By | cube | user | – | – | – | read-only, `{id, name}` |
@@ -76,8 +76,11 @@ them by default is then a Settings preference per browser, or a decision to take
       spaces, otherwise they do not match the P8 picklist.
 - [ ] IBAN is filled mostly on real customers (53% of the organizations with an IBAN have
       quotes or orders): import it without loss.
-- [ ] **Open decision for Bogdan:** `turnoverEur` (8,9% filled, used in 2 filter columns)
-      seems to duplicate `annualRevenue` (35,5% filled, 68 filter columns). Keep one or both?
+- [ ] **Currency:** a single currency for every amount, configured at qwbe level 0. EUR for now;
+      the UI labels say "(EUR)" until the backend publishes the configured currency.
+- [ ] **Open question, low priority:** `annualRevenue` and `turnoverEur` are both kept for now.
+      `turnoverEur` (8,9% filled, used in 2 filter columns) seems to duplicate `annualRevenue`
+      (35,5% filled, 68 filter columns); whether both are needed stays open.
 - [ ] `otherEmail` (6,1%) and the `shipping*` fields (7,9%) are sparsely filled.
 
 ## 2. Metadata
@@ -93,8 +96,9 @@ them by default is then a Settings preference per browser, or a decision to take
       backend publishes wins over the UI's.
 - [ ] The vtiger en_us labels on the existing fields, where they differ: Type (today
       "Organization Type"), Billing Address ("Billing Street"), Billing Postal Code
-      ("Billing Code"), Created Time ("Created At"), Organization Name ("Name").
-      `rating` is shown as "Company status" (in vtiger it is the company's legal status);
+      ("Billing Code"), Created Time ("Created At"), Organization Name ("Name"). Until then
+      the UI supplies them (`ORGANIZATION_LABELS` in `lib/organization-display.ts`); a label
+      the backend publishes the same way makes that entry redundant. `rating` is shown as "Company status" (in vtiger it is the company's legal status);
       that one is a UI decision and stays in the frontend (`lib/organization-display.ts`).
 - [ ] The maximum length of every text field, so the UI can validate before saving.
 - [ ] A published type for the user/group references (`assignedTo`, `modifiedBy`); the UI
@@ -139,7 +143,8 @@ them by default is then a Settings preference per browser, or a decision to take
 
 A mechanical deletion, all under `frontend/`. Nothing outside this list refers to the mock.
 
-1. Delete `src/mock/` (fields, picklists, demo records, `withMockFields`, its tests).
+1. Delete `src/mock/` (fields, picklists, demo records and demo contacts, `withMockFields`,
+   its tests).
    `VTIGER_PLACEMENT` and `PICKLISTS` are used by the detail and form steps: move what
    they still need first, or retire them with the steps that use them.
 2. Delete `src/components/mock-tag.tsx`.
@@ -152,11 +157,19 @@ A mechanical deletion, all under `frontend/`. Nothing outside this list refers t
 6. `src/components/cube-list.tsx`: the `withMockFields` and `MockTag` imports and calls,
    the `demoRows` prop, the demo rows in the table body, and `listWindowOf`'s `demo`
    (`empty` becomes `page.rows.length === 0`).
-7. `src/components/kit/cube-show.tsx`: the `withMockFields` and `MockTag` imports and
-   calls, and the `demo` prop with its three uses (editable fields, pencil, title tag).
+7. `src/hooks/use-cube-metadata.ts`: the `withMockFields` import and call.
+   `src/components/kit/cube-show.tsx`: the `MockTag` import and call, and the `demo` prop with
+   its three uses (editable fields, pencil, title tag).
+   `src/components/organizations/`: the `MockTag` use in organization-header, the
+   `FieldMarker` uses (organization-info, contacts-table) with `src/lib/field-marker.ts` and
+   `src/components/field-marker.tsx`, and the `demo` prop (organization-detail,
+   organization-header, related-contacts, with the `demoContactsOf` slice there).
+   `src/hooks/use-duplicate-values.ts`: the `demoOrganizationOf` guard. The read-only previews
+   `src/components/sharing-preview.tsx` and `activity-preview.tsx` go with their `demo` branches. `src/lib/organization-layout.ts` keeps the vtiger rows; a test there
+   reads `VTIGER_PLACEMENT` and goes with the mock.
 8. `src/components/cube-create-form.tsx`: the `withMockFields` import and call.
 9. `src/app/organizations/page.tsx`: the `DEMO_ORGANIZATIONS` import and the `demoRows` prop.
-   `src/app/organizations/[id]/page.tsx`: the `demoOrganizationOf` import and the demo branch.
+   `src/app/organizations/[id]/page.tsx`: the `demoOrganizationOf` import and the `demo` flag.
 10. `src/lib/cube.ts`: `mock?` in `FieldMetadata`, `&& !field.mock` in `canEdit`, the
     `!(field.mock && field.custom)` part of `visible` in `columnsFromFields`, the mock
     refusal in `saveCell`, the mock skip in `createPayloadOf`, and the `demoRows`
@@ -210,3 +223,48 @@ dropped (§1.5).
 `crm/contracts` is already a cube but has no page: that one is frontend work, not backend.
 In the menu today: Sales → Organizations, Contacts; Tools → Echo (the activity feed);
 Settings (admin) at the bottom; Preferences (`/me`) in the account menu.
+
+## 8. Detail view (step 3, T-1814)
+
+The detail page follows vtiger 5.4 (spec §3.6): header, the "Organization Information" and
+"More Information" tabs, the Actions box. What it cannot do without the backend:
+
+- [ ] **Delete** (single, with confirmation; optionally a recycle bin and restore). The button is
+      shown disabled ("Needs backend"); the data provider refuses `delete` today.
+- [ ] **Previous / next record and "jump"** within the list the user came from (vtiger's ◀ ▶ and
+      the record dropdown): the list's current filter and sort, and the neighbours of a record in
+      it. Not shown until then.
+- [ ] **Modification time and author** published on every organization (`modifiedAt`,
+      `modifiedBy`), so the header says "Updated <when> by <who>" for real records; today it falls
+      back to "Created <when>".
+- [ ] **Timestamps typed as such** in the metadata (`createdAt`, `modifiedAt` as `datetime`); the UI
+      recognizes them by their ISO value today.
+- [ ] **Contacts:** the vtiger columns the contacts cube does not publish: `lastName`,
+      `firstName`, `mobilePhone`, `title`, `assignedTo` (shown marked MOCK and empty; one "Name"
+      column stands in for Last/First Name). Optionally a sort on the related list.
+- [ ] **The other 18 related lists of spec §3.5**, each needing its module (cube with metadata and
+      a list filter on the organization): Opportunities (Potentials), Quotes, Sales Order, Invoice,
+      Activities (Events, To Do), Emails, Activity History, Documents, Trouble Tickets (HelpDesk),
+      Products, Campaigns (+ status on the relation), Services, Service Contracts, Assets, Projects,
+      Procesverbalin (PVS Intrări), Devize, Procesverbalout (PVS Ieșiri). Not shown in the UI.
+      Each needs a record count per organization, its own paging, ADD with the organization
+      preset, and for the SELECT lists (Documents, Products, Campaigns, Services, Projects)
+      link/unlink of existing records.
+- [ ] **Quick actions** of the sidebar, shown disabled ("Needs backend"):
+  - Add Event and Add To Do: a Calendar module (events, tasks) linked to the organization.
+  - Add Note: Documents linked to the organization (upload or note).
+  - Show Organization Hierarchy: the Member Of tree (`parentOrganizationId` as a real relation,
+    parents and children of a record). Little used (12 organizations, spec §7).
+  - Send SMS: an SMS provider and the SMS Notifier history.
+- [ ] **Send Mail** works as a `mailto:` to the organization's email. vtiger's version (choose the
+      address, send from the CRM, keep the email in the history) needs an email module.
+- [ ] **Mail Merge** (Word templates, 2 for Organizations) and **EMAILMaker** (22 email templates):
+      not built. Mail Merge is not worth copying (spec §7); EMAILMaker needs templates and sending
+      on the server.
+- [ ] **Locate Map** (Address Information, Google Maps on the billing or shipping address): not
+      built; a plain map link needs nothing from the backend, a stored geocode would.
+- [ ] **Inline edit validation** as in the form: CUI unique + check digit, IBAN, email, lengths
+      (same rules in both places, §4 above).
+- [ ] **Duplicate** copies only the fields the create form shows today (name, industry, phone,
+      email, website, required custom fields). A full prefilled copy needs every field of §1 in
+      the cube and in the create form.

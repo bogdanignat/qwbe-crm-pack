@@ -64,6 +64,12 @@ describe("mock data", () => {
     assert.deepEqual(byName(meta(MOCK_FIELDS), "legalForm")[0].enum, PICKLISTS.P1.values)
   })
 
+  it("has no repeated value in any picklist", () => {
+    for (const [key, picklist] of Object.entries(PICKLISTS)) {
+      assert.equal(new Set(picklist.values).size, picklist.values.length, key)
+    }
+  })
+
   it("has the P1-P9 picklists with the sizes of §5.3", () => {
     const sizes = Object.fromEntries(Object.entries(PICKLISTS).map(([k, p]) => [k, p.values.length]))
     assert.deepEqual(sizes, { P1: 29, P2: 43, P3: 12, P4: 123, P5: 9, P6: 83, P7: 4, P8: 53, P9: 102 })
@@ -155,26 +161,40 @@ describe("mock fields never leave the browser", () => {
   const fields = withMockFields(meta([field()])).fields
   const cui = fields.find((f) => f.name === "cui")!
   const vat = fields.find((f) => f.name === "vatPayer")!
+  // A custom-target mock: its demo value lives in row.custom.
+  const product = fields.find((f) => f.name === "productCategory")!
+  const demo = DEMO_ORGANIZATIONS[0]
+
+  it("include a custom-target field whose demo value sits in row.custom", () => {
+    assert.ok(product.mock && product.custom)
+    assert.equal(customValueOf(demo, product), "Grupuri electrogene - Medii (21-59 KVA)")
+  })
 
   it("are dropped from the in-place PATCH body", () => {
     const { payload, missing } = changedPayloadOf(
-      [fields[0], cui, vat],
-      { name: "A", cui: "", vatPayer: false },
-      { name: "B", cui: "99000001", vatPayer: true },
+      [fields[0], cui, vat, product],
+      { name: "A", cui: "", vatPayer: false, productCategory: "Grupuri electrogene - Medii (21-59 KVA)" },
+      { name: "B", cui: "99000001", vatPayer: true, productCategory: "Pompe - Motopompe" },
     )
     assert.deepEqual(payload, { name: "B" })
     assert.deepEqual(missing, [])
   })
 
   it("are dropped from the create POST body, required or not", () => {
-    const { payload, missing } = createPayloadOf([fields[0], cui, vat], { name: "A", cui: "" })
+    const { payload, missing } = createPayloadOf([fields[0], cui, vat, product], {
+      name: "A",
+      cui: "",
+      productCategory: "Pompe - Motopompe",
+    })
     assert.deepEqual(payload, { name: "A" })
     assert.deepEqual(missing, [])
   })
 
   it("are refused by the inline editor before any request", async () => {
-    const result = await saveCell({ rowPath: "/x", row: { id: "1" }, field: cui, next: "1", doFetch: noBackend })
-    assert.equal(result.status, "refused")
+    for (const mock of [cui, product]) {
+      const result = await saveCell({ rowPath: "/x", row: demo, field: mock, next: "1", doFetch: noBackend })
+      assert.equal(result.status, "refused", mock.name)
+    }
   })
 })
 

@@ -7,7 +7,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Activity, Building2, ChevronRight, Settings, Users, type LucideIcon } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
@@ -24,14 +24,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { APP_PAGES, type AppPage } from "@/lib/app-pages"
-
-// The icon of each page, by href; the registry (lib/app-pages.ts) stays free of UI.
-const PAGE_ICONS: Record<string, LucideIcon> = {
-  "/organizations": Building2,
-  "/contacts": Users,
-  "/echo": Activity,
-  "/settings": Settings,
-}
+import { PAGE_ICONS } from "@/components/page-icons"
 
 export function PageIcon({ href }: { href: string }) {
   const Icon = PAGE_ICONS[href]

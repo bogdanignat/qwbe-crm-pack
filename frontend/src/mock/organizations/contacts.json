@@ -1,0 +1,18 @@
+[
+  {
+    "id": "con_mock_001",
+    "name": "Maria Proba",
+    "email": "maria.proba@exemplu.test",
+    "phone": "0700 000 012",
+    "company": "Exemplu Construct SRL",
+    "organizationId": "org_mock_001"
+  },
+  {
+    "id": "con_mock_002",
+    "name": "Ion Exemplu",
+    "email": "ion.exemplu@exemplu.test",
+    "phone": "0700 000 011",
+    "company": "Exemplu Construct SRL",
+    "organizationId": "org_mock_001"
+  }
+]

@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { useCurrentUser, type CurrentUserState } from "@/hooks/use-current-user"
 import { APP_PAGES } from "@/lib/app-pages"
 
@@ -37,20 +38,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 function SignedInShell({ children }: { children: React.ReactNode }) {
   const me = useCurrentUser()
   return (
-    <SidebarProvider>
-      <AppSidebar admin={me.user?.admin ?? false} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background px-3">
-          <SidebarTrigger aria-label="Toggle menu" />
-          <div className="flex min-w-0 flex-1">
-            <SearchPalette />
-          </div>
-          <NewMenu />
-          <UserMenu me={me} />
-        </header>
-        {children}
-      </div>
-    </SidebarProvider>
+    // One TooltipProvider for every tooltip of the signed-in pages.
+    <TooltipProvider>
+      <SidebarProvider>
+        <AppSidebar admin={me.user?.admin ?? false} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background px-3">
+            <SidebarTrigger aria-label="Toggle menu" />
+            <div className="flex min-w-0 flex-1">
+              <SearchPalette />
+            </div>
+            <NewMenu />
+            <UserMenu me={me} />
+          </header>
+          {children}
+        </div>
+      </SidebarProvider>
+    </TooltipProvider>
   )
 }
 
