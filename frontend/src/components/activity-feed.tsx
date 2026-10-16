@@ -29,7 +29,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { apiFetch, rowHref } from "@/lib/cube"
+import { useCurrentUser } from "@/hooks/use-current-user"
+import { rowHref } from "@/lib/cube"
 import {
   COMMENT_MAX,
   actorLabel,
@@ -77,7 +78,6 @@ function Feed({ cube, entityId, title = "Activity" }: Props) {
   const [nextBefore, setNextBefore] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [me, setMe] = useState<string | null>(null)
   // Per cube: true/false once probed, null when the probe failed (stays
   // unknown, not retried in a loop), absent while in flight or not asked.
   const [moderators, setModerators] = useState<Record<string, boolean | null>>({})
@@ -119,23 +119,10 @@ function Feed({ cube, entityId, title = "Activity" }: Props) {
 
   useEffect(() => load(), [load])
 
-  // `roles` containing "admin" = the permission foundation answers
-  // "superadmin" on every cube: every moderator probe would be a 200.
-  const [admin, setAdmin] = useState(false)
-  useEffect(() => {
-    let alive = true
-    void apiFetch("/api/qwbe/auth/me")
-      .then(async (r) => (r.ok ? ((await r.json()) as { id: string; roles?: string[] }) : null))
-      .then((m) => {
-        if (!alive || !m) return
-        setMe(m.id)
-        setAdmin(Array.isArray(m.roles) && m.roles.includes("admin"))
-      })
-      .catch(() => undefined)
-    return () => {
-      alive = false
-    }
-  }, [])
+  // An admin is superadmin on every cube: every moderator probe would be a 200.
+  const { user } = useCurrentUser()
+  const me = user?.id ?? null
+  const admin = user?.admin ?? false
 
   // Moderator status per cube on screen, probed once per cube; a probe that
   // fails leaves the cube unknown (no delete offered beyond the author's own).

@@ -18,7 +18,6 @@ import { toast } from "sonner"
 
 import { Badge, Tooltip, TooltipContent, TooltipTrigger } from "shadcn-admin-kit"
 
-import { apiFetch } from "@/lib/cube"
 import {
   CUSTOM_ACTIONS,
   actionsForLevel,
@@ -42,6 +41,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { UserPicker } from "@/components/user-picker"
+import { useCurrentUser } from "@/hooks/use-current-user"
 
 const PAGE = 50
 
@@ -89,7 +89,7 @@ export function SharingPanel({
   const [userNames, setUserNames] = useState<Record<string, string>>({})
   // undefined = not asked yet; null = refused (group form hidden).
   const [groups, setGroups] = useState<Record<string, string> | null | undefined>(undefined)
-  const [me, setMe] = useState<{ id: string; username: string } | null>(null)
+  const { user: me } = useCurrentUser()
   const [error, setError] = useState<string | null>(null)
   // One flag serialises every mutation: Share, Confirm and Revoke are all
   // disabled while any of them is in flight.
@@ -141,20 +141,15 @@ export function SharingPanel({
 
   useEffect(() => load(offset), [load, offset])
 
-  // Groups and the session identity are needed only by the management form,
-  // so they are fetched once the list has answered 200 -- never after a 403.
+  // Groups are needed only by the management form, so they are fetched once
+  // the list has answered 200 -- never after a 403. The session identity comes
+  // from the request the page's other panels share (useCurrentUser).
   useEffect(() => {
     if (access !== "manage" || groups !== undefined) return
     let alive = true
     void lookupGroups(cube).then((g) => {
       if (alive) setGroups(g)
     })
-    void apiFetch("/api/qwbe/auth/me")
-      .then(async (r) => (r.ok ? ((await r.json()) as { id: string; username: string }) : null))
-      .then((m) => {
-        if (alive && m) setMe({ id: m.id, username: m.username })
-      })
-      .catch(() => undefined)
     return () => {
       alive = false
     }

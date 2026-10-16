@@ -57,6 +57,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useCurrentUser } from "@/hooks/use-current-user"
 
 // The definition types the customfields pack accepts. NOT restated here as a
 // frozen copy: the pack publishes them in its OpenAPI document (the create
@@ -106,7 +107,6 @@ export function CustomFieldsPanel({
   // The full cube name the definitions target, e.g. "crm/contacts".
   cube: string
 }) {
-  const [allowed, setAllowed] = useState<boolean | null>(null)
   const [fieldTypes, setFieldTypes] = useState<string[] | null>(null)
   const [defs, setDefs] = useState<CustomFieldDef[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -129,23 +129,11 @@ export function CustomFieldsPanel({
   }
 
   // Permission check first: without customfields:write this component renders
-  // the message instead of management UI. Fetched per mount, not cached at
-  // module level: a cached failure would pin "no permission" for the whole
-  // SPA lifetime, and the page mounts one panel at a time (QWB-60).
-  useEffect(() => {
-    let alive = true
-    apiFetch("/api/qwbe/auth/me")
-      .then(async (r) => (r.ok ? ((await r.json()) as { permissions?: string[] }) : null))
-      .then((me) => {
-        if (alive) setAllowed(canDefineFields(me?.permissions ?? []))
-      })
-      .catch(() => {
-        if (alive) setAllowed(false)
-      })
-    return () => {
-      alive = false
-    }
-  }, [])
+  // the message instead of management UI; an identity that cannot be read is
+  // "no permission". Read per mount, never cached: a cached failure would pin
+  // "no permission" for the whole SPA lifetime (QWB-60).
+  const me = useCurrentUser()
+  const allowed = me.status === "loading" ? null : canDefineFields(me.user?.permissions ?? [])
 
   // The accepted types come from the pack's own published schema, once.
   useEffect(() => {

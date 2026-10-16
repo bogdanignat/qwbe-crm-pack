@@ -124,6 +124,49 @@ A mechanical deletion, all under `frontend/`. Nothing outside this list refers t
     refusal in `saveCell`, the mock skip in `createPayloadOf`, and the `demoRows`
     parameter of `listWindowOf`.
 11. `src/lib/kit-form.ts`: the mock skip in `updatePayloadOf`.
+12. `src/lib/global-search.ts`: the `DEMO_ORGANIZATIONS` and `ORGANIZATIONS_CUBE` imports,
+    `DEMO_ROWS`, and `demoRows` (in `SearchModule`, `SEARCH_MODULES` and `searchModule`).
 
 What stays: `withOrganizationLabels` (`src/lib/organization-labels.ts`) and
 `valueTextOf` (reference objects such as `assignedTo` once the backend publishes them).
+
+## 7. Main menu (step 2, T-1812)
+
+The shell (sidebar, ⌘K search, "+ New", account menu; spec §1.5) works on what exists today.
+What it cannot do without the backend:
+
+- [ ] **Global search over every module**: one search that answers, per searchable module,
+      its matching records and their count. Today the palette sends one `q` list request per
+      module it knows (organizations, contacts) and sees nothing else.
+- [ ] **Partial search**: `q` is a case-insensitive prefix of the whole value (verified on
+      dev: "srl" does not find "Acme SRL", "one" does not find "HINT ONE ZERO"). The palette
+      needs a match inside the value (at least on every word), on name, CUI, email and phone
+      (see §3).
+- [ ] **Why a record matched**: the field that matched, or a short subtitle (city, CUI, a
+      contact's organization), so two hits with the same name can be told apart.
+- [ ] **The user's display name** in `/auth/me` (first and last name); today only `username`,
+      which is what the account menu shows.
+- [ ] Optional: a capability in `/auth/me` saying whether the user may open Settings. Today the
+      menu shows Settings when `roles` contains `admin` (the test the activity feed uses); the
+      page and the backend still check `customfields:write` themselves.
+- [ ] **Notifications** (🔔 in §1.5): a per-user notification source. No bell until it exists.
+- [ ] **Favorites** (★ in §1.5): per-user storage of pinned records or views.
+
+**Modules missing from the menu.** A module appears once it has a cube with metadata and a list
+contract (its `q` search fields); the frontend then adds its page and one entry in
+`frontend/src/lib/app-pages.ts`, from which the menu, "+ New", the search and the record links
+derive. Grouped as in vtiger 5.4 (§1.3); RSS, Portal, FAQ and Webmails are
+dropped (§1.5).
+
+| Group | Modules without a page |
+|---|---|
+| Sales | Opportunities (Potentials), Leads, Quotes, Sales Order, Invoice |
+| Support | Tickets (HelpDesk), Service Contracts, Devize, PVS Intrări, PVS Ieșiri, Assets, Projects, Project Milestones, Project Tasks |
+| Marketing | Campaigns |
+| Inventory | Products, Services, Vendors, Price Books, Purchase Order |
+| Analytics | Reports, Dashboards |
+| Tools | Documents, Calendar, Emails / Mail Manager, Comments, Recycle Bin, PDF Maker, EMAIL Maker, SMS Notifier, PBX Manager, Integration |
+
+`crm/contracts` is already a cube but has no page: that one is frontend work, not backend.
+In the menu today: Sales → Organizations, Contacts; Tools → Echo (the activity feed);
+Settings (admin) at the bottom; Preferences (`/me`) in the account menu.

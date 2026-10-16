@@ -470,13 +470,15 @@ export async function scenarioNavigation(seed) {
 export async function scenarioLogout() {
   const name = "logout returns to the login page and the identity page is gone"
   await open("/me")
-  await settle("Log out")
+  await settle("Signed in as")
   let snap = snapshot()
   shot("06-me-before-logout")
-  const btn = await clickStable((v) => v.role === "button" && v.name === "Log out", "Log out")
+  // Sign out lives in the shell's account menu (T-1812): open it, then pick the item.
+  const menu = await clickStable((v) => v.role === "button" && String(v.name).startsWith("Account menu"), "Account menu")
+  const btn = menu && (await clickStable((v) => v.role === "menuitem" && v.name === "Sign out", "Sign out"))
   if (!btn) {
     shot("06-logout-RED", { full: true })
-    return record(name, "RED", "logout button not found on the identity page", "06-logout-RED.png")
+    return record(name, "RED", "Sign out not found in the account menu", "06-logout-RED.png")
   }
   const back = await waitForUrl(".*/login.*")
   snap = snapshot()

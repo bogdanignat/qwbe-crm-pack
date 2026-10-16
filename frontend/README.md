@@ -57,6 +57,19 @@ list editor uses); Cancel discards the drafts. A refusal keeps the drafts on scr
 message and the refused field's label. An organization's contacts stay a derived `CubeList` pinned on
 `organizationId` under the card.
 
+## App shell (T-1812)
+
+Every signed-in page renders inside `AppShell` (`src/components/app-shell.tsx`, from the root
+layout; `/login` stays bare): a shadcn Sidebar with the vtiger module groups holding only the
+modules that have a page (`app-sidebar.tsx`; Settings only when `/auth/me` reports the `admin`
+role, read once per mount by `useCurrentUser`, shared with the page's panels), a drawer on narrow
+screens, and a top bar with the ⌘K / Ctrl+K search palette
+(`search-palette.tsx`, the shadcn Dialog around the kit's Command; one `q` list request per module
+in `src/lib/global-search.ts`, demo organizations marked), "+ New" and the account menu
+(Preferences, Sign out). The pages themselves are one registry, `src/lib/app-pages.ts`: the menu,
+"+ New", the search and the record links (`RELATION_ROUTES`) derive from it. What it still needs from the backend is in
+`docs/plan/organizations-backend.md` §7.
+
 ## Run it
 
 ```sh

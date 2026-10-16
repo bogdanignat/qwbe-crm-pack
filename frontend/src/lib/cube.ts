@@ -8,6 +8,8 @@
 // All qwbe calls go through the server-side proxy (/api/qwbe/...), so the token
 // stays in the httpOnly cookie and never reaches browser-visible code.
 
+import { APP_PAGES } from "./app-pages.ts"
+
 // The published field metadata (qwbe core/src/metadata/schemas.ts).
 export type FieldMetadata = {
   name: string
@@ -386,14 +388,12 @@ export async function requestFailure(what: string, response: Response): Promise<
   )
 }
 
-// The frontend routes this app actually has. A relation whose target has no
-// route renders as plain text instead of a dead link.
-const RELATION_ROUTES: Record<string, string> = {
-  "crm/organizations": "/organizations",
-  "crm/contacts": "/contacts",
-  organizations: "/organizations",
-  contacts: "/contacts",
-}
+// The record routes this app actually has, from the pages registry, under the
+// full cube name and its leaf. A relation whose target has no route renders as
+// plain text instead of a dead link.
+const RELATION_ROUTES: Record<string, string> = Object.fromEntries(
+  APP_PAGES.flatMap((page) => (page.cube ? [[page.cube, page.href], [httpPrefixOf(page.cube), page.href]] : [])),
+)
 
 // Builds the link for a related row, or null when the target cube has no
 // frontend route (for example crm/contracts): the caller then renders text.

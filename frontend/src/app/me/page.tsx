@@ -35,7 +35,7 @@ export default async function MePage() {
   const me = JSON.parse(result.body) as Record<string, unknown>
 
   return (
-    // flex-1, not min-h-svh: the nav above is part of the page now, and a full
+    // flex-1, not min-h-svh: the shell's top bar is part of the page now, and a full
     // viewport height under it would push the card below the fold.
     <main className="flex flex-1 items-center justify-center p-4">
       <Card className="w-full max-w-sm">
@@ -44,7 +44,7 @@ export default async function MePage() {
           <CardTitle>{String(me.username ?? "user")}</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Logging out lives in the nav, on every page. A second button here
+          {/* Signing out lives in the account menu, on every page. A second button here
               would say the same thing twice, and leave two controls with the
               same accessible name for anyone reading the page by name. */}
           <p className="text-sm text-muted-foreground">
