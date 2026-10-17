@@ -19,7 +19,8 @@ const PENDING_ACTIONS: readonly { label: string; icon: LucideIcon }[] = [
   { label: "Send SMS", icon: MessageSquare },
 ]
 
-const ACTION = "w-full justify-start"
+// A long label wraps inside the narrow column instead of running out of the card.
+const ACTION = "h-auto min-h-8 w-full justify-start py-1.5 text-left whitespace-normal"
 
 export function ActionsSidebar({ row }: { row: Row }) {
   const mailto = mailtoOf(row)

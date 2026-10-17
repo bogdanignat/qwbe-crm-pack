@@ -48,8 +48,9 @@ function SignedInShell({ children }: { children: React.ReactNode }) {
           strip runs the page's full height, a full-page capture included. */}
       <SidebarProvider className={SIDEBAR_COLUMN}>
         <AppSidebar admin={me.user?.admin ?? false} />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background px-3">
+        {/* The work area: the full width right of the menu, on the blueprint grid. */}
+        <div className="bg-blueprint flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-sidebar px-3">
             <SidebarTrigger aria-label="Toggle menu" />
             <div className="flex min-w-0 flex-1">
               <SearchPalette />

@@ -7,8 +7,10 @@
 
 import { ChevronRight } from "lucide-react"
 
+import { PANEL_FRAME, PanelHeader } from "@/components/kit/panel-header"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useBlockOpen } from "@/hooks/use-block-open"
+import { cn } from "@/lib/utils"
 
 export function CollapsibleBlock({
   storageKey,
@@ -23,10 +25,13 @@ export function CollapsibleBlock({
 }) {
   const [open, setOpen] = useBlockOpen(storageKey)
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="group/block min-w-0 rounded-lg border bg-card">
-      <div className="flex items-center gap-2 rounded-t-lg bg-muted/50 px-1.5 py-1 group-data-[state=closed]/block:rounded-b-lg">
+    <Collapsible open={open} onOpenChange={setOpen} className={cn("group/block", PANEL_FRAME)}>
+      <PanelHeader
+        aside={aside}
+        className="flex-nowrap rounded-t-lg px-1.5 group-data-[state=closed]/block:rounded-b-lg group-data-[state=closed]/block:border-b-0"
+      >
         <h3 className="min-w-0 flex-1">
-          <CollapsibleTrigger className="flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-md px-1.5 text-left text-sm font-semibold outline-none hover:text-foreground/80 focus-visible:ring-3 focus-visible:ring-ring/50">
+          <CollapsibleTrigger className="label-mono flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-md px-1.5 text-left text-foreground outline-none hover:text-foreground/80 focus-visible:ring-3 focus-visible:ring-ring/50">
             <ChevronRight
               aria-hidden
               className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]/block:rotate-90"
@@ -34,9 +39,8 @@ export function CollapsibleBlock({
             {title}
           </CollapsibleTrigger>
         </h3>
-        {aside}
-      </div>
-      <CollapsibleContent className="border-t">{children}</CollapsibleContent>
+      </PanelHeader>
+      <CollapsibleContent>{children}</CollapsibleContent>
     </Collapsible>
   )
 }

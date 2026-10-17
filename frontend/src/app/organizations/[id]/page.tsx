@@ -16,12 +16,13 @@ import { SchemaApiPanel } from "@/components/schema-api-panel"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ORGANIZATIONS_CUBE } from "@/lib/organization-display"
 import { demoOrganizationOf } from "@/mock/organizations"
+import { PageMain } from "@/components/page-main"
 
 export default function OrganizationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
+    <PageMain>
       <Detail id={params} />
-    </main>
+    </PageMain>
   )
 }
 

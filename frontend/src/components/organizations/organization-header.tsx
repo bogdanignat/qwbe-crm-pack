@@ -13,6 +13,7 @@ import { MockTag } from "@/components/mock-tag"
 import { RecordNav } from "@/components/record-nav"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { StatusLight } from "@/components/ui/status-light"
 import type { Row } from "@/lib/cube"
 import { headerBadgesOf, organizationTitleOf, updatedLineOf } from "@/lib/organization-summary"
 
@@ -41,7 +42,7 @@ export function OrganizationHeader({
     <header className="flex flex-wrap items-start justify-between gap-3">
       <div className="flex min-w-0 flex-col gap-1.5">
         <h1 className="text-xl font-semibold break-words">
-          {number && <span className="mr-1.5 text-muted-foreground">[{number}]</span>}
+          {number && <span className="mr-1.5 font-mono text-muted-foreground">[{number}]</span>}
           {name}
           {demo && <MockTag>demo</MockTag>}
         </h1>
@@ -49,11 +50,18 @@ export function OrganizationHeader({
         {badges.length > 0 && (
           <ul className="flex flex-wrap gap-1.5" aria-label="Status">
             {badges.map((badge) => (
-              <li key={badge.label}>
-                <Badge variant="secondary" title={badge.label}>
-                  <span className="sr-only">{badge.label}: </span>
-                  {badge.value}
-                </Badge>
+              <li key={badge.label} title={badge.label}>
+                {badge.tone ? (
+                  <StatusLight tone={badge.tone}>
+                    <span className="sr-only">{badge.label}: </span>
+                    {badge.value}
+                  </StatusLight>
+                ) : (
+                  <Badge variant="outline" className="font-mono">
+                    <span className="sr-only">{badge.label}: </span>
+                    {badge.value}
+                  </Badge>
+                )}
               </li>
             ))}
           </ul>

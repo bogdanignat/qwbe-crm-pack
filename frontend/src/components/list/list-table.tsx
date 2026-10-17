@@ -7,6 +7,7 @@
 // hover/focus group, so a cell's secondary controls can show only then.
 
 import { FieldMarker } from "@/components/field-marker"
+import { PANEL_FRAME } from "@/components/kit/panel-header"
 import { MockTag } from "@/components/mock-tag"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -82,55 +83,58 @@ export function ListTable({
   }
 
   return (
-    <Table aria-label={label}>
-      <TableHeader>
-        <TableRow>
-          {selection && (
-            <TableHead className="w-10">
-              <Checkbox
-                aria-label="Select all rows on this page"
-                checked={selection.allOnPage ? true : selection.ids.length > 0 ? "indeterminate" : false}
-                disabled={!rows || rows.length === 0}
-                onCheckedChange={(on) => selection.toggleAll(on === true)}
-              />
-            </TableHead>
-          )}
-          {columns.map((column) => {
-            const marker = fieldMarkerOf(column.field)
-            const sorted = ariaSort(column.field.name)
-            return (
-              <TableHead key={column.field.name} className="whitespace-nowrap" aria-sort={sorted}>
-                {column.sortable ? (
-                  <Button variant="ghost" size="sm" className="-ml-2.5 px-2.5 text-sm font-medium" onClick={() => onSort(column)}>
-                    {column.field.label}
-                    {sorted ? (sorted === "descending" ? " ↓" : " ↑") : <span aria-hidden className="text-muted-foreground/60">↕</span>}
-                  </Button>
-                ) : (
-                  <span className="text-sm font-medium">{column.field.label}</span>
-                )}
-                {marker && <FieldMarker marker={marker} />}
+    // An opaque panel: the blueprint grid must not show through the cells.
+    <div className={cn(PANEL_FRAME, "overflow-hidden")}>
+      <Table aria-label={label}>
+        <TableHeader>
+          <TableRow>
+            {selection && (
+              <TableHead className="w-10">
+                <Checkbox
+                  aria-label="Select all rows on this page"
+                  checked={selection.allOnPage ? true : selection.ids.length > 0 ? "indeterminate" : false}
+                  disabled={!rows || rows.length === 0}
+                  onCheckedChange={(on) => selection.toggleAll(on === true)}
+                />
               </TableHead>
-            )
-          })}
-          {rowMenu && (
-            <TableHead className="w-12">
-              <span className="sr-only">Actions</span>
-            </TableHead>
-          )}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {demoRows.map((r) => row(r, true))}
-        {rows
-          ? rows.map((r) => row(r, false))
-          : Array.from({ length: 5 }, (_, i) => (
-              <TableRow key={i}>
-                <TableCell colSpan={columns.length + (selection ? 1 : 0) + (rowMenu ? 1 : 0)}>
-                  <Skeleton className="h-4 w-full" />
-                </TableCell>
-              </TableRow>
-            ))}
-      </TableBody>
-    </Table>
+            )}
+            {columns.map((column) => {
+              const marker = fieldMarkerOf(column.field)
+              const sorted = ariaSort(column.field.name)
+              return (
+                <TableHead key={column.field.name} className="whitespace-nowrap" aria-sort={sorted}>
+                  {column.sortable ? (
+                    <Button variant="ghost" size="sm" className="-ml-2.5 px-2.5 text-xs uppercase" onClick={() => onSort(column)}>
+                      {column.field.label}
+                      {sorted ? (sorted === "descending" ? " ↓" : " ↑") : <span aria-hidden className="text-muted-foreground/60">↕</span>}
+                    </Button>
+                  ) : (
+                    <span>{column.field.label}</span>
+                  )}
+                  {marker && <FieldMarker marker={marker} />}
+                </TableHead>
+              )
+            })}
+            {rowMenu && (
+              <TableHead className="w-12">
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            )}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {demoRows.map((r) => row(r, true))}
+          {rows
+            ? rows.map((r) => row(r, false))
+            : Array.from({ length: 5 }, (_, i) => (
+                <TableRow key={i}>
+                  <TableCell colSpan={columns.length + (selection ? 1 : 0) + (rowMenu ? 1 : 0)}>
+                    <Skeleton className="h-4 w-full" />
+                  </TableCell>
+                </TableRow>
+              ))}
+        </TableBody>
+      </Table>
+    </div>
   )
 }

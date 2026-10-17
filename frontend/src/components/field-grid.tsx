@@ -18,7 +18,10 @@ import { gridRowsClassOf, MAX_GRID_ROWS } from "./field-grid-rows"
 type Render = (field: FieldMetadata) => React.ReactNode
 type Side = "left" | "right"
 
-const COLUMNS = "grid grid-cols-1 @2xl:grid-cols-[minmax(7rem,12.5rem)_minmax(0,1fr)_minmax(7rem,12.5rem)_minmax(0,1fr)]"
+// The label track gives way on a narrow grid (beside the Actions column on a
+// laptop) and keeps the labels on one line on a wide one.
+const COLUMNS =
+  "grid grid-cols-1 @2xl:grid-cols-[minmax(7rem,10.5rem)_minmax(0,1fr)_minmax(7rem,10.5rem)_minmax(0,1fr)] @5xl:grid-cols-[minmax(7rem,12.5rem)_minmax(0,1fr)_minmax(7rem,12.5rem)_minmax(0,1fr)]"
 const FIELD = "@2xl:col-span-2 @2xl:grid @2xl:grid-cols-subgrid"
 const LABEL = "px-3 pt-2.5 text-sm text-muted-foreground @2xl:border-b @2xl:bg-muted/30 @2xl:py-2 @2xl:text-right"
 const VALUE = "min-w-0 border-b px-3 pt-0.5 pb-2.5 text-sm break-words @2xl:py-2"

@@ -2,6 +2,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* dark: follows the .dark class on <html>, not the OS preference. */
+@custom-variant dark (&:is(.dark *));
+
 /* The shadcn-admin-kit components ship as one bundled JS file (QWB-54); their
    class names must be scanned for Tailwind to generate the utilities. The kit's
    own CSS is NOT imported: it redefines the theme variables this app already
@@ -32,7 +35,7 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.3rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -43,41 +46,51 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* The app is always dark (T-1817): layout.tsx puts .dark on <html>. A machine
+   workshop: cool near-black neutrals (hue 285), safety amber for primary
+   actions, links and focus, teal for "running / ok". */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  color-scheme: dark;
+  --background: oklch(0.184 0.008 285); /* #121216 */
+  --foreground: oklch(0.95 0.004 285);
+  --card: oklch(0.229 0.011 285); /* #1c1c22 */
+  --card-foreground: oklch(0.95 0.004 285);
+  --popover: oklch(0.25 0.012 285);
+  --popover-foreground: oklch(0.95 0.004 285);
+  --primary: oklch(0.75 0.16 60); /* safety amber, #f6922e */
+  --primary-foreground: oklch(0.18 0.01 285);
+  --secondary: oklch(0.272 0.014 285);
+  --secondary-foreground: oklch(0.95 0.004 285);
+  --muted: oklch(0.272 0.014 285);
+  --muted-foreground: oklch(0.7 0.012 285);
+  --accent: oklch(0.29 0.014 285);
+  --accent-foreground: oklch(0.95 0.004 285);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --success: oklch(0.78 0.13 175); /* teal, running / ok */
+  --warning: oklch(0.85 0.16 95);
+  --border: oklch(1 0 0 / 11%);
+  --input: oklch(1 0 0 / 28%);
+  --ring: oklch(0.75 0.16 60);
+  --grid-line: oklch(1 0 0 / 3%);
+  --grid-line-major: oklch(1 0 0 / 5.5%);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar: oklch(0.163 0.008 285); /* the control rail, a touch below the floor */
+  --sidebar-foreground: oklch(0.9 0.006 285);
+  --sidebar-primary: oklch(0.75 0.16 60);
+  --sidebar-primary-foreground: oklch(0.18 0.01 285);
+  --sidebar-accent: oklch(0.272 0.014 285);
+  --sidebar-accent-foreground: oklch(0.95 0.004 285);
+  --sidebar-border: oklch(1 0 0 / 9%);
+  --sidebar-ring: oklch(0.75 0.16 60);
 }
 
 @theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -93,6 +106,8 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -115,11 +130,58 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* One step up the type scale (T-1817): body text 14px -> 15px. Every
+   text-* utility follows, the bundled kit's included. */
+@theme {
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.375rem;
+}
+
+/* The machine-panel label: header strips, table heads, the rail's sections. */
+@utility label-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* The header strip of a machine panel (Card, kit PanelHeader): a recessed
+   band, a 1px rule below, an amber tab on the left edge. */
+@utility panel-strip {
+  border-bottom: 1px solid var(--color-border);
+  background-color: color-mix(in oklab, var(--color-muted) 45%, transparent);
+  box-shadow: inset 3px 0 0 color-mix(in oklab, var(--color-primary) 75%, transparent);
+}
+
+/* The blueprint behind the work area: a faint 24px grid, a stronger line
+   every 120px. */
+@utility bg-blueprint {
+  background-color: var(--color-background);
+  background-image:
+    linear-gradient(var(--grid-line-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line-major) 1px, transparent 1px),
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    @apply font-sans;
+  }
   body {
     @apply bg-background text-foreground;
+  }
+  /* Links in the content take the accent; buttons rendered as links
+     (data-slot) and the menus outside <main> keep their own colours. */
+  main a:not([data-slot]) {
+    @apply text-primary underline-offset-3 hover:text-primary/80;
   }
 }

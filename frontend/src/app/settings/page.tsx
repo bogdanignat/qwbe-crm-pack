@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { PageMain } from "@/components/page-main"
 
 // The cubes the selector offers, with the names the customfields API knows
 // them by (the full cube name, the same value seed-demo.mjs and the vtiger
@@ -34,7 +35,7 @@ const CUBES = [
 export default function SettingsPage() {
   const [cube, setCube] = useState(CUBES[0].value)
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
+    <PageMain>
       <h1 className="text-xl font-semibold">Settings</h1>
       <div className="flex flex-wrap items-center gap-2">
         <Label htmlFor="settings-entity">Entity</Label>
@@ -55,6 +56,6 @@ export default function SettingsPage() {
           or open delete confirmation of the previous cube survives (QWB-60). */}
       <CustomFieldsPanel key={cube} cube={cube} />
       <GroupsPanel key={`groups:${cube}`} cube={cube} />
-    </main>
+    </PageMain>
   )
 }

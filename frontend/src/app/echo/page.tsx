@@ -7,11 +7,12 @@
 import { EchoFeed } from "@/components/echo-feed"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCurrentUser } from "@/hooks/use-current-user"
+import { PageMain } from "@/components/page-main"
 
 export default function EchoPage() {
   const me = useCurrentUser()
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
+    <PageMain>
       <h1 className="text-xl font-semibold">Echo</h1>
       {me.status === "loading" ? (
         <Skeleton className="h-64 w-full" />
@@ -20,6 +21,6 @@ export default function EchoPage() {
       ) : (
         <p className="text-sm text-muted-foreground">Echo is a developer page for administrators.</p>
       )}
-    </main>
+    </PageMain>
   )
 }

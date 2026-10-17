@@ -5,14 +5,15 @@ import { Suspense } from "react"
 
 import { OrganizationList } from "@/components/organizations/organization-list"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PageMain } from "@/components/page-main"
 
 export default function OrganizationsPage() {
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
+    <PageMain>
       <h1 className="text-xl font-semibold">Organizations</h1>
       <Suspense fallback={<Skeleton className="h-64 w-full" />}>
         <OrganizationList />
       </Suspense>
-    </main>
+    </PageMain>
   )
 }

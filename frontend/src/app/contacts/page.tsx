@@ -5,12 +5,13 @@ import { Suspense } from "react"
 
 import { CubeList } from "@/components/cube-list"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PageMain } from "@/components/page-main"
 
 const CONTACTS = { one: "contact", other: "contacts" }
 
 export default function ContactsPage() {
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
+    <PageMain>
       <h1 className="text-xl font-semibold">Contacts</h1>
       <Suspense fallback={<Skeleton className="h-64 w-full" />}>
         <CubeList
@@ -22,6 +23,6 @@ export default function ContactsPage() {
           searchPlaceholder="Name or email starts with…"
         />
       </Suspense>
-    </main>
+    </PageMain>
   )
 }

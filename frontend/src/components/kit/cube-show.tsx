@@ -190,10 +190,10 @@ export function CubeKitShow({
     sections.map((section) => <Section key={section.legend} section={section} cell={cell} />)
 
   return (
-    <div className="flex w-full max-w-5xl flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <Card>
         <CardHeader className="border-b">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Record details</p>
+          <p className="label-mono text-muted-foreground">Record details</p>
           <CardTitle className="text-2xl">
             {titleOf(meta, row as Row)}
             {demo && <MockTag>demo</MockTag>}

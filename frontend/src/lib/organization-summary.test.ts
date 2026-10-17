@@ -23,7 +23,7 @@ describe("organization header", () => {
 
   it("shows the company status and the form when they are set", () => {
     assert.deepEqual(headerBadgesOf(demo), [
-      { label: "Company status", value: "Activ" },
+      { label: "Company status", value: "Activ", tone: "ok" },
       { label: "Form", value: "SRL" },
     ])
     assert.deepEqual(headerBadgesOf(real), [])

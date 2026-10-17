@@ -99,7 +99,7 @@ export function OrganizationDetail({ id, demo }: { id: string; demo: boolean }) 
               refusal={edit.refusal}
             />
           ) : (
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_16rem] 2xl:grid-cols-[minmax(0,1fr)_20rem]">
               <OrganizationInfo
                 blocks={blocks}
                 record={flatRow}

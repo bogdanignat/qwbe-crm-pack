@@ -18,6 +18,7 @@ import {
   type Row,
 } from "@/lib/cube"
 import type { EditState } from "@/hooks/use-cell-edits"
+import { isMonoValue } from "@/lib/mono-value"
 import { FormatLink } from "@/components/format-link"
 import { RelationCell, RelationLink } from "@/components/relation-cell"
 import { cn } from "@/lib/utils"
@@ -46,6 +47,7 @@ export function ListCell({ row, column, isTitle, rowLink, edit, setEdit, error, 
   const editable = interactive && canEdit(field)
   const external = formatHrefOf(field, value)
   const relationHref = field.relation && !empty ? hrefForRelation(field.relation.target, String(value)) : null
+  const mono = !empty && isMonoValue(field, value)
 
   // A never-set boolean is absent, not "no".
   const content =
@@ -116,7 +118,7 @@ export function ListCell({ row, column, isTitle, rowLink, edit, setEdit, error, 
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className={cn("flex flex-col gap-1", mono && "font-mono tabular-nums")}>
       {body()}
       {error && (
         <span className="text-xs text-destructive" role="alert" data-cell-error={`${id}:${field.name}`}>

@@ -179,9 +179,10 @@ export function CubeCreateForm({
   if (!meta) return <Skeleton className="h-64 w-full" />
 
   return (
-    <Card className="w-full max-w-2xl">
+    <Card className="w-full">
       <CardContent>
-        <form onSubmit={onSubmit}>
+        {/* The panel spans the page; the single field column stays readable. */}
+        <form onSubmit={onSubmit} className="max-w-2xl">
           <FieldGroup>
             {formFields.map((f) => (
               <Field key={f.name}>

@@ -3,13 +3,14 @@
 // organizations cube (the relation declared in the contact manifest).
 // `?organizationId=<id>` (an organization's "Add Contact") preselects it.
 import { CubeCreateForm } from "@/components/cube-create-form"
+import { PageMain } from "@/components/page-main"
 
 export default async function NewContactPage({ searchParams }: PageProps<"/contacts/new">) {
   const { organizationId } = await searchParams
   const initialValues: Record<string, string> =
     typeof organizationId === "string" && organizationId !== "" ? { organizationId } : {}
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
+    <PageMain>
       <h1 className="text-xl font-semibold">New contact</h1>
       {/* externalId stays off the form: it is
           the import tool's identity, and its unique index turns a hand-typed
@@ -19,6 +20,6 @@ export default async function NewContactPage({ searchParams }: PageProps<"/conta
         fields={["name", "email", "phone", "company", "organizationId"]}
         initialValues={initialValues}
       />
-    </main>
+    </PageMain>
   )
 }

@@ -4,6 +4,7 @@
 
 import { valueTextOf, type Row } from "./cube.ts"
 import { formatDateTime, isIsoDateTime } from "./date-time.ts"
+import { companyStatusToneOf, type StatusTone } from "./status-tone.ts"
 
 const textOf = (value: unknown): string | null => {
   if (value === null || value === undefined) return null
@@ -28,15 +29,17 @@ export function updatedLineOf(row: Row): string | null {
   return null
 }
 
-export type HeaderBadge = { label: string; value: string }
+// A badge with a tone is a status, shown as an indicator light.
+export type HeaderBadge = { label: string; value: string; tone?: StatusTone }
 
 // The rating is the company's legal status in vtiger (hence "Company status").
 export function headerBadgesOf(row: Row): HeaderBadge[] {
-  const badges = [
-    { label: "Company status", value: textOf(row.rating) },
-    { label: "Form", value: textOf(row.legalForm) },
-  ]
-  return badges.filter((b): b is HeaderBadge => b.value !== null)
+  const status = textOf(row.rating)
+  const form = textOf(row.legalForm)
+  const badges: HeaderBadge[] = []
+  if (status) badges.push({ label: "Company status", value: status, tone: companyStatusToneOf(status) })
+  if (form) badges.push({ label: "Form", value: form })
+  return badges
 }
 
 // Send Mail: a mailto: to the organization's own email, or null without one.

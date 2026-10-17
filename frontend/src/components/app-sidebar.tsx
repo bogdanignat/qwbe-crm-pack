@@ -58,7 +58,9 @@ export function AppSidebar({ admin }: { admin: boolean }) {
   return (
     <Sidebar>
       <SidebarHeader>
-        <Link href="/organizations" className="px-2 py-1 text-base font-semibold">
+        {/* The rail's name plate, with its "running" lamp. */}
+        <Link href="/organizations" className="label-mono flex items-center gap-2 px-2 py-1 text-sm text-sidebar-foreground">
+          <span aria-hidden className="size-2 rounded-full bg-success shadow-[0_0_6px_var(--color-success)]" />
           crm-pack
         </Link>
       </SidebarHeader>
