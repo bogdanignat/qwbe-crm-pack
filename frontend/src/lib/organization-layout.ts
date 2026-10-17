@@ -1,10 +1,11 @@
 // The Organizations detail page, block by block and row by row, as vtiger 5.4
 // shows it (docs/plan/organizations-ui-spec.md §3.2), without the fields under
-// 15% filled (dropped, backend.md §1): the rest close up two per row in
-// vtiger's sequence, an empty cell only at the end of a block, and the
-// Address block keeps billing only, with the Sector after the County for a
-// Bucharest address alone (organizationLayoutOf). The mock fields sit in the
-// block VTIGER_PLACEMENT gives them; a test keeps the two in step.
+// 15% filled (dropped, backend.md §1): block 1 closes up two per row in
+// vtiger's sequence, an empty cell only at the end of a block. The Address
+// block pairs billing (left) with shipping (right), as vtiger does, and ends
+// with a Sector row for a side whose county is Bucharest (organizationLayoutOf).
+// The mock fields sit in the block VTIGER_PLACEMENT gives them; a test keeps
+// the two in step.
 
 import type { FieldBlockSpec, FieldRowSpec } from "./field-blocks.ts"
 
@@ -26,37 +27,39 @@ const ORGANIZATION_INFORMATION: FieldBlockSpec = {
   ],
 }
 
+// The Address block's title: the form hangs the address copy on it.
+export const ADDRESS_BLOCK_TITLE = "Address Information"
+
 const blocksWithAddress = (address: readonly FieldRowSpec[]): readonly FieldBlockSpec[] => [
   ORGANIZATION_INFORMATION,
-  { title: "Address Information", rows: address },
+  { title: ADDRESS_BLOCK_TITLE, rows: address },
   { title: "Description Information", rows: [["description"]] },
 ]
 
-export const ORGANIZATION_BLOCKS = blocksWithAddress([
-  ["billingStreet", "billingCity"],
-  ["billingState", "billingCode"],
-  ["billingCountry", null],
-])
+// Billing | shipping, field by field (vtiger's Address block).
+const ADDRESS_ROWS: readonly FieldRowSpec[] = [
+  ["billingStreet", "shippingStreet"],
+  ["billingCity", "shippingCity"],
+  ["billingState", "shippingState"],
+  ["billingCode", "shippingCode"],
+  ["billingCountry", "shippingCountry"],
+]
 
-const BUCHAREST_BLOCKS = blocksWithAddress([
-  ["billingStreet", "billingCity"],
-  ["billingState", "billingSector"],
-  ["billingCode", "billingCountry"],
-])
+// The layout without any Sector: no county in Bucharest.
+export const ORGANIZATION_BLOCKS = blocksWithAddress(ADDRESS_ROWS)
 
 // Bookkeeping the reader has no use for (externalId is the import identity;
 // vtiger has no such field and Schema & API still shows it), and modifiedBy,
 // which the header already shows ("Updated ... by ..."), as vtiger does.
 // Ownership is vtiger free text holding people's names, 0,5% filled: hidden
-// until the backend removes it (organizations-backend.md §1). The Sector is
-// hidden by default too: only the Bucharest layout shows it, in the Address
-// block. Hidden, it can never join block 1 as an unplaced field
+// until the backend removes it (organizations-backend.md §1). The two Sectors
+// are hidden by default too: only a Bucharest county shows its own, in the
+// Address block. Hidden, they can never join block 1 as unplaced fields
 // (fieldBlocksOf), whoever lays the fields out.
-export const SECTOR_FIELD = "billingSector"
+export const SECTOR_FIELDS: ReadonlySet<string> = new Set(["billingSector", "shippingSector"])
 export const ORGANIZATION_HIDDEN: ReadonlySet<string> = new Set([
-  "id", "type", "deleted", "externalId", "modifiedBy", "ownership", SECTOR_FIELD,
+  "id", "type", "deleted", "externalId", "modifiedBy", "ownership", ...SECTOR_FIELDS,
 ])
-const BUCHAREST_HIDDEN = new Set([...ORGANIZATION_HIDDEN].filter((name) => name !== SECTOR_FIELD))
 
 // Bucharest's county: vtiger's P2 value ("Bucuresti") today, its ISO
 // 3166-2:RO code ("RO-B") once the backend stores codes
@@ -69,10 +72,23 @@ export function isBucharest(county: unknown): boolean {
   return BUCHAREST.has(county.normalize("NFD").replace(/\p{M}/gu, "").replace(/\s+/g, " ").trim().toLowerCase())
 }
 
-// The blocks and the hidden fields of one organization: the Sector shows only
-// when its county is Bucharest. Display only; the backend enforces the rule.
-export function organizationLayoutOf(county: unknown): { blocks: readonly FieldBlockSpec[]; hidden: ReadonlySet<string> } {
-  return isBucharest(county)
-    ? { blocks: BUCHAREST_BLOCKS, hidden: BUCHAREST_HIDDEN }
-    : { blocks: ORGANIZATION_BLOCKS, hidden: ORGANIZATION_HIDDEN }
+// The blocks and the hidden fields of one organization: each side's Sector
+// shows only when that side's county is Bucharest, in one last row (billing
+// left, shipping right), so an empty cell is only ever at the block's end.
+// Display only; the backend enforces the rule.
+export type AddressCounties = { billingState?: unknown; shippingState?: unknown }
+
+export function organizationLayoutOf(counties: AddressCounties = {}): {
+  blocks: readonly FieldBlockSpec[]
+  hidden: ReadonlySet<string>
+} {
+  const sectors = [
+    isBucharest(counties.billingState) ? "billingSector" : null,
+    isBucharest(counties.shippingState) ? "shippingSector" : null,
+  ]
+  if (sectors.every((name) => name === null)) return { blocks: ORGANIZATION_BLOCKS, hidden: ORGANIZATION_HIDDEN }
+  return {
+    blocks: blocksWithAddress([...ADDRESS_ROWS, sectors]),
+    hidden: new Set([...ORGANIZATION_HIDDEN].filter((name) => !sectors.includes(name))),
+  }
 }

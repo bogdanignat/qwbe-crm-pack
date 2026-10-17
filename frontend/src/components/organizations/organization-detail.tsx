@@ -45,12 +45,13 @@ export function OrganizationDetail({ id, demo }: { id: string; demo: boolean }) 
   const [tab, setTab] = useUrlTab(ORGANIZATION_TABS)
 
   const flatRow = useMemo(() => (meta && row ? displayRowOf(meta, row) : null), [meta, row])
-  const county = flatRow?.billingState
+  const billingState = flatRow?.billingState
+  const shippingState = flatRow?.shippingState
   const blocks = useMemo(() => {
     if (!meta) return []
-    const { blocks: specs, hidden } = organizationLayoutOf(county)
+    const { blocks: specs, hidden } = organizationLayoutOf({ billingState, shippingState })
     return fieldBlocksOf(meta.fields, specs, hidden)
-  }, [meta, county])
+  }, [meta, billingState, shippingState])
   const editable = (field: FieldMetadata) => !demo && canEdit(field)
   const editableFields = useMemo(
     () => (demo ? [] : blocks.flatMap((b) => b.rows.flat()).filter((f): f is FieldMetadata => f !== null && canEdit(f))),

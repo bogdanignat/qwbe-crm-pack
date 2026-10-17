@@ -31,8 +31,16 @@ describe("ORGANIZATION_LIST_COLUMNS", () => {
     }
   })
 
-  it("leave out Ownership and the Sector, by default and in the column picker", () => {
-    for (const name of ["ownership", "billingSector"]) {
+  it("offer the shipping address in the column picker, not by default", () => {
+    for (const name of ["shippingStreet", "shippingCity", "shippingState", "shippingCode", "shippingCountry"]) {
+      assert.ok(fields.some((f) => f.name === name), name)
+      assert.equal((ORGANIZATION_LIST_COLUMNS as readonly string[]).includes(name), false, name)
+      assert.equal(ORGANIZATION_LIST_UNLISTED.has(name), false, name)
+    }
+  })
+
+  it("leave out Ownership and both Sectors, by default and in the column picker", () => {
+    for (const name of ["ownership", "billingSector", "shippingSector"]) {
       assert.equal((ORGANIZATION_LIST_COLUMNS as readonly string[]).includes(name), false, name)
       assert.equal(ORGANIZATION_LIST_UNLISTED.has(name), true, name)
     }

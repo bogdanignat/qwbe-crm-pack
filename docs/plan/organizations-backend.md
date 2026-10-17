@@ -12,20 +12,25 @@ publishes a field with the same name; the frontend does not change.
 
 ## 1. Fields missing from the cube (step 1, T-1811)
 
-The 15 vtiger fields the organizations cube does not have yet. Without them the detail page and the list show mock values instead of real data.
+The 20 vtiger fields the organizations cube does not have yet, plus the two Bucharest sectors.
+Without them the detail page and the list show mock values instead of real data.
 
-All 15 go into the cube, with the names below, readable and writable (except the read-only ones).
+All go into the cube, with the names below, readable and writable (except the read-only ones).
 Type, required flag, length and picklist are the vtiger ones (§5.2); the exact source
-is `frontend/src/mock/organizations/fields.json`. The 15 fields and the picklists P1, P2,
+is `frontend/src/mock/organizations/fields.json`. The vtiger fields and the picklists P1, P2,
 P3, P5 and P7 were checked against the vtiger database; P4 is the complete list from it
 (vtiger order, normalized, without "--None--").
 
 **Dropped** (Bogdan's decision, 2026-10-17): the vtiger fields filled on fewer than 15% of the
 61,347 organizations (fill rates in spec §5.2) are not ported and the UI does not show them:
 Other Industry, Other Industry Spec, Product Category, Bank, IBAN, Other Fax, Other Email,
-Account Turnover (€), Ticker Symbol, Notify Owner, Member Of, the two PO Boxes and the whole
-shipping address (street, city, state, postal code, country). Their picklists P6, P8 and P9 go
-with them. A client who needs one adds it as a custom field (§10).
+Account Turnover (€), Ticker Symbol, Notify Owner, Member Of and the two PO Boxes. Their
+picklists P6, P8 and P9 go with them. A client who needs one adds it as a custom field (§10).
+
+**The shipping address is kept** (Bogdan, 2026-10-17), although it is filled on under 15%
+(street 7,9%): deliveries can go to a different address than billing. Street, city, state,
+postal code and country come back, optional, with the billing formats and lengths (§12), plus
+an optional `shippingSector` for a Bucharest delivery address.
 
 **Ownership is hidden in the UI** (frontend decision, 2026-10-17): the detail, the form and the
 list never show `ownership`, although the cube still publishes it.
@@ -51,14 +56,20 @@ still pass with it.
 | caenCode | SIC Code | text | no | 50 | – | "NNNN Description" |
 | industrySpec | Industry Spec | text | no | 50 | – | |
 | modifiedBy | Last Modified By | user | – | – | – | read-only, `{id, name}` |
+| shippingStreet | Shipping Address | text | no | 250 | – | §12 limit 150, as billing |
+| shippingCity | Shipping City | text | no | 30 | – | §12 limit 50, as billing |
 | billingState | Billing State | picklist | yes | 30 | P2 | values carry an ISO 3166-2:RO code (§12 formats) |
+| shippingState | Shipping State | picklist | no | 30 | P2 | as billingState; vtiger free text (48 distinct values) mapped at import |
+| shippingCode | Shipping Postal Code | text | no | 30 | – | §12 limit 20, as billing |
+| shippingCountry | Shipping Country | text | no | 30 | – | ISO alpha-2 code, as billing |
 
 The CUI, TVA, Reg no and billing address (with the existing `billingStreet`, `billingCity`,
 `billingCode`, `billingCountry`) are also what invoicing-qwbe needs for a buyer. Their accepted
 input, stored form and e-Factura limits are in §12, "Identifier and address formats (shared
-with invoicing)". One more field, not from vtiger: `billingSector` (Bucharest sector 1-6,
-required for `RO-B`); see §12, "Required fields". The mock layer shows it ("Sector", after
-Billing State) for a Bucharest county only.
+with invoicing)". Two more fields, not from vtiger: `billingSector` (Bucharest sector 1-6,
+required for `RO-B`) and `shippingSector` (the same, optional); see §12, "Required fields". The
+mock layer shows each ("Billing Sector", "Shipping Sector") only when its own county is
+Bucharest, in the last row of the Address block.
 
 ### Import and data notes
 
@@ -152,6 +163,8 @@ What each backend piece removes from the frontend on its own, without a code cha
 - The `rating` label stays: it is a UI decision, not part of the mock.
 - `ownership` removed from the cube (§1): `"ownership"` leaves `ORGANIZATION_HIDDEN`
   (`organization-layout.ts`) and `ORGANIZATION_LIST_UNLISTED` (`organization-list.ts`).
+- The shipping fields and both sectors published editable: the address copy ("Copy billing to
+  shipping" and back, `canCopyAddress`) enables itself once every target field is editable.
 - `required` published for `billingStreet`, `billingCity` and `billingCountry` (§9):
   `ORGANIZATION_REQUIRED` leaves `organization-display.ts`.
 - `billingState` published **editable**: the form's layout (the Sector for Bucharest,
@@ -206,7 +219,9 @@ A mechanical deletion, all under `frontend/`. Nothing outside this list refers t
     `searchModule`).
 
 What stays: `withOrganizationDisplay` (`src/lib/organization-display.ts`: the `rating` label
-and the link formats), `format?` in `FieldMetadata` with `formatHrefOf` and
+and the link formats), the address copy (`ADDRESS_PAIRS`, `canCopyAddress`, `copiedAddress` in
+`src/lib/organization-form.ts`, `copy-address-actions.tsx`) and the Sector rule
+(`organizationLayoutOf`, `SECTOR_FIELDS` in `src/lib/organization-layout.ts`), `format?` in `FieldMetadata` with `formatHrefOf` and
 `src/components/format-link.tsx` (until the backend publishes formats, then they read its
 value), and `valueTextOf` (reference objects such as `assignedTo`).
 
@@ -599,6 +614,13 @@ Where invoicing has no rule, the text says so and the CRM does not invent one.
 | billingCode | `postalCode`, optional, no format check | BT-53 | ≤20, BR-RO-L020 | vtiger 30 |
 | billingCountry | `countryCode`, required, only `RO` today | BT-55 | ISO 3166-1 alpha-2 from the EN 16931 list, BR-CL-14 | free text, 33 values, ~89% "Romania" |
 
+**Shipping address** (`shippingStreet`, `shippingCity`, `shippingState`, `shippingSector`,
+`shippingCode`, `shippingCountry`; optional, Bogdan 2026-10-17): the same formats and lengths as
+billing: street ≤150, city ≤50, `shippingState` a P2 value stored as its ISO 3166-2:RO code,
+`shippingSector` 1-6 only for `RO-B` (refused otherwise), postal code ≤20, country an upper-case
+ISO alpha-2 code. Invoicing's `BuyerSnapshot` holds a single `address`, so the shipping address
+is the CRM's own (deliveries) and is not sent to invoicing.
+
 - **What P2 must carry:** each value has its ISO 3166-2:RO **code** (stored, canonical) and a
   **label** (shown). The list is `cube/invoicing/parties/domain/romanian-counties.ts`: code plus
   the name with diacritics, e.g. `RO-AG` "Argeș", `RO-B` "București". Invoicing prints the name
@@ -656,6 +678,8 @@ Industry, still **decide**, is not marked. The Sector shows only for a Bucharest
 | billingState | yes | one of the 42 ISO 3166-2:RO codes | vtiger `~M`; invoicing `party-validation.ts:32, 39-41`; BT-54, BR-RO-110 |
 | billingSector (new) | **yes when `billingState` is `RO-B`**, refused otherwise | integer 1-6, shown as "Sector 3" | **Bogdan, decided 2026-10-17.** Invoicing has the same shape: a separate `address.sector` (`invoice.ts:8`, `party-validation.ts:42-46`, CHECK `customers_bucharest_sector` in `cube/invoicing/customers/contracts/migrations.json`). In e-Factura the mapper sends `SECTOR<n>` as BT-52 in place of the city (`efactura-mapper-shared.ts:14`), as BR-RO-100 requires (`cius-limits.ts:30-32, 50-52`). `SECTOR3` + `RO-B` was accepted by ANAF's validator (`docs/EFACTURA.md:185`). The PDF prints "Sector N" (`pdf-format.ts:34`) |
 | billingCode | no | at most 20, no format check | optional in CIUS-RO (`contracts/document.ts:42`) and in invoicing |
+| shippingStreet, shippingCity, shippingState, shippingCode, shippingCountry | no | as billing: 150, 50, a P2 ISO code, 20, ISO alpha-2 | Bogdan 2026-10-17: kept for deliveries, optional. vtiger optional (street 7,9% filled) |
+| shippingSector (new) | no; allowed only when `shippingState` is `RO-B`, refused otherwise | integer 1-6 | Bogdan 2026-10-17, the billing sector's shape |
 
 **Foreign organizations (`billingCountry` ≠ `RO`): decision to take.** What a non-RO
 organization must fill is not decided yet. One decision covers: the identifier (the CUI, or a
@@ -672,8 +696,9 @@ buyer, whatever the CRM stores. The UI does nothing specific for them until this
 
 **Gaps:** what invoicing needs that the organization lacks or holds in another form.
 - `billingState` has no ISO code. `billingCountry` is free text, not an ISO code.
-- There is no Bucharest **sector** field in the cube: `billingSector` is new (Required fields);
-  the UI shows it as a mock until then.
+- There is no Bucharest **sector** field in the cube: `billingSector` and `shippingSector` are
+  new (Required fields); the UI shows them as mocks until then.
+- The cube has no shipping address; it comes back (§1), optional, with the billing formats.
 - `billingStreet` (250) and `billingCode` (30) allow more than e-Factura (150, 20).
 - Street, city and country are required on every save but nullable and not `required` in the
   cube (filled on 92.2%, 99.1% and 88.8% of the organizations).
@@ -687,8 +712,8 @@ buyer, whatever the CRM stores. The UI does nothing specific for them until this
       user typed and formats nothing. The backend trims every value, then normalises before it
       validates and stores: `cui` loses a leading "RO" / "ro" / "RO " and any inner spaces or
       dots; `tradeRegisterNo` is upper-cased; an IBAN-like identifier (in a custom field) loses
-      its spaces and is upper-cased; the county becomes its ISO 3166-2:RO code and the country
-      its upper-case ISO 3166-1 alpha-2 code ("Romania", "ro" → `RO`). A value it cannot
+      its spaces and is upper-cased; the county (billing and shipping) becomes its ISO 3166-2:RO
+      code and the country its upper-case ISO 3166-1 alpha-2 code ("Romania", "ro" → `RO`). A value it cannot
       normalise is refused per field, never guessed.
 - [ ] Store `cui` as digits only, without "RO". After normalising, refuse a leading zero, a
       length outside 2-10 and a wrong check digit. These merge into the pack's CUI rules above.
@@ -696,25 +721,32 @@ buyer, whatever the CRM stores. The UI does nothing specific for them until this
       Anyone who needs the VAT identifier derives it as `RO<cui>`.
 - [ ] `tradeRegisterNo`: accept invoicing's two forms (legacy `J40/1234/2020`, current J/F + 13
       digits). Both fit vtiger's 20.
-- [ ] Publish the P2 (`billingState`) values with their ISO 3166-2:RO code and label, and store
-      the code. Refuse anything outside the 42 codes for a Romanian address. vtiger's "CE"
+- [ ] Publish the P2 values (`billingState`, `shippingState`) with their ISO 3166-2:RO code and
+      label, and store the code. Refuse anything outside the 42 codes for a Romanian address. vtiger's "CE"
       (abroad) goes with the foreign organizations decision.
 - [ ] New field `billingSector`: an integer 1-6, required when `billingState` is `RO-B` and
       refused otherwise (Bogdan, 2026-10-17; invoicing's shape). Publish it in the metadata. In
       vtiger's data the sector, if any, sits in the city or street text: import it in dry-run
       and report what does not map.
+- [ ] Shipping address (§1): `shippingStreet`, `shippingCity`, `shippingState` (P2),
+      `shippingCode`, `shippingCountry`, all optional, and `shippingSector` (1-6, allowed only
+      when `shippingState` is `RO-B`, refused otherwise). Publish them in the metadata.
 - [ ] Required on every save, as in "Required fields": `name`, `cui`, `vatPayer` (never null),
       `legalForm`, `assignedTo`, `billingStreet`, `billingCity`, `billingCountry`,
       `billingState`, and `billingSector` for `RO-B`. Publish the unconditional ones as
       `required` in the metadata and enforce the conditional one with a per-field refusal. An
       update that leaves an empty required field of an older organization untouched is not
       refused for it (the UI sends only what changed); the import reports those gaps.
-- [ ] `billingCountry`: a code from the EN 16931 list, default `RO`. The country name is shown.
+- [ ] `billingCountry` and `shippingCountry`: a code from the EN 16931 list; `billingCountry`
+      defaults to `RO`, `shippingCountry` stays empty without a shipping address. The country
+      name is shown.
 - [ ] Lengths, counted in characters after collapsing whitespace: `name` 200 (vtiger's 100
-      stays the stricter limit), `billingStreet` 150, `billingCity` 50 (vtiger 30), `billingCode`
-      20. Publish them as `maxLength` (§9). A longer value is refused, never truncated.
+      stays the stricter limit), `billingStreet` and `shippingStreet` 150, `billingCity` and
+      `shippingCity` 50 (vtiger 30), `billingCode` and `shippingCode` 20. Publish them as `maxLength` (§9). A longer value is refused, never truncated.
 - [ ] Import (dry-run first): map vtiger's county labels, "CE", the 21 out-of-list Billing State
-      values (spec §5.2), the free-text countries and any CUI with "RO" to the canonical forms.
+      values (spec §5.2), the 48 free-text Shipping State values, the free-text countries and any
+      CUI with "RO" to the canonical forms. A shipping country with no street (vtiger's
+      "Romania" default, 50,8% against 7,9% of streets) is not imported as an address.
       A value that does not map is reported, not guessed. Saved views that filter
       `bill_state` by county name move with the values.
 

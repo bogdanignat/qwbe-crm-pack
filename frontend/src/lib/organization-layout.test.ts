@@ -25,12 +25,12 @@ const meta: CubeMetadata = {
   schemaHash: "x",
   fields: PUBLISHED.map((name) => field({ name })),
 }
-const layoutFor = (county: unknown) => {
-  const { blocks, hidden } = organizationLayoutOf(county)
+const layoutFor = (billingState?: unknown, shippingState?: unknown) => {
+  const { blocks, hidden } = organizationLayoutOf({ billingState, shippingState })
   return fieldBlocksOf(withMockFields(meta).fields, blocks, hidden)
 }
-const blocks = layoutFor(null)
-const bucharest = layoutFor("Bucuresti")
+const blocks = layoutFor()
+const bucharest = layoutFor("Bucuresti", "Bucuresti")
 // Block 1's fields in vtiger's sequence (spec §3.2), the dropped ones left out.
 const VTIGER_ORDER = [
   "createdAt", "modifiedAt", "name", "legalForm", "vatPayer", "organizationType", "cui", "rating",
@@ -39,7 +39,6 @@ const VTIGER_ORDER = [
   "industrySpec", "organizationNo",
 ]
 const blockOf = (name: string, shown = blocks) => shown.find((b) => b.rows.some((row) => row.some((f) => f?.name === name)))?.title
-const addressOf = (shown: typeof blocks) => shown[1].rows.flat().map((f) => f?.name ?? null)
 
 describe("ORGANIZATION_BLOCKS", () => {
   it("are vtiger's three blocks, in order, with no leftover block", () => {
@@ -47,13 +46,14 @@ describe("ORGANIZATION_BLOCKS", () => {
   })
 
   it("put every shown mock field in the block VTIGER_PLACEMENT gives it", () => {
-    for (const f of MOCK_FIELDS.filter((f) => !organizationLayoutOf("Bucuresti").hidden.has(f.name))) {
+    const { hidden } = organizationLayoutOf({ billingState: "Bucuresti", shippingState: "Bucuresti" })
+    for (const f of MOCK_FIELDS.filter((f) => !hidden.has(f.name))) {
       assert.equal(blockOf(f.name, bucharest), VTIGER_PLACEMENT[f.name].block, f.name)
     }
   })
 
   it("read the mock fields in vtiger's sequence, left to right, top to bottom", () => {
-    for (const spec of [...ORGANIZATION_BLOCKS, ...organizationLayoutOf("Bucuresti").blocks]) {
+    for (const spec of [...ORGANIZATION_BLOCKS, ...organizationLayoutOf({ billingState: "Bucuresti", shippingState: "RO-B" }).blocks]) {
       const sequences = spec.rows.flat().flatMap((name) => (name && VTIGER_PLACEMENT[name] ? [VTIGER_PLACEMENT[name].sequence] : []))
       assert.deepEqual(sequences, [...sequences].sort((a, b) => a - b), spec.title)
     }
@@ -68,24 +68,35 @@ describe("ORGANIZATION_BLOCKS", () => {
     for (const name of ["id", "type", "deleted", "externalId", "modifiedBy", "ownership"]) assert.equal(blockOf(name), undefined, name)
   })
 
-  it("show billing only in the Address block, in vtiger's order", () => {
-    assert.deepEqual(addressOf(blocks), [
-      "billingStreet", "billingCity", "billingState", "billingCode", "billingCountry", null,
+  it("pair billing (left) with shipping (right), field by field, as vtiger", () => {
+    assert.deepEqual(blocks[1].rows.map((row) => row.map((f) => f?.name ?? null)), [
+      ["billingStreet", "shippingStreet"],
+      ["billingCity", "shippingCity"],
+      ["billingState", "shippingState"],
+      ["billingCode", "shippingCode"],
+      ["billingCountry", "shippingCountry"],
     ])
   })
 
-  it("never place the Sector outside Bucharest, in any block, even laid out with the bare constants", () => {
-    const sectorIn = (shown: typeof blocks) => shown.some((b) => b.rows.some((row) => row.some((f) => f?.name === "billingSector")))
-    for (const county of ["Cluj", "Ilfov", "Bucuresti Sector 3", "", null, undefined]) assert.equal(sectorIn(layoutFor(county)), false, String(county))
+  it("never place a Sector outside Bucharest, in any block, even laid out with the bare constants", () => {
+    const sectorIn = (shown: typeof blocks) =>
+      shown.some((b) => b.rows.some((row) => row.some((f) => f?.name === "billingSector" || f?.name === "shippingSector")))
+    for (const county of ["Cluj", "Ilfov", "Bucuresti Sector 3", "", null, undefined]) {
+      assert.equal(sectorIn(layoutFor(county, county)), false, String(county))
+    }
     assert.equal(sectorIn(fieldBlocksOf(withMockFields(meta).fields, ORGANIZATION_BLOCKS, ORGANIZATION_HIDDEN)), false)
     assert.equal(blockOf("billingSector", bucharest), "Address Information")
+    assert.equal(blockOf("shippingSector", bucharest), "Address Information")
   })
 
-  it("show the Sector after the County for Bucharest only, by its P2 value or its ISO code", () => {
-    const withSector = ["billingStreet", "billingCity", "billingState", "billingSector", "billingCode", "billingCountry"]
-    assert.deepEqual(addressOf(bucharest), withSector)
-    assert.deepEqual(addressOf(layoutFor("RO-B")), withSector)
-    for (const county of ["Cluj", "", undefined]) assert.equal(blockOf("billingSector", layoutFor(county)), undefined, String(county))
+  it("end the Address block with each Bucharest side's Sector, the other cell empty, never a hole mid-block", () => {
+    const lastRow = (shown: typeof blocks) => shown[1].rows.at(-1)?.map((f) => f?.name ?? null)
+    assert.deepEqual(lastRow(layoutFor("Bucuresti", "Cluj")), ["billingSector", null])
+    assert.deepEqual(lastRow(layoutFor("Cluj", "București")), [null, "shippingSector"])
+    assert.deepEqual(lastRow(layoutFor("RO-B", "Municipiul Bucuresti")), ["billingSector", "shippingSector"])
+    for (const shown of [layoutFor("Bucuresti"), layoutFor(undefined, "Bucuresti")]) {
+      assert.ok(shown[1].rows.slice(0, -1).every((row) => row.every((f) => f !== null)))
+    }
   })
 })
 

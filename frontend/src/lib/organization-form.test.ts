@@ -7,7 +7,15 @@ import { describe, it } from "node:test"
 import type { CubeMetadata, Row } from "./cube.ts"
 import { changedPayloadOf, duplicateValuesOf } from "./kit-form.ts"
 import { withOrganizationDisplay } from "./organization-display.ts"
-import { createBodyOf, editableFieldsOf, formBlocksOf, formDefaultsOf, type FormValues } from "./organization-form.ts"
+import {
+  canCopyAddress,
+  copiedAddress,
+  createBodyOf,
+  editableFieldsOf,
+  formBlocksOf,
+  formDefaultsOf,
+  type FormValues,
+} from "./organization-form.ts"
 import { testField as field } from "./test-fields.ts"
 import { editedFieldError, fieldError } from "./validators.ts"
 import { MOCK_FIELDS, withMockFields } from "../mock/organizations/index.ts"
@@ -50,8 +58,8 @@ describe("formBlocksOf", () => {
     const placesOf = (shown: ReturnType<typeof formBlocksOf>) =>
       shown.flatMap((b) => (b.rows.some((row) => row.some((f) => f?.name === "billingSector")) ? [b.title] : []))
     assert.deepEqual(placesOf(blocks), [])
-    assert.deepEqual(placesOf(formBlocksOf(fields, "Cluj")), [])
-    assert.deepEqual(placesOf(formBlocksOf(fields, "București")), ["Address Information"])
+    assert.deepEqual(placesOf(formBlocksOf(fields, { billingState: "Cluj" })), [])
+    assert.deepEqual(placesOf(formBlocksOf(fields, { billingState: "București" })), ["Address Information"])
   })
 
   it("edits the published editable fields only", () => {
@@ -114,5 +122,29 @@ describe("the billing address, required on every save", () => {
 
   it("is refused when the edit empties it", () => {
     assert.equal(editedFieldError(street, " ", "Str. Veche 1"), "Billing Address is required")
+  })
+})
+
+describe("the address copy", () => {
+  const values = { billingStreet: "Str. 1", billingCity: "Iasi", billingCode: "700000", billingCountry: "Romania", shippingCity: "Cluj" }
+
+  it("copies billing to shipping and back, empty where the source is empty", () => {
+    assert.deepEqual(copiedAddress(values, "billingToShipping"), {
+      shippingStreet: "Str. 1",
+      shippingCity: "Iasi",
+      shippingState: "",
+      shippingSector: "",
+      shippingCode: "700000",
+      shippingCountry: "Romania",
+    })
+    assert.equal(copiedAddress(values, "shippingToBilling").billingCity, "Cluj")
+  })
+
+  it("is offered only when every target field can be edited", () => {
+    assert.equal(canCopyAddress(fields, "billingToShipping"), false)
+    assert.equal(canCopyAddress(fields, "shippingToBilling"), false)
+    const real = fields.map((f) => (f.mock ? { ...f, mock: false, editable: true } : f))
+    assert.equal(canCopyAddress(real, "billingToShipping"), true)
+    assert.equal(canCopyAddress(real, "shippingToBilling"), true)
   })
 })

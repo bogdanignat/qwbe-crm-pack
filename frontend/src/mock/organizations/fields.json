@@ -238,6 +238,40 @@
     }
   },
   {
+    "name": "shippingStreet",
+    "label": "Shipping Address",
+    "type": "string",
+    "format": null,
+    "required": false,
+    "editable": true,
+    "nullable": true,
+    "picklist": null,
+    "relation": null,
+    "vtiger": {
+      "field": "ship_street",
+      "block": "Address Information",
+      "sequence": 2,
+      "maxLength": 250
+    }
+  },
+  {
+    "name": "shippingCity",
+    "label": "Shipping City",
+    "type": "string",
+    "format": null,
+    "required": false,
+    "editable": true,
+    "nullable": true,
+    "picklist": null,
+    "relation": null,
+    "vtiger": {
+      "field": "ship_city",
+      "block": "Address Information",
+      "sequence": 6,
+      "maxLength": 30
+    }
+  },
+  {
     "name": "billingState",
     "label": "Billing State",
     "type": "string",
@@ -255,8 +289,59 @@
     }
   },
   {
+    "name": "shippingState",
+    "label": "Shipping State",
+    "type": "string",
+    "format": null,
+    "required": false,
+    "editable": true,
+    "nullable": true,
+    "picklist": "P2",
+    "relation": null,
+    "vtiger": {
+      "field": "ship_state",
+      "block": "Address Information",
+      "sequence": 8,
+      "maxLength": 30
+    }
+  },
+  {
+    "name": "shippingCode",
+    "label": "Shipping Postal Code",
+    "type": "string",
+    "format": null,
+    "required": false,
+    "editable": true,
+    "nullable": true,
+    "picklist": null,
+    "relation": null,
+    "vtiger": {
+      "field": "ship_code",
+      "block": "Address Information",
+      "sequence": 12,
+      "maxLength": 30
+    }
+  },
+  {
+    "name": "shippingCountry",
+    "label": "Shipping Country",
+    "type": "string",
+    "format": null,
+    "required": false,
+    "editable": true,
+    "nullable": true,
+    "picklist": null,
+    "relation": null,
+    "vtiger": {
+      "field": "ship_country",
+      "block": "Address Information",
+      "sequence": 14,
+      "maxLength": 30
+    }
+  },
+  {
     "name": "billingSector",
-    "label": "Sector",
+    "label": "Billing Sector",
     "type": "integer",
     "format": null,
     "required": true,
@@ -267,7 +352,24 @@
     "vtiger": {
       "field": null,
       "block": "Address Information",
-      "sequence": 8,
+      "sequence": 15,
+      "maxLength": null
+    }
+  },
+  {
+    "name": "shippingSector",
+    "label": "Shipping Sector",
+    "type": "integer",
+    "format": null,
+    "required": false,
+    "editable": true,
+    "nullable": true,
+    "picklist": null,
+    "relation": null,
+    "vtiger": {
+      "field": null,
+      "block": "Address Information",
+      "sequence": 16,
       "maxLength": null
     }
   }

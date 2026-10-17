@@ -7,7 +7,7 @@ import { rowHref } from "./cube.ts"
 import { editAllHref } from "./edit-link.ts"
 import { UNLISTED_COLUMNS } from "./list-columns.ts"
 import { ORGANIZATIONS_CUBE } from "./organization-display.ts"
-import { SECTOR_FIELD } from "./organization-layout.ts"
+import { SECTOR_FIELDS } from "./organization-layout.ts"
 
 export const ORGANIZATION_LIST_COLUMNS = [
   "organizationNo",
@@ -20,10 +20,10 @@ export const ORGANIZATION_LIST_COLUMNS = [
   "assignedTo",
 ] as const
 
-// Hidden as on the detail page: the import identity, Ownership, and the
-// Sector, which a column cannot show for Bucharest rows alone.
+// Hidden as on the detail page: the import identity, Ownership, and the two
+// Sectors, which a column cannot show for Bucharest rows alone.
 export const ORGANIZATION_LIST_UNLISTED: ReadonlySet<string> = new Set([
-  ...UNLISTED_COLUMNS, "externalId", "ownership", SECTOR_FIELD,
+  ...UNLISTED_COLUMNS, "externalId", "ownership", ...SECTOR_FIELDS,
 ])
 
 // All need backend endpoints that do not exist yet (organizations-backend.md §3).

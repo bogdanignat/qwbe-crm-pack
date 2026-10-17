@@ -25,6 +25,8 @@ import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
 import { canEdit, type FieldMetadata, type Row } from "@/lib/cube"
 import { fieldTextOf, shownRefusalOf, type Refusal } from "@/lib/kit-form"
 import { editableFieldsOf, formBlocksOf, MULTILINE_FIELDS, type FormValues } from "@/lib/organization-form"
+import { ADDRESS_BLOCK_TITLE } from "@/lib/organization-layout"
+import { CopyAddressActions } from "./copy-address-actions"
 import { FormActions } from "./form-actions"
 
 // One object for "no hints", so the options memo is not rebuilt on every render.
@@ -65,7 +67,7 @@ export function OrganizationForm({
   // The save went through: the unsaved-changes prompt is off.
   saved?: boolean
 }) {
-  const blocks = useMemo(() => formBlocksOf(fields, record?.billingState), [fields, record])
+  const blocks = useMemo(() => formBlocksOf(fields, record), [fields, record])
   const inputs = useMemo(() => editableFieldsOf(blocks), [blocks])
   const shown = useMemo(() => refusal && shownRefusalOf(refusal, inputs, fields), [refusal, inputs, fields])
   const creating = record === undefined
@@ -100,7 +102,11 @@ export function OrganizationForm({
       <FieldRefusals fieldErrors={shown?.fieldErrors} />
       <FormActions pending={pending} refusal={shown?.message ?? null} onCancel={onCancel} announce />
       {blocks.map((block) => (
-        <FormBlock key={block.title} title={block.title}>
+        <FormBlock
+          key={block.title}
+          title={block.title}
+          aside={block.title === ADDRESS_BLOCK_TITLE ? <CopyAddressActions fields={fields} /> : undefined}
+        >
           <FieldGrid rows={block.rows} label={label} value={value} />
         </FormBlock>
       ))}

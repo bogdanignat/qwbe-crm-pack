@@ -456,7 +456,7 @@ Code: `frontend/src/components/organizations/` (layout data in `src/lib/organiza
 |   Created Time | <local dt> | Modified Time | <local dt>|   Send Mail (mailto:)    |
 |   Organization Name | …     | Form | …                  |   Add Event        (off) |
 |   …  (rows of §3.2 without the dropped fields, §5.2)    |   Add To Do        (off) |
-| v Address Information  (billing only)                   |   Add Note         (off) |
+| v Address Information  (billing | shipping)             |   Add Note         (off) |
 | v Description Information  (full width)                 |   Send SMS         (off) |
 | v Custom fields  (runtime custom fields only)           |                          |
 |                                                         | Activity (comments feed) |
@@ -485,12 +485,18 @@ More Information tab:
   the metadata gives every field its group, organizations-backend.md §10). The fields dropped for
   a fill under 15% (§5.2) and Ownership (hidden in the UI, §7) are not shown: the rest of
   block 1 closes up two per row in vtiger's sequence, ending on Industry Spec and Organization No
-  with no empty cell (a test keeps it so), and Address Information holds the billing address
-  only, two fields per row. For a Bucharest county (Billing State "Bucuresti", or `RO-B` once the
-  backend stores codes; matched whatever the case, the diacritics or a "Municipiul" prefix) the Sector (a mock, organizations-backend.md §12) follows Billing State:
-  Address | City, Billing State | Sector, Postal Code | Country. Any other county, or none, shows
-  no Sector. Display only: the backend enforces the rule. The demo ACC90001 is in Bucharest,
-  Sector 3.
+  with no empty cell (a test keeps it so). Address Information pairs billing (left) with
+  shipping (right), as vtiger: Address | Address, City | City, State | State, Postal Code |
+  Postal Code, Country | Country (the shipping address is kept, Bogdan 2026-10-17: deliveries can
+  go to a different address; §5.2). A side whose county is Bucharest (Billing or Shipping State
+  "Bucuresti", or `RO-B` once the backend stores codes; matched whatever the case, the
+  diacritics or a "Municipiul" prefix) adds its Sector (a mock, organizations-backend.md §12)
+  in one last row: Billing Sector left, Shipping Sector right, the other cell empty when only
+  one side is in Bucharest, so an empty cell is only ever at the block's end. No Bucharest
+  county, no Sector row. At phone width the block reads billing first, then shipping. Display
+  only: the backend enforces the rule. Demos: ACC90001 bills in Bucharest (Sector 3) and
+  delivers to Chiajna, Ilfov; ACC90002 bills in Baia Mare and delivers in Bucharest (Sector 6);
+  ACC90003 has no shipping address.
 - **Labels:** vtiger's en_us labels where the frontend supplies them: "Organization Name",
   "Created Time", "Billing Address", "Billing Postal Code", "Type", "Company status".
 - **Mock markers:** a small icon after the label, with a tooltip and a screen-reader label, so the
@@ -589,9 +595,12 @@ What the rebuilt form does today. One form serves create, Duplicate and the deta
 
 - **Layout:** vtiger's 3 blocks in the detail's order and rows (Organization Information,
   Address Information, Description Information), without Created/Modified Time and without
-  the dropped fields (§5.2); Address holds billing only, so vtiger's address copy is gone.
-  The Sector follows Billing State only for a Bucharest county, as on the detail (§3.6); a new
-  organization has no county yet, so it shows none. Two label/value columns that fold to one
+  the dropped fields (§5.2); Address pairs billing and shipping, with each side's Sector in a
+  last row only for a Bucharest county, as on the detail (§3.6); a new organization has no
+  county yet, so it shows none. vtiger's address copy is back as two buttons in the Address
+  block's header, "Copy billing to shipping" and "Copy shipping to billing" (street, city,
+  state, sector, postal code, country); they stay disabled with "Needs backend" until every
+  target field is editable (the shipping fields and the sectors are mock today). Two label/value columns that fold to one
   when the form is narrower than 42rem (a phone). The blocks are not collapsible. **Save / Cancel** sit
   above and below the blocks.
 - **Where:** `/organizations/new` ("New organization"); `/organizations/new?duplicate=<id>`
@@ -616,7 +625,8 @@ What the rebuilt form does today. One form serves create, Duplicate and the deta
   Address, Billing City and Billing Country (marked by the UI, `ORGANIZATION_REQUIRED` in
   `organization-display.ts`, until the metadata publishes them; a published `required` wins).
   Mock, with the asterisk of the mock metadata, read-only: Form, TVA, CUI, Assigned To,
-  Billing State and, for a Bucharest county, Sector. Industry, required by vtiger, is still a
+  Billing State and, for a Bucharest county, Billing Sector. The shipping address and the
+  Shipping Sector are optional: no asterisk. Industry, required by vtiger, is still a
   decision, so it is neither marked nor required. A checkbox is never refused: unticked is a
   value. On Edit only a changed value is checked, so an older organization without a street
   still saves a change to another field.
@@ -683,8 +693,11 @@ Fill = % of 61.347. Length = the declared `LE~N`, otherwise the DB column.
 The table stays the vtiger reference. A row marked **dropped (<15%)** is not ported (Bogdan's
 decision, 2026-10-17, organizations-backend.md §1): it is filled on fewer than 15% of the
 organizations, so the UI does not show it; a client who needs it adds it as a custom field.
-Shipping Country counts with the street (7,9%): its 50,8% is the "Romania" default. The 15 kept
-rows are the cube's missing fields.
+Shipping Country counts with the street (7,9%): its 50,8% is the "Romania" default. One
+exception: the shipping address is **kept** although under 15% (Bogdan, 2026-10-17: deliveries
+can go to a different address). The 20 kept rows are the cube's missing fields; the two
+Bucharest sectors (`billingSector`, `shippingSector`, organizations-backend.md §12) are not
+vtiger fields.
 
 | vtiger fieldname | Label | Block | Seq | uitype → type | Req. | Length | Picklist | Fill | Proposed name |
 |---|---|---|---|---|---|---|---|---|---|
@@ -715,12 +728,12 @@ rows are the cube's missing fields.
 | modifiedby | Last Modified By | Org. Info | 49 | 52 → user reference (hidden in the UI, displaytype 3) | – | – | – | – | modifiedBy |
 | bill_pobox | Billing PO Box | Address | 3 | 1 → text | no | 30 | – | 2,4% | dropped (<15%) |
 | bill_state | Billing State | Address | 7 | 15 → picklist (county) | **yes** | 30 | P2 (43) | 100% | billingState |
-| ship_street | Shipping Address | Address | 2 | 21 → textarea | no | 250 | – | 7,9% | dropped (<15%) |
+| ship_street | Shipping Address | Address | 2 | 21 → textarea | no | 250 | – | 7,9% | shippingStreet (kept, Bogdan 2026-10-17: deliveries can go to a different address) |
 | ship_pobox | Shipping PO Box | Address | 4 | 1 → text | no | 30 | – | 0,03% | dropped (<15%) |
-| ship_city | Shipping City | Address | 6 | 1 → text | no | 30 | – | 7,1% | dropped (<15%) |
-| ship_state | Shipping State | Address | 8 | 1 → **free text** | no | 30 | (48 distinct values in the data) | 7,2% | dropped (<15%) |
-| ship_code | Shipping Postal Code | Address | 12 | 1 → text | no | 30 | – | 2,1% | dropped (<15%) |
-| ship_country | Shipping Country | Address | 14 | 1 → text | no | 30 | – | 50,8% (filled with "Romania" by default; the street exists in only 7,9%) | dropped (<15%) |
+| ship_city | Shipping City | Address | 6 | 1 → text | no | 30 | – | 7,1% | shippingCity (kept, Bogdan 2026-10-17: deliveries can go to a different address) |
+| ship_state | Shipping State | Address | 8 | 1 → **free text** | no | 30 | (48 distinct values in the data) → P2 | 7,2% | shippingState, a P2 picklist with ISO code (kept, Bogdan 2026-10-17: deliveries can go to a different address) |
+| ship_code | Shipping Postal Code | Address | 12 | 1 → text | no | 30 | – | 2,1% | shippingCode (kept, Bogdan 2026-10-17: deliveries can go to a different address) |
+| ship_country | Shipping Country | Address | 14 | 1 → text | no | 30 | – | 50,8% (filled with "Romania" by default; the street exists in only 7,9%) | shippingCountry (kept, Bogdan 2026-10-17: deliveries can go to a different address) |
 
 Outside the blocks: `campaignrelstatus` (Status, uitype 16, picklist with 4 values), used only as the organization's status in a campaign's related list; it is not a field of the record. Proposed name: `campaignStatus` on the campaign–organization relation.
 
@@ -734,7 +747,7 @@ The real values of every dropdown, in vtiger's order. The mock and, later, the b
 SCM, SRL-D, SAG, SNC, SCS, SCA, IF, II, RA, fara, CMI, CMA, CMG, SM, SCM1, SCM2, UC, BNP, BEJ, CA, CAA, SCPA, SPRL, ASF, CS, PFA, SA, SRL, Primarie.
 Distribution: SRL 53.822 · SA 3.478 · fara 2.372 · II 436 · PFA 265 · SCM 186 · SCM1 150 · RA 132 · SRL-D 105 · SNC 92 · the rest < 80.
 
-**P2 – Billing State (bill_state), 43 values:**
+**P2 – Billing State (bill_state), 43 values; Shipping State takes the same list:**
 Alba, Arad, Arges, Bacau, Bihor, Bistrita Nasaud, Botosani, Braila, Bucuresti, Brasov, Buzau, Calarasi, Caras Severin, Cluj, Constanta, Covasna, Dambovita, Dolj, Galati, Giurgiu, Gorj, Harghita, Hunedoara, Ialomita, Iasi, Ilfov, Maramures, Mehedinti, Mures, Neamt, Olt, Prahova, Salaj, Satu Mare, Sibiu, Suceava, Teleorman, Timis, Tulcea, Valcea, Vaslui, Vrancea, CE (= abroad/EC).
 For invoicing, each county also carries its ISO 3166-2:RO code, and "CE" becomes a country
 other than RO (organizations-backend.md §12, "Identifier and address formats").
@@ -807,6 +820,12 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
     "billingSector": 3,
     "billingCode": "030000",
     "billingCountry": "Romania",
+    "shippingStreet": "Str. Depozitului nr. 2",
+    "shippingCity": "Chiajna",
+    "shippingState": "Ilfov",
+    "shippingSector": null,
+    "shippingCode": "077040",
+    "shippingCountry": "Romania",
     "description": "Client recurent pentru service generatoare.",
     "createdAt": "2019-03-14T09:12:00Z",
     "modifiedAt": "2025-11-02T15:40:00Z",
@@ -843,6 +862,12 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
     "billingSector": null,
     "billingCode": "430000",
     "billingCountry": "Romania",
+    "shippingStreet": "Sos. Livrarilor nr. 15",
+    "shippingCity": "Bucuresti",
+    "shippingState": "Bucuresti",
+    "shippingSector": 6,
+    "shippingCode": "060000",
+    "shippingCountry": "Romania",
     "description": null,
     "createdAt": "2012-06-20T07:30:00Z",
     "modifiedAt": "2024-02-10T10:05:00Z",
@@ -879,6 +904,12 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
     "billingSector": null,
     "billingCode": null,
     "billingCountry": "Romania",
+    "shippingStreet": null,
+    "shippingCity": null,
+    "shippingState": null,
+    "shippingSector": null,
+    "shippingCode": null,
+    "shippingCountry": null,
     "description": "Interesat de motopompe pentru irigatii.",
     "createdAt": "2023-05-08T12:00:00Z",
     "modifiedAt": "2023-05-08T12:00:00Z",
@@ -909,7 +940,6 @@ a client who needs one adds it as a custom field. Every field marked dropped in 
 | Product Category | under 15% | 4,1% |
 | Other Email | under 15% | 6,1% |
 | Account Turnover (€) | under 15%; Annual Revenue covers the amount | 8,9% |
-| Shipping address (street, city, state, postal code, country) + the address copy | under 15%; the country is only the "Romania" default, the state free text | street 7,9%, country 50,8% (default), 48 distinct states |
 | Tag cloud ("Tag it") | unused | 6 tags on 4 organizations |
 | Mail Merge with Word templates | old Office technology; replaced by PDF/EMAIL Maker | 2 templates |
 | Mini calendar, world clock, calculator, chat in the toolbar | gadgets unrelated to the module | – |

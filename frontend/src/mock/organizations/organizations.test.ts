@@ -49,10 +49,11 @@ const noBackend: typeof fetch = async (input) => {
 }
 
 describe("mock data", () => {
-  it("has the 15 kept missing fields of §5.2 and the Sector, in vtiger order, with their placement", () => {
-    assert.equal(MOCK_FIELDS.length, 16)
-    assert.equal(new Set(MOCK_FIELDS.map((f) => f.name)).size, 16)
-    assert.equal(MOCK_FIELDS.at(-1)?.name, "billingSector")
+  it("has the 20 kept missing fields of §5.2 and the two Sectors, in vtiger order, with their placement", () => {
+    assert.equal(MOCK_FIELDS.length, 22)
+    assert.equal(new Set(MOCK_FIELDS.map((f) => f.name)).size, 22)
+    assert.deepEqual(MOCK_FIELDS.slice(-2).map((f) => f.name), ["billingSector", "shippingSector"])
+    assert.equal(MOCK_FIELDS.find((f) => f.name === "shippingState")?.enum, PICKLISTS.P2.values)
     assert.deepEqual(VTIGER_PLACEMENT.legalForm, {
       field: "cf_658",
       block: "Organization Information",
@@ -105,13 +106,13 @@ describe("withMockFields", () => {
     const real = field({ name: "cui", label: "CUI (real)", required: false })
     const merged = withMockFields(meta([field(), real]))
     assert.deepEqual(byName(merged, "cui"), [real])
-    assert.equal(merged.fields.length, 2 + 15)
+    assert.equal(merged.fields.length, 2 + 21)
   })
 
   it("appends every unpublished field marked mock, never sortable or searchable", () => {
     const merged = withMockFields(meta([field()]))
     const mocks = merged.fields.filter((f) => f.mock)
-    assert.equal(mocks.length, 16)
+    assert.equal(mocks.length, 22)
     assert.equal(merged.fields[0].name, "name")
     assert.ok(mocks.every((f) => f.mock === true && !f.sortable && !f.searchable && !canEdit(f)))
   })
