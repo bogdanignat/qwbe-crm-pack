@@ -91,7 +91,7 @@ const ROUTES = {
 const manifest = {
   name: "organizations",
   // Bump when a field changes; the drift gate refuses to boot otherwise.
-  version: "1.2.0",
+  version: "1.1.0",
   parent: "crm",
   tables: [TABLE],
   entity: ENTITY,

@@ -6,7 +6,7 @@ import { describe, it } from "node:test"
 
 import type { CubeMetadata } from "./cube.ts"
 import { filterChipsOf } from "./list-filters.ts"
-import { ORGANIZATION_LIST_COLUMNS, organizationEditHref } from "./organization-list.ts"
+import { ORGANIZATION_LIST_COLUMNS, ORGANIZATION_LIST_UNLISTED, organizationEditHref } from "./organization-list.ts"
 import { withOrganizationDisplay } from "./organization-display.ts"
 import { testField as field } from "./test-fields.ts"
 import { withMockFields } from "../mock/organizations/index.ts"
@@ -29,6 +29,11 @@ describe("ORGANIZATION_LIST_COLUMNS", () => {
       assert.ok(f, name)
       assert.equal(f.custom, false, name)
     }
+  })
+
+  it("leave out Ownership, by default and in the column picker", () => {
+    assert.equal((ORGANIZATION_LIST_COLUMNS as readonly string[]).includes("ownership"), false)
+    assert.equal(ORGANIZATION_LIST_UNLISTED.has("ownership"), true)
   })
 
   it("use the detail page's vtiger labels", () => {

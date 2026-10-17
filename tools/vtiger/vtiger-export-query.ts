@@ -32,6 +32,7 @@ const ACCOUNT_COLUMNS = [
   "a.account_type",
   "a.industry",
   "a.rating",
+  "a.ownership",
   "a.employees",
   "a.emailoptout",
   "a.phone",

@@ -12,7 +12,7 @@ import { MOCK_FIELDS, withMockFields } from "../mock/organizations/index.ts"
 
 const PUBLISHED = [
   "id", "type", "createdAt", "deleted", "name", "externalId", "organizationNo", "phone", "email", "website",
-  "organizationType", "industry", "rating", "employees", "emailOptOut", "billingStreet",
+  "organizationType", "industry", "rating", "ownership", "employees", "emailOptOut", "billingStreet",
   "billingCity", "billingCode", "billingCountry", "description",
 ]
 const READ_ONLY = new Set(["id", "type", "createdAt", "deleted"])
@@ -47,6 +47,12 @@ describe("formBlocksOf", () => {
   it("edits the published editable fields only", () => {
     assert.equal(editable.some((f) => f.mock), false)
     assert.ok(editable.some((f) => f.name === "billingCity"))
+  })
+
+  it("hides the published Ownership: not shown, not edited, not sent from the form's values", () => {
+    assert.equal(blocks.some((b) => b.rows.flat().some((f) => f?.name === "ownership")), false)
+    assert.equal("ownership" in formDefaultsOf(editable), false)
+    assert.equal("ownership" in createBodyOf(fields, { ...formDefaultsOf(editable), name: "Ada" }), false)
   })
 })
 

@@ -27,9 +27,13 @@ Account Turnover (€), Ticker Symbol, Notify Owner, Member Of, the two PO Boxes
 shipping address (street, city, state, postal code, country). Their picklists P6, P8 and P9 go
 with them. A client who needs one adds it as a custom field (§10).
 
-**Removed from the cube** (Bogdan's decision, 2026-10-17): `ownership` (0,5% filled, free text
-holding people's names). It is not refilled with the creator: the creator/owner is the kernel's
-record owner. Stored rows keep the key in their body (no backfill); the API ignores it.
+**Ownership is hidden in the UI** (frontend decision, 2026-10-17): the detail, the form and the
+list never show `ownership`, although the cube still publishes it.
+**Request for the backend:** remove `ownership` from the crm/organizations cube, together with
+its vtiger mapping (`mappings/accounts.json`) and export column (`a.ownership`). It is 0,5%
+filled with free text holding people's names; it is not refilled with the creator, because the
+record owner is the kernel's. Stored rows may keep the key in their body; reads and writes must
+still pass with it.
 
 | Name | Label (en_us) | Type | Req. | Length | Picklist | Notes |
 |---|---|---|---|---|---|---|
@@ -139,6 +143,8 @@ What each backend piece removes from the frontend on its own, without a code cha
 - The demo organizations (`organizations.json`, `org_mock_001..003`) need nothing from
   the backend; they go once the real organizations carry the new data.
 - The `rating` label stays: it is a UI decision, not part of the mock.
+- `ownership` removed from the cube (§1): `"ownership"` leaves `ORGANIZATION_HIDDEN`
+  (`organization-layout.ts`) and `ORGANIZATION_LIST_UNLISTED` (`organization-list.ts`).
 
 ## 6. Retiring the mock layer
 

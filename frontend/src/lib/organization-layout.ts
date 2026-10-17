@@ -39,4 +39,6 @@ export const ORGANIZATION_BLOCKS: readonly FieldBlockSpec[] = [
 // Bookkeeping the reader has no use for (externalId is the import identity;
 // vtiger has no such field and Schema & API still shows it), and modifiedBy,
 // which the header already shows ("Updated ... by ..."), as vtiger does.
-export const ORGANIZATION_HIDDEN = new Set(["id", "type", "deleted", "externalId", "modifiedBy"])
+// Ownership is vtiger free text holding people's names, 0,5% filled: hidden
+// until the backend removes it (organizations-backend.md §1).
+export const ORGANIZATION_HIDDEN = new Set(["id", "type", "deleted", "externalId", "modifiedBy", "ownership"])

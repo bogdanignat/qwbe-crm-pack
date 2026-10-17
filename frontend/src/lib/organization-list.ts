@@ -19,8 +19,8 @@ export const ORGANIZATION_LIST_COLUMNS = [
   "assignedTo",
 ] as const
 
-// The import identity is technical, as on the detail page.
-export const ORGANIZATION_LIST_UNLISTED: ReadonlySet<string> = new Set([...UNLISTED_COLUMNS, "externalId"])
+// Hidden as on the detail page: the import identity, and Ownership.
+export const ORGANIZATION_LIST_UNLISTED: ReadonlySet<string> = new Set([...UNLISTED_COLUMNS, "externalId", "ownership"])
 
 // All need backend endpoints that do not exist yet (organizations-backend.md §3).
 export const ORGANIZATION_MASS_ACTIONS = ["Delete", "Mass Edit", "Send Mail", "Mailer Export", "Send SMS"] as const

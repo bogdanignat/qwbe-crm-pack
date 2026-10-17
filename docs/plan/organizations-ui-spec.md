@@ -272,7 +272,7 @@ Organizations
   cannot be removed), "Reset columns" returns to the default; the choice is kept per browser
   (`localStorage`). While a saved view is applied, its columns win, the picker edits them and
   "Reset columns" returns to the view's own, leaving the personal choice alone. Mock fields
-  carry their marker in the header.
+  carry their marker in the header. External Id and Ownership (§7) are never offered.
 - **Cells.** A website shows without `http(s)://` (`exemplu.test`); the link keeps the whole
   address, on the detail page too. The inline-edit pencil next to a link shows on the row's
   hover or keyboard focus (always on a touch screen), in space kept for it, so nothing shifts.
@@ -483,7 +483,7 @@ More Information tab:
   Schema & API still shows it) and Last Modified By (it is in the header). A published field no
   block names joins the end of block 1; a runtime custom field the "Custom fields" block (until
   the metadata gives every field its group, organizations-backend.md §10). The fields dropped for
-  a fill under 15% (§5.2) and Ownership (removed from the cube, §7) are not shown: the rest of
+  a fill under 15% (§5.2) and Ownership (hidden in the UI, §7) are not shown: the rest of
   block 1 closes up two per row in vtiger's sequence, ending on Industry Spec and Organization No
   with no empty cell (a test keeps it so), and Address Information holds the billing address
   only, two fields per row.
@@ -598,7 +598,8 @@ What the rebuilt form does today. One form serves create, Duplicate and the deta
   values, attached in the UI until the backend publishes them as `enum`; the same select
   serves create, Edit all, the detail's pencil and the list cell. A stored value the list
   lacks (an older Industry, for instance) stays first in the list, shown as-is, so it is
-  never blanked out. Every boolean, editable or not, is a checkbox, as in vtiger. On create, Organization No carries the hint "Generated on
+  never blanked out. Ownership is hidden, as on the detail (§7). Every boolean, editable or
+  not, is a checkbox, as in vtiger. On create, Organization No carries the hint "Generated on
   save once the backend numbers records".
 - **Mock fields** (MOCK marker) show as disabled inputs or checkboxes, with their
   marker and, on Edit, the value they hold. They are not part of the form and never travel
@@ -648,6 +649,7 @@ The vtiger fields the crm-pack cube already stores, with how often vtiger has th
 | organizationType | accounttype | Type | 100% | custom RO values (see P3) |
 | industry | industry | Industry | 100% | required; 123 values (see P4) |
 | rating | rating | Rating | 99,9% | here it means **legal status** (see P5); proposed UI label "Company status" |
+| ownership | ownership | Ownership | 0,5% | free text with people's names, see §7; hidden in the UI, removal requested from the backend |
 | employees | employees | Employees | 53,6% | integer |
 | emailOptOut | emailoptout | Email Opt Out | 0,2% checked | checkbox |
 | billingStreet | bill_street | Billing Address | 92,2% | max 250 |
@@ -877,7 +879,7 @@ a client who needs one adds it as a custom field. Every field marked dropped in 
 |---|---|---|
 | Ticker Symbol | Romanian companies, not listed | 0% filled |
 | Notify Owner | never used; notifications are done differently | 0% checked |
-| Ownership | free text with people's names (personal data), almost empty; removed from the cube (Bogdan, 2026-10-17), the creator/owner is the kernel's record owner | 0,5% (316 org.) |
+| Ownership | free text with people's names (personal data), almost empty; hidden in the UI (detail, form, list; 2026-10-17), removal from the cube requested (organizations-backend.md §1); the record owner is the kernel's | 0,5% (316 org.) |
 | Member Of + "Show Organization Hierarchy" | hierarchy almost unused; a separate page for 12 rows | 12 org. with a parent, 11 parents |
 | PO Box (billing/shipping) | unused in RO | 2,4% / 0,03% |
 | Other Industry + Other Industry Spec | duplicate Industry / Industry Spec | 1,5% / 1,2% |

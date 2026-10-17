@@ -14,7 +14,7 @@ import { MOCK_FIELDS, VTIGER_PLACEMENT, withMockFields } from "../mock/organizat
 // The fields the cube publishes today.
 const PUBLISHED = [
   "id", "type", "createdAt", "deleted", "name", "externalId", "organizationNo", "phone", "email", "website",
-  "organizationType", "industry", "rating", "employees", "emailOptOut", "billingStreet",
+  "organizationType", "industry", "rating", "ownership", "employees", "emailOptOut", "billingStreet",
   "billingCity", "billingCode", "billingCountry", "description",
 ]
 const meta: CubeMetadata = {
@@ -57,8 +57,8 @@ describe("ORGANIZATION_BLOCKS", () => {
     assert.deepEqual(names, VTIGER_ORDER)
   })
 
-  it("hide Id, Type, Deleted, External Id and Last Modified By", () => {
-    for (const name of ["id", "type", "deleted", "externalId", "modifiedBy"]) assert.equal(blockOf(name), undefined, name)
+  it("hide Id, Type, Deleted, External Id, Last Modified By and the published Ownership", () => {
+    for (const name of ["id", "type", "deleted", "externalId", "modifiedBy", "ownership"]) assert.equal(blockOf(name), undefined, name)
   })
 
   it("show billing only in the Address block, in vtiger's order", () => {

@@ -10,6 +10,7 @@ const LEGAL = ["SRL", "SRL-D", "PFA", "SA", "SNC"]
 const CITIES = ["Iasi", "Cluj", "Sibiu", "Brasov", "Timisoara", "Oradea", "Bacau", "Suceava"]
 const INDUSTRY = ["manufacturing", "construction", "retail", "services", "it", "agriculture", "transport", "energy"]
 const RATING = ["active", "prospect", "past"]
+const OWNERSHIP = ["private", "public", "family"]
 const SIGNED_AT = ["2026-01-15T10:00:00Z", "2026-02-20T09:30:00Z", "2026-03-10T14:00:00Z", "2026-04-02T11:15:00Z"]
 
 const cycle = <A>(list: readonly A[], i: number, step: number): A => list[(i * step) % list.length]!
@@ -30,6 +31,7 @@ export const organizationRow = (i: number) => ({
   organizationType: LEGAL[i % LEGAL.length],
   industry: INDUSTRY[i % INDUSTRY.length],
   rating: RATING[i % RATING.length],
+  ownership: OWNERSHIP[i % OWNERSHIP.length],
   employees: (i * 17) % 250,
   emailOptOut: i % 7 === 0,
   billingStreet: `Str. Demo nr. ${i}`,
