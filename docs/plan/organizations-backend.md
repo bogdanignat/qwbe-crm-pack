@@ -39,9 +39,9 @@ still pass with it.
 |---|---|---|---|---|---|---|
 | modifiedAt | Modified Time | datetime | – | – | – | read-only |
 | legalForm | Form | picklist | yes | 255 | P1 | |
-| vatPayer | TVA | boolean | yes (formal) | – | – | |
-| cui | CUI | text (digits) | yes | 20 | – | unique + check digit |
-| tradeRegisterNo | Reg no | text | no | 20 | – | |
+| vatPayer | TVA | boolean | yes (formal) | – | – | explicit, never from the "RO" prefix (§12 formats) |
+| cui | CUI | text (digits) | yes | 20 | – | unique + check digit; stored without "RO" (§12 formats) |
+| tradeRegisterNo | Reg no | text | no | 20 | – | format: §12 formats |
 | customerCategory | Category | picklist | no | 255 | P7 | |
 | assignedTo | Assigned To | user or group | yes | – | – | `{type, id, name}` |
 | otherPhone | Other Phone | phone | no | 30 | – | |
@@ -51,7 +51,13 @@ still pass with it.
 | caenCode | SIC Code | text | no | 50 | – | "NNNN Description" |
 | industrySpec | Industry Spec | text | no | 50 | – | |
 | modifiedBy | Last Modified By | user | – | – | – | read-only, `{id, name}` |
-| billingState | Billing State | picklist | yes | 30 | P2 | |
+| billingState | Billing State | picklist | yes | 30 | P2 | values carry an ISO 3166-2:RO code (§12 formats) |
+
+The CUI, TVA, Reg no and billing address (with the existing `billingStreet`, `billingCity`,
+`billingCode`, `billingCountry`) are also what invoicing-qwbe needs for a buyer. Their accepted
+input, stored form and e-Factura limits are in §12, "Identifier and address formats (shared
+with invoicing)". One more field, not from vtiger: `billingSector` (Bucharest sector 1-6,
+required for `RO-B`); see §12, "Required fields".
 
 ### Import and data notes
 
@@ -307,15 +313,20 @@ The rules vtiger applies. Each needs a check and a per-field message on create a
       form marks and requires only Organization Name (the mock fields show the flag of the
       mock metadata, read-only). Industry is required by vtiger but optional in the cube:
       decide which wins. TVA is a boolean: "required" means "never null", not "true".
+      The full table, with what invoicing requires and when (including Billing State only for a
+      Romanian address and the Bucharest sector): §12, "Required fields".
 - [ ] **CUI:** a valid CUI as the company validation pack defines it (§12: format, the "RO"
       prefix, check digit, existence), and **unique** among non-deleted organizations, as a
       per-field issue on `cui`. The refusal should name the existing organization (id and
-      name).
+      name). The input and stored forms of the CUI, TVA, Reg no and billing address are shared
+      with invoicing: §12, "Identifier and address formats".
 - [ ] **Email:** a valid address. Publish `format: "email"` for it (the frontend attaches it
       today in `organization-display.ts`), and refuse an invalid one.
 - [ ] **Lengths:** publish `maxLength` per string field in the metadata (the form already reads it)
       and refuse longer values: vtiger's declared ones are CUI 20, Reg no 20, Industry Spec 50,
-      Comp Mobile Phone 15. Until then the form checks no length.
+      Comp Mobile Phone 15. Until then the form checks no length. The name and billing
+      address also have e-Factura limits (name 200, street 150, city 50, postal code 20):
+      §12, "Identifier and address formats".
 - [ ] **Whole numbers:** Employees, Annual Revenue.
 
 - [ ] **Picklists:** publish `enum` for `organizationType` (P3), `industry` (P4) and `rating` (P5),
@@ -439,9 +450,10 @@ A qwbe pack of its own, not inside crm-pack, that checks Romanian companies by C
 
 ### What the pack answers
 
-- [ ] **CUI format:** digits only, 2 to 10 digits. The "RO" prefix: accepted on input and
-      stored without it, or refused as this plan said until now (§9): decide. Spaces around it
-      are trimmed.
+- [ ] **CUI format:** digits only, 2 to 10 digits, no leading zero. The "RO" prefix is
+      **accepted on input and stored without it**, and it does not set TVA: decided by
+      invoicing, which stores the same form (see "Identifier and address formats" below).
+      Spaces around it are trimmed.
 - [ ] **Check digit** with the key 753217532; a wrong one is refused without asking the source.
 - [ ] **The company exists:** the source knows the CUI. Decide whether an unknown CUI is a
       refusal or a warning (a company registered today may not be in the source yet).
@@ -490,3 +502,209 @@ Only the frontend action and the form behaviour; everything above is the pack.
       postal code), Reg no, SIC Code (CAEN) and TVA. It saves nothing; the user reviews and saves.
 - [ ] **The form shows the pack's answer:** inactive company, not in the e-Factura register,
       name that does not match, or "could not verify" (saving stays possible).
+
+### Identifier and address formats (shared with invoicing)
+
+An organization must be usable as an invoice buyer in invoicing-qwbe with no re-typing or
+conversion. Below is what invoicing accepts, stores and sends to e-Factura, read from
+`invoicing-qwbe` (branch `main`, 2026-10-17). Every path in this section points into that repo.
+Where invoicing has no rule, the text says so and the CRM does not invent one.
+
+**How invoicing takes a buyer.** `BuyerSnapshot` has `partyType`, `vatRegistered`, `name`,
+`fiscalIdentifier` and `address {countryCode, city, street, county, sector?, postalCode?}`
+(`cube/invoicing/domain/invoice.ts:3-16, 46-49`). It is validated by
+`cube/invoicing/parties/domain/party-validation.ts:25-73` and mapped to the UBL buyer by
+`standalone/efactura/efactura-mapper-shared.ts:33-41`. An organization is a
+`partyType: "company"`. The individual buyer, identified by CNP, is not an organization.
+
+**CUI / CIF** (`cui`)
+- *Accepted:* the input is trimmed and upper-cased, then a leading "RO" is dropped, with or
+  without a space after it ("ro12345674" and "RO 12345674" both give "12345674"). Invoicing does
+  this in its UI (`frontend/src/lib/vat-defaults.ts:6-8`, `frontend/src/lib/customer-form.ts:63-69`).
+  Its API only trims and upper-cases (`standalone/api/schema-primitives.ts:11-13`), so a prefix
+  sent to the API is refused there. Invoicing has **no rule** for dots, inner spaces or other
+  separators: they are not stripped, so the value is refused.
+- *Valid:* `^[1-9]\d{1,9}$` (2 to 10 digits, no leading zero) plus the check digit. The key
+  753217532 is aligned to the right of the body, the sum is multiplied by 10 and taken mod 11,
+  and 10 counts as 0 (`party-validation.ts:10-23`). ANAF's validator checks this check digit
+  before any fiscal rule ("ERRIdentif", `docs/EFACTURA.md:150-153`).
+- *Stored:* digits only, without "RO" (`PRODUCT.md:77-80`, `README.md:436-439`).
+- *Shown:* `CUI: 12345674`, followed by ` · Cod TVA: RO12345674` for a VAT payer
+  (`standalone/documents/pdf-format.ts:24-26`).
+- *e-Factura:* BT-47, the buyer legal registration identifier, carries the CUI digits
+  (`efactura-mapper-shared.ts:39-40`). BT-32 exists only for the seller (`docs/EFACTURA.md:139-140`).
+  BR-RO-120 requires BT-47 and/or BT-48 on the buyer (`cube/efactura/validation.ts:107-113`).
+
+**VAT identifier** (cod TVA) and `vatPayer`
+- *Not stored, in invoicing or here.* It is derived as `"RO" + CUI` when the party is a VAT payer
+  (`efactura-mapper-shared.ts:9-10`, `README.md:440-441`). Our `vatPayer` is invoicing's
+  `vatRegistered` (`invoice.ts:46-49`): an explicit flag, never inferred from a typed "RO"
+  (`PRODUCT.md:77-79`, `README.md:436-438`, `frontend/src/components/settings/SettingsHelpVat.tsx:10`,
+  `SettingsHelpIdentity.tsx:10`).
+- *e-Factura:* BT-48 is `RO<cui>` when `vatPayer` is true, except on an invoice from an
+  Article 310 issuer (category O). There BR-O-02 forbids BT-48 and the buyer is identified by
+  BT-47 alone (`efactura-mapper-shared.ts:36-37`, `docs/EFACTURA.md:165-175`). A non-payer is sent
+  with BT-47 only, which the validator accepts (`docs/EFACTURA.md:188`). BR-CO-09: a VAT
+  identifier starts with its upper-case country prefix, `EL` for Greece (`cube/efactura/codelists.ts:66-91`).
+- *ANAF status:* invoicing does not look it up. The flag is what the user sets, and the CUI
+  lookup is deferred to T-1371 (`docs/VAT_TREATMENT.md:52-55, 145-147`). In the CRM, the pack's
+  VAT payer status (above) may prefill `vatPayer`. Invoicing reads only the stored flag.
+- *Foreign buyers:* invoicing refuses any country other than RO for every party
+  (`party-validation.ts:38`; its UI fixes "România (RO)",
+  `frontend/src/components/authoring/BuyerOneTimeFields.tsx:45`) and invoices only in RON
+  (`cube/efactura/validation.ts:29-31`). The e-Factura cube itself would accept a foreign VAT
+  identifier with its prefix, and a foreign address without a county (`docs/EFACTURA.md:107-112`),
+  but nothing feeds it. VIES and non-EU buyers are not mentioned anywhere in invoicing.
+
+**Trade Register no.** (`tradeRegisterNo`)
+- *Accepted and stored (issuer only):* trimmed, upper-cased, at most 32 characters, matching
+  `^(?:[JF]\d{1,2}\/\d+\/\d{4}|[JF]\d{13})$`. That is either the legacy form `J40/1234/2020`
+  (J or F, a county number of 1 or 2 digits, the number, a 4-digit year) or the current ONRC
+  form, J or F followed by 13 digits (`cube/invoicing/issuer/domain/issuer-details.ts:12-16`,
+  `SettingsHelpIdentity.tsx:12`). "C" and the other old prefixes are not accepted, and no other
+  format is documented.
+- *e-Factura:* BT-30 for the **seller** only (`efactura-mapper-shared.ts:25`). A buyer's BT-47 is
+  its CUI, so invoicing neither stores nor sends a buyer's Reg. Com.: `BuyerSnapshot` has no such
+  field. For the CRM this is a format to share, not something invoicing needs from a buyer.
+
+**Legal name** (`name`)
+- BT-44, the buyer's registered legal name (`cube/efactura/contracts/document.ts:47`). It is
+  required and limited to **200 characters**, counted in characters after collapsing spaces,
+  tabs and line breaks (BR-RO-L200: `cube/efactura/cius-limits.ts:63-65`,
+  `cube/invoicing/domain/validation.ts:44-48`). Invoicing enforces it on save
+  (`party-validation.ts:28, 33`). A longer name is refused, never truncated
+  (`docs/EFACTURA.md:113-122`). Invoicing does not compare it with ANAF (T-1371). The pack's name
+  check above does. vtiger's 100 is stricter and fits.
+
+**Billing address.** Lengths are counted the same way as the name. Sources:
+`party-validation.ts:25-48`, `cius-limits.ts:22-70`, `contracts/document.ts:33-44`,
+`efactura-mapper-shared.ts:12-18`, `codelists.ts:27-46`, the `customers` CHECKs in
+`cube/invoicing/customers/contracts/migrations.json`.
+
+| CRM field | Invoicing (`address.*`) | e-Factura | Limit / rule | CRM today |
+|---|---|---|---|---|
+| billingStreet | `street`, required | BT-50 | ≤150, BR-RO-L150 | nullable, vtiger 250 |
+| billingCity | `city`, required | BT-52; for RO-B the mapper sends `SECTOR1`..`SECTOR6` instead of the city | ≤50, BR-RO-L050; BR-RO-100 | nullable, vtiger 30 |
+| billingState (P2) | `county`, required: one of the 42 ISO 3166-2:RO codes (`RO-CJ`, `RO-B`, ...) | BT-54 | BR-RO-110, a list rather than a shape (`RO-XX` is refused) | P2 label, no code |
+| billingSector (new) | `sector`, integer 1-6, required for `RO-B`, forbidden otherwise | becomes BT-52 `SECTORn` | BR-RO-100 | no field |
+| billingCode | `postalCode`, optional, no format check | BT-53 | ≤20, BR-RO-L020 | vtiger 30 |
+| billingCountry | `countryCode`, required, only `RO` today | BT-55 | ISO 3166-1 alpha-2 from the EN 16931 list, BR-CL-14 | free text, 33 values, ~89% "Romania" |
+
+- **What P2 must carry:** each value has its ISO 3166-2:RO **code** (stored, canonical) and a
+  **label** (shown). The list is `cube/invoicing/parties/domain/romanian-counties.ts`: code plus
+  the name with diacritics, e.g. `RO-AG` "Argeș", `RO-B` "București". Invoicing prints the name
+  it gets from the code (`pdf-format.ts:31-34`). vtiger's 42 counties map one to one. "CE"
+  (abroad) has no code: a foreign address keeps `billingState` empty, since no rule asks for a
+  foreign subdivision (`docs/EFACTURA.md:109-112`).
+- **Country:** the canonical form is the upper-case alpha-2 code. The comparison is
+  case-sensitive (`ro` is not `RO`, `codelists.ts:22-24`). The EN 16931 list contains `1A` and
+  `XI`, but not `UK`. Greece is `GR` as a country and `EL` as a VAT prefix. The country name is
+  what gets shown.
+
+**Email and phone:** invoicing has none for a buyer. `BuyerSnapshot` has no contact fields, and
+`PRODUCT.md:74, 163` lists them only as optional product fields, which are not implemented. The
+e-Factura buyer sends neither a contact nor BT-49 (electronic address), which is deliberately
+omitted (`docs/EFACTURA.md:141-143`). There is no invoicing rule, so §9's email rule stands.
+
+### Required fields (organization and address)
+
+What is required, by whom, and when. The sources are **vtiger** `~M` (§9, spec §4.2),
+**invoicing** for a company buyer (`party-validation.ts:25-73` plus the e-Factura rules) and
+**Bogdan's** decisions. *On save* means every create and update: form, inline edit, import, API.
+*As buyer* means only when the organization is used as an invoice buyer, where invoicing refuses
+the missing value. Formats and lengths are in "Identifier and address formats" above. Where vtiger
+and invoicing disagree, both are shown and the row says **decide**.
+
+The metadata `required` flag is a plain boolean, so a conditional rule (the county for RO, the
+sector for RO-B) is enforced by the backend's refusal and is not published as `required`.
+
+**Organization Information**
+
+| Field | Required? | Why / source | When |
+|---|---|---|---|
+| name | yes | vtiger `~M`. Invoicing: BT-44, `party-validation.ts:28`, at most 200 characters (BR-RO-L200) | on save |
+| cui | yes | vtiger `~M`, unique, check digit. Invoicing: required for a company (`party-validation.ts:66`). It is BT-47, which carries BR-RO-120 (`cube/efactura/validation.ts:107-113`) | on save; foreign organizations: **decide** (below) |
+| vatPayer | yes: never null, `false` is a valid answer, not "must be true" | vtiger `~M` (checkbox, formal). Invoicing: `vatRegistered` must be a boolean (`party-validation.ts:71`) and it decides BT-48 | on save |
+| legalForm | yes | vtiger `~M`. Not used for a buyer: invoicing's `legalForm` is issuer-only (`invoice.ts:29-38`) | on save |
+| assignedTo | yes | vtiger `~M`. Not used by invoicing | on save |
+| industry | vtiger yes, cube optional: **decide** (§9) | vtiger `~M`. Not used by invoicing | on save, if kept required |
+| customerCategory | no | vtiger optional (88.9% filled). Not used by invoicing | – |
+| tradeRegisterNo | no | vtiger optional. Invoicing sends no buyer Reg. Com. (BT-30 is seller-only, `efactura-mapper-shared.ts:25`) | – |
+| caenCode, organizationType, rating, phone, email, the other fields | no | vtiger optional. Invoicing has no buyer field for them | – |
+
+**Address, Romanian organization** (`billingCountry` = `RO`)
+
+| Field | Required? | Format / length | Why / source | When |
+|---|---|---|---|---|
+| billingCountry | invoicing yes, vtiger no (88.8% filled): **decide**. Proposal: default `RO`, so it is never empty | `RO` | invoicing `party-validation.ts:29, 38`; BT-55, BR-CL-14 | on save, with the default |
+| billingStreet | invoicing yes, vtiger no (92.2% filled): **decide** | at most 150 | invoicing `party-validation.ts:31`; BT-50, BR-RO-L150 | as buyer at least; on save: **decide** |
+| billingCity | invoicing yes, vtiger no (99.1% filled): **decide** | at most 50. Still filled in Bucharest (e.g. "București"): invoicing requires it for `RO-B` too, and only the e-Factura XML carries the sector in its place | invoicing `party-validation.ts:30`; BT-52, BR-RO-L050 | as buyer at least; on save: **decide** |
+| billingState | yes | one of the 42 ISO 3166-2:RO codes | vtiger `~M`; invoicing `party-validation.ts:32, 39-41`; BT-54, BR-RO-110 | on save |
+| billingSector (new) | **yes when `billingState` is `RO-B`**, refused otherwise | integer 1-6, shown as "Sector 3" | **Bogdan, decided 2026-10-17.** Invoicing has the same shape: a separate `address.sector` (`invoice.ts:8`, `party-validation.ts:42-46`, CHECK `customers_bucharest_sector` in `cube/invoicing/customers/contracts/migrations.json`). In e-Factura the mapper sends `SECTOR<n>` as BT-52 in place of the city (`efactura-mapper-shared.ts:14`), as BR-RO-100 requires (`cius-limits.ts:30-32, 50-52`). `SECTOR3` + `RO-B` was accepted by ANAF's validator (`docs/EFACTURA.md:185`). The PDF prints "Sector N" (`pdf-format.ts:34`) | on save |
+| billingCode | no | at most 20, no format check | optional in CIUS-RO (`contracts/document.ts:42`) and in invoicing | – |
+
+**Address, foreign organization** (`billingCountry` ≠ `RO`)
+- Required: `billingCountry` (an ISO alpha-2 code other than `RO`), plus `billingStreet` and
+  `billingCity` under the same decision as above. The e-Factura cube asks street, city and
+  country of every party (`cube/efactura/validation.ts:76-78`, `codelists.ts:79-84`).
+- `billingState` stays empty, because P2 holds only Romanian counties and "CE" is no longer
+  needed. `billingSector` is refused. No rule asks a foreign address for a subdivision
+  (`cube/efactura/validation.ts:79-85`, `docs/EFACTURA.md:109-112`). `billingCode` is optional.
+- `cui`: **decide** (open decisions below).
+- **Invoicing does not support foreign buyers today.** It refuses any country other than `RO`
+  (`party-validation.ts:38`), so a foreign organization cannot become an invoice buyer,
+  whatever the CRM stores.
+
+### Gaps, backend requirements and open decisions (formats and required fields)
+
+**Gaps:** what invoicing needs that the organization lacks or holds in another form.
+- `billingState` has no ISO code. `billingCountry` is free text, not an ISO code.
+- There is no Bucharest **sector** field. `billingSector` is new and required for `RO-B` (Required fields).
+- `billingStreet` (250) and `billingCode` (30) allow more than e-Factura (150, 20).
+- Street, city and country are required by invoicing but nullable in the cube (filled on 92.2%,
+  99.1% and 88.8% of the organizations).
+- **Foreign organizations** ("CE", country ≠ Romania): invoicing takes only RO buyers. A foreign
+  VAT identifier has a field in neither app, and VIES is mentioned nowhere.
+- Optional only: invoicing's customer has `defaultPaymentTermDays`
+  (`cube/invoicing/customers/domain/customer.ts:6-13`), which the organization lacks. It is not
+  required for issuing.
+
+**Backend requirements derived from it**
+- [ ] Store `cui` as digits only, without "RO". Accept "RO" / "ro" / "RO " on input and drop it
+      in the backend, because the form no longer checks the CUI (§9). Refuse a leading zero, a
+      length outside 2-10 and a wrong check digit. These merge into the pack's CUI rules above.
+- [ ] Never store a VAT identifier. `vatPayer` is explicit and is never set from a typed prefix.
+      Anyone who needs the VAT identifier derives it as `RO<cui>`.
+- [ ] `tradeRegisterNo`: trim and upper-case. Accept invoicing's two forms (legacy
+      `J40/1234/2020`, current J/F + 13 digits). Both fit vtiger's 20.
+- [ ] Publish the P2 (`billingState`) values with their ISO 3166-2:RO code and label, and store
+      the code. When `billingCountry` is `RO`, refuse anything outside the 42 codes.
+- [ ] `billingState` is required only when `billingCountry` is `RO`. vtiger requires it always
+      and uses "CE" for abroad.
+- [ ] New field `billingSector`: an integer 1-6, required when `billingState` is `RO-B` and
+      refused otherwise (Bogdan, 2026-10-17; invoicing's shape). Publish it in the metadata and
+      show it in the address block, after Billing State. In vtiger's data the sector, if any,
+      sits in the city or street text: import it in dry-run and report what does not map.
+- [ ] Required on save, as in "Required fields": `name`, `cui`, `vatPayer` (never null),
+      `legalForm`, `assignedTo`, `billingState` for `RO`, `billingSector` for `RO-B`. Publish
+      the unconditional ones as `required` in the metadata and enforce the conditional ones
+      with a per-field refusal.
+- [ ] `billingCountry`: an upper-case ISO 3166-1 alpha-2 code from the EN 16931 list, default
+      `RO`. The country name is shown.
+- [ ] Lengths, counted in characters after collapsing whitespace: `name` 200 (vtiger's 100
+      stays the stricter limit), `billingStreet` 150, `billingCity` 50 (vtiger 30), `billingCode`
+      20. Publish them as `maxLength` (§9). A longer value is refused, never truncated.
+- [ ] Import (dry-run first): map vtiger's county labels, "CE", the 21 out-of-list Billing State
+      values (spec §5.2), the free-text countries and any CUI with "RO" to the canonical forms.
+      A value that does not map is reported, not guessed. Saved views that filter
+      `bill_state` by county name move with the values.
+
+**Open decisions**
+- [ ] CUI with inner spaces or dots (imports, pasted values): invoicing refuses them. Strip or
+      refuse?
+- [ ] Street, city and country: required on save, or only checked when the organization
+      becomes a buyer? For the country, the proposal is a default of `RO`.
+- [ ] Foreign organizations: is `cui` still required, and where does a foreign VAT identifier
+      go? Invoicing cannot invoice them today either way.
+- [ ] Reg. Com. values outside the two forms (e.g. "C", other old shapes) at import: keep them
+      as they are, or refuse them?

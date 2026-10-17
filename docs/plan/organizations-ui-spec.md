@@ -724,6 +724,8 @@ Distribution: SRL 53.822 · SA 3.478 · fara 2.372 · II 436 · PFA 265 · SCM 1
 
 **P2 – Billing State (bill_state), 43 values:**
 Alba, Arad, Arges, Bacau, Bihor, Bistrita Nasaud, Botosani, Braila, Bucuresti, Brasov, Buzau, Calarasi, Caras Severin, Cluj, Constanta, Covasna, Dambovita, Dolj, Galati, Giurgiu, Gorj, Harghita, Hunedoara, Ialomita, Iasi, Ilfov, Maramures, Mehedinti, Mures, Neamt, Olt, Prahova, Salaj, Satu Mare, Sibiu, Suceava, Teleorman, Timis, Tulcea, Valcea, Vaslui, Vrancea, CE (= abroad/EC).
+For invoicing, each county also carries its ISO 3166-2:RO code, and "CE" becomes a country
+other than RO (organizations-backend.md §12, "Identifier and address formats").
 
 **P3 – Type (accounttype), 12 values, default "Altele":**
 Client potential, Client ocazional, Client frecvent, Revanzator, Integrator, Partener, Administratie, Concurent, Investitor, Analist, Media, Altele.
@@ -921,6 +923,8 @@ The base list of backend work the UI depends on. organizations-backend.md detail
 - [ ] CSV export: current filter / page / selection.
 - [ ] CSV import with field mapping and a duplicate rule (on CUI).
 - [ ] Server-side CUI validation: unique + check digit; message naming the existing organization.
+      Formats shared with invoicing (CUI without "RO", Reg no, address codes and lengths):
+      organizations-backend.md §12.
 - [ ] Email and length validation (the same rules in the form and in inline edit).
 - [ ] Text search on name, CUI, email, phone (partial, not exact).
 - [ ] Filters with operators (equals, contains, starts/ends with, not, <, >, ≤, ≥, between, before/after, empty) on any field, AND/OR groups.
