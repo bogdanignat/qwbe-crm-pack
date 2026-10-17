@@ -48,8 +48,15 @@ const BUCHAREST_BLOCKS = blocksWithAddress([
 // vtiger has no such field and Schema & API still shows it), and modifiedBy,
 // which the header already shows ("Updated ... by ..."), as vtiger does.
 // Ownership is vtiger free text holding people's names, 0,5% filled: hidden
-// until the backend removes it (organizations-backend.md §1).
-export const ORGANIZATION_HIDDEN = new Set(["id", "type", "deleted", "externalId", "modifiedBy", "ownership"])
+// until the backend removes it (organizations-backend.md §1). The Sector is
+// hidden by default too: only the Bucharest layout shows it, in the Address
+// block. Hidden, it can never join block 1 as an unplaced field
+// (fieldBlocksOf), whoever lays the fields out.
+export const SECTOR_FIELD = "billingSector"
+export const ORGANIZATION_HIDDEN: ReadonlySet<string> = new Set([
+  "id", "type", "deleted", "externalId", "modifiedBy", "ownership", SECTOR_FIELD,
+])
+const BUCHAREST_HIDDEN = new Set([...ORGANIZATION_HIDDEN].filter((name) => name !== SECTOR_FIELD))
 
 // Bucharest's county: vtiger's P2 value ("Bucuresti") today, its ISO
 // 3166-2:RO code ("RO-B") once the backend stores codes
@@ -62,12 +69,10 @@ export function isBucharest(county: unknown): boolean {
   return BUCHAREST.has(county.normalize("NFD").replace(/\p{M}/gu, "").replace(/\s+/g, " ").trim().toLowerCase())
 }
 
-const OUTSIDE_BUCHAREST_HIDDEN = new Set([...ORGANIZATION_HIDDEN, "billingSector"])
-
 // The blocks and the hidden fields of one organization: the Sector shows only
 // when its county is Bucharest. Display only; the backend enforces the rule.
 export function organizationLayoutOf(county: unknown): { blocks: readonly FieldBlockSpec[]; hidden: ReadonlySet<string> } {
   return isBucharest(county)
-    ? { blocks: BUCHAREST_BLOCKS, hidden: ORGANIZATION_HIDDEN }
-    : { blocks: ORGANIZATION_BLOCKS, hidden: OUTSIDE_BUCHAREST_HIDDEN }
+    ? { blocks: BUCHAREST_BLOCKS, hidden: BUCHAREST_HIDDEN }
+    : { blocks: ORGANIZATION_BLOCKS, hidden: ORGANIZATION_HIDDEN }
 }

@@ -46,6 +46,14 @@ describe("formBlocksOf", () => {
     assert.equal(names.includes("cui"), true)
   })
 
+  it("shows the Sector only in a Bucharest organization's Address block, never on create", () => {
+    const placesOf = (shown: ReturnType<typeof formBlocksOf>) =>
+      shown.flatMap((b) => (b.rows.some((row) => row.some((f) => f?.name === "billingSector")) ? [b.title] : []))
+    assert.deepEqual(placesOf(blocks), [])
+    assert.deepEqual(placesOf(formBlocksOf(fields, "Cluj")), [])
+    assert.deepEqual(placesOf(formBlocksOf(fields, "București")), ["Address Information"])
+  })
+
   it("edits the published editable fields only", () => {
     assert.equal(editable.some((f) => f.mock), false)
     assert.ok(editable.some((f) => f.name === "billingCity"))

@@ -47,7 +47,7 @@ describe("ORGANIZATION_BLOCKS", () => {
   })
 
   it("put every shown mock field in the block VTIGER_PLACEMENT gives it", () => {
-    for (const f of MOCK_FIELDS.filter((f) => !ORGANIZATION_HIDDEN.has(f.name))) {
+    for (const f of MOCK_FIELDS.filter((f) => !organizationLayoutOf("Bucuresti").hidden.has(f.name))) {
       assert.equal(blockOf(f.name, bucharest), VTIGER_PLACEMENT[f.name].block, f.name)
     }
   })
@@ -72,6 +72,13 @@ describe("ORGANIZATION_BLOCKS", () => {
     assert.deepEqual(addressOf(blocks), [
       "billingStreet", "billingCity", "billingState", "billingCode", "billingCountry", null,
     ])
+  })
+
+  it("never place the Sector outside Bucharest, in any block, even laid out with the bare constants", () => {
+    const sectorIn = (shown: typeof blocks) => shown.some((b) => b.rows.some((row) => row.some((f) => f?.name === "billingSector")))
+    for (const county of ["Cluj", "Ilfov", "Bucuresti Sector 3", "", null, undefined]) assert.equal(sectorIn(layoutFor(county)), false, String(county))
+    assert.equal(sectorIn(fieldBlocksOf(withMockFields(meta).fields, ORGANIZATION_BLOCKS, ORGANIZATION_HIDDEN)), false)
+    assert.equal(blockOf("billingSector", bucharest), "Address Information")
   })
 
   it("show the Sector after the County for Bucharest only, by its P2 value or its ISO code", () => {

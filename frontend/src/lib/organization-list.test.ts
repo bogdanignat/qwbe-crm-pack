@@ -31,9 +31,11 @@ describe("ORGANIZATION_LIST_COLUMNS", () => {
     }
   })
 
-  it("leave out Ownership, by default and in the column picker", () => {
-    assert.equal((ORGANIZATION_LIST_COLUMNS as readonly string[]).includes("ownership"), false)
-    assert.equal(ORGANIZATION_LIST_UNLISTED.has("ownership"), true)
+  it("leave out Ownership and the Sector, by default and in the column picker", () => {
+    for (const name of ["ownership", "billingSector"]) {
+      assert.equal((ORGANIZATION_LIST_COLUMNS as readonly string[]).includes(name), false, name)
+      assert.equal(ORGANIZATION_LIST_UNLISTED.has(name), true, name)
+    }
   })
 
   it("use the detail page's vtiger labels", () => {
