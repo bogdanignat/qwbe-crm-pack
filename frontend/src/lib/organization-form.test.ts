@@ -72,7 +72,7 @@ describe("mock fields never travel", () => {
   })
 
   it("in an Edit all body", () => {
-    const { payload } = changedPayloadOf(fields, {}, everything)
+    const payload = changedPayloadOf(fields, {}, everything)
     assertNoMock(payload)
     assert.equal(payload.billingCity, "1")
   })

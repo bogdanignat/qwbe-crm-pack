@@ -125,13 +125,12 @@ describe("mock fields never leave the browser", () => {
   const demo = DEMO_ORGANIZATIONS[0]
 
   it("are dropped from the in-place PATCH body", () => {
-    const { payload, missing } = changedPayloadOf(
+    const payload = changedPayloadOf(
       [fields[0], cui, vat, category],
       { name: "A", cui: "", vatPayer: false, customerCategory: "Gold" },
       { name: "B", cui: "99000001", vatPayer: true, customerCategory: "Silver" },
     )
     assert.deepEqual(payload, { name: "B" })
-    assert.deepEqual(missing, [])
   })
 
   it("are dropped from the create POST body, required or not", () => {

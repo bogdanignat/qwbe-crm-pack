@@ -56,15 +56,13 @@ export function initialValuesOf(
 // The body of an update request, built from the form's values with the SAME
 // coerce the inline editor saves with. A cleared field becomes null when the
 // metadata says nullable, is skipped when it does not (a non-nullable field
-// cannot carry null, and an empty string would only earn qwbe's refusal), and
-// a cleared REQUIRED field is refused client-side by its label -- qwbe's own
-// field name, without a 400 round trip.
+// cannot carry null, and an empty string would only earn qwbe's refusal). A
+// cleared REQUIRED field is never sent: the kit input refuses it before a save.
 export function updatePayloadOf(
   fields: readonly FieldMetadata[],
   values: Record<string, string | boolean>,
-): { payload: Record<string, unknown>; missing: string[] } {
+): Record<string, unknown> {
   const payload: Record<string, unknown> = {}
-  const missing: string[] = []
   for (const field of fields) {
     // A mock field has no backend column: it never travels in a PATCH.
     if (field.mock) continue
@@ -74,11 +72,7 @@ export function updatePayloadOf(
     }
     const value = String(values[field.name] ?? "").trim()
     if (value === "") {
-      if (field.required) {
-        missing.push(field.label)
-      } else if (field.nullable) {
-        payload[field.name] = null
-      }
+      if (field.nullable && !field.required) payload[field.name] = null
       // ponytail: a non-nullable optional field is skipped, not sent as "",
       // because qwbe would refuse the empty string; if a cube ever needs to
       // send "" on purpose, this is the line to change.
@@ -86,7 +80,7 @@ export function updatePayloadOf(
       payload[field.name] = coerce(field, value)
     }
   }
-  return { payload, missing }
+  return payload
 }
 
 // What the in-place form is editing: nothing, every editable field ("all",
@@ -107,12 +101,13 @@ export function fieldsInEditOf(
 // The in-place form's save body: updatePayloadOf restricted to the fields
 // whose value differs from what the form started with, so an untouched field
 // is never re-sent (and never re-validated server-side). An unchanged
-// required field left empty by the row itself is therefore not refused.
+// required field left empty by the row itself is therefore neither sent nor
+// refused: the kit input checks only changed values (editedFieldError).
 export function changedPayloadOf(
   fields: readonly FieldMetadata[],
   initial: Record<string, string | boolean>,
   values: Record<string, string | boolean>,
-): { payload: Record<string, unknown>; missing: string[] } {
+): Record<string, unknown> {
   const changed = fields.filter(
     (field) => String(values[field.name] ?? "").trim() !== String(initial[field.name] ?? "").trim(),
   )
@@ -165,17 +160,40 @@ export function fieldTextOf(field: FieldMetadata, record: Row, resolveTitle: Res
   return fieldDisplayTextOf(field, value)
 }
 
-// The refusal shown on an in-place form: qwbe's own message, followed by each
-// per-field issue the provider mapped (HttpError body.errors) under the
-// field's label, so the user learns WHICH input was refused.
-export function refusalTextOf(e: unknown, fields: readonly FieldMetadata[]): string {
+// What qwbe answered to a save: its message and the per-field issues by field
+// name (fieldErrorsOf, HttpError body.errors in the data provider).
+export type FieldErrors = Record<string, string>
+export type Refusal = { message: string; errors: FieldErrors }
+
+// Announced above the form when every issue sits under its own field.
+export const CHECK_FIELDS = "Check the highlighted fields"
+
+export function refusalOfError(e: unknown): Refusal {
   const message = e instanceof Error ? e.message : String(e)
-  const errors = (e as { body?: { errors?: Record<string, string> } }).body?.errors ?? {}
-  const details = Object.entries(errors).map(([name, text]) => {
-    const label = fields.find((f) => f.name === name)?.label ?? name
-    return `${label}: ${text}`
-  })
-  return details.length > 0 ? `${message} (${details.join("; ")})` : message
+  const body = (e as { body?: unknown } | null)?.body as { errors?: FieldErrors } | null | undefined
+  return { message, errors: body?.errors ?? {} }
+}
+
+// A refusal as one form shows it. The issues on the inputs it renders go
+// under them, in the form's order (FieldRefusals focuses the first); the
+// message above stays qwbe's own when no issue found an input, names the
+// other issues by their label, or asks to check the highlighted fields.
+// `inputs` are the rendered inputs alone, so a field the form does not show
+// never holds an error that would block its submit.
+export function shownRefusalOf(
+  refusal: Refusal,
+  inputs: readonly FieldMetadata[],
+  fields: readonly FieldMetadata[],
+): { message: string; fieldErrors: FieldErrors } {
+  const fieldErrors: FieldErrors = {}
+  for (const input of inputs) {
+    if (Object.hasOwn(refusal.errors, input.name)) fieldErrors[input.name] = refusal.errors[input.name]
+  }
+  const elsewhere = Object.entries(refusal.errors)
+    .filter(([name]) => !Object.hasOwn(fieldErrors, name))
+    .map(([name, text]) => `${fields.find((f) => f.name === name)?.label ?? name}: ${text}`)
+  if (elsewhere.length > 0) return { message: `${refusal.message} (${elsewhere.join("; ")})`, fieldErrors }
+  return { message: Object.keys(fieldErrors).length > 0 ? CHECK_FIELDS : refusal.message, fieldErrors }
 }
 
 // The create form's starting values copied from an existing row (Duplicate):

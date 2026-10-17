@@ -72,7 +72,7 @@ export function OrganizationDetail({ id, demo }: { id: string; demo: boolean }) 
 
   const error = metaError ?? (rowError ? (rowError as Error).message : null)
   if (error) return <p role="alert">{error}</p>
-  if (!row || !flatRow) return <Skeleton className="h-96 w-full" />
+  if (!meta || !row || !flatRow) return <Skeleton className="h-96 w-full" />
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -88,7 +88,7 @@ export function OrganizationDetail({ id, demo }: { id: string; demo: boolean }) 
         onTabChange={setTab}
         locked={edit.editing !== null}
         info={
-          meta && edit.editing === "all" ? (
+          edit.editing === "all" ? (
             <OrganizationForm
               fields={meta.fields}
               defaultValues={edit.initial}
@@ -101,6 +101,7 @@ export function OrganizationDetail({ id, demo }: { id: string; demo: boolean }) 
           ) : (
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_16rem] 2xl:grid-cols-[minmax(0,1fr)_20rem]">
               <OrganizationInfo
+                fields={meta.fields}
                 blocks={blocks}
                 record={flatRow}
                 edit={edit}

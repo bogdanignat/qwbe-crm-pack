@@ -605,27 +605,31 @@ What the rebuilt form does today. One form serves create, Duplicate and the deta
   marker and, on Edit, the value they hold. They are not part of the form and never travel
   in a POST or PATCH. **Assigned To** is one of them: it shows disabled until the backend
   publishes it, then it takes the existing user picker (a relation input).
-- **Required:** the 7 fields of §4.2 carry a red asterisk and `aria-required`. Only the real
-  editable ones are enforced: Organization Name and Industry today (Industry is required by
-  vtiger although the metadata says optional). TVA is a checkbox, so it is marked but never
-  refused, as in vtiger. A field the metadata marks required is always required too.
-- **Checks** (pure functions in `lib/`, wired by field name, so each applies on its own once
-  its field becomes real):
-  - **CUI:** digits only, 2 to 10 of them, check digit with the key 753217532. The **RO
-    prefix is refused** with a hint ("Enter the CUI without the RO prefix: digits only"),
-    not stripped, as vtiger refuses it; the user sees what is stored.
-  - **Email:** the fields with the email format (Email), `name@domain.tld`.
-  - **Whole numbers:** every integer field (Employees today).
-  - **Lengths:** the metadata's `maxLength` when published, else the declared lengths of
-    §4.3 that remain (CUI 20, Reg no 20, Industry Spec 50, Comp Mobile Phone 15).
+- **Required:** a field the metadata marks `required` carries a red asterisk and
+  `aria-required`, and an editable one is refused empty. Today that is Organization Name;
+  the mock fields of §4.2 (Form, TVA, CUI, Assigned To, Billing State) show the asterisk of
+  the mock metadata, read-only. Industry, required by vtiger, is optional in the published
+  metadata, so it is neither marked nor required until the backend publishes it so. A
+  checkbox is never refused: unticked is a value.
+- **Checks** (one generic function, `fieldError` in `lib/validators.ts`, the same for every
+  cube, run by the kit input in the full form and in inline edit), from the published
+  metadata alone:
+  - **Required:** `required` (above).
+  - **Lengths:** `maxLength` when published; no hand-written length.
+  - **Email:** the fields with `format: "email"` (Email), `name@domain.tld`.
+  - **Whole numbers:** every `integer` field (Employees today).
+  The browser does **not** check the CUI (check digit, digits only, the RO prefix), nor
+  uniqueness: those are the backend's refusal (organizations-backend.md §9), so until the
+  backend has them an invalid value can be saved.
   Errors show inline under the field on blur and on Save; a refused Save moves the focus to
-  the first invalid field and sends nothing. The backend's own refusal shows above the form.
+  the first invalid field and sends nothing. A backend refusal (422) with per-field `issues`
+  shows each message under its field, in the form and in the inline editor; a refusal
+  without a usable path shows above the form.
 - **Unsaved changes:** with a changed form, leaving through a link, Cancel or a page reload
   or close asks "Leave this page? Your changes are not saved." Once the save went through
   the prompt is off, so opening the new record never asks. The browser's Back button is not
   guarded (Next's App Router has no route-change hook).
-- **Not built:** the CUI uniqueness check with a link to the existing organization and
-  "Fill from ANAF" (name, address, Trade Register no., VAT) need a backend.
+- **Not built:** "Fill from ANAF" (name, address, Trade Register no., VAT) needs a backend.
 
 ---
 

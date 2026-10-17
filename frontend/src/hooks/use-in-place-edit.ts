@@ -3,8 +3,11 @@
 // In-place editing of one record (QWB-53 / QWB-54), shared by the detail
 // renderers: Edit opens every editable field ("all"), a pencil opens exactly
 // one. The form mounts on open, so its defaults are the values shown at that
-// moment, and unmounts on Save or Cancel, which is what discards a draft. A
-// refusal keeps it mounted with qwbe's own message. Only the fields in scope
+// moment, and unmounts on Save or Cancel, which is what discards a draft. The
+// kit inputs run the generic metadata check (lib/validators.ts) on what the
+// user changed before any save. A refusal keeps the form mounted; the form
+// shows it (shownRefusalOf: issues under their inputs, the rest above). Only
+// the fields in scope
 // can change or travel: the PATCH carries the changed, coerced keys alone.
 // Needs the ra-core context (KitContext).
 
@@ -17,8 +20,9 @@ import {
   changedPayloadOf,
   fieldsInEditOf,
   initialValuesOf,
-  refusalTextOf,
+  refusalOfError,
   type EditScope,
+  type Refusal,
 } from "@/lib/kit-form"
 
 export type InPlaceEdit = ReturnType<typeof useInPlaceEdit>
@@ -37,7 +41,7 @@ export function useInPlaceEdit({
   editableFields: readonly FieldMetadata[]
 }) {
   const [editing, setEditing] = useState<EditScope>(null)
-  const [refusal, setRefusal] = useState<string | null>(null)
+  const [refusal, setRefusal] = useState<Refusal | null>(null)
   const [update, { isPending }] = useUpdate()
   const fieldsInEdit = useMemo(() => fieldsInEditOf(editableFields, editing), [editableFields, editing])
   const initial = useMemo(
@@ -67,11 +71,7 @@ export function useInPlaceEdit({
   }
 
   async function onSubmit(values: Record<string, string | boolean>) {
-    const { payload, missing } = changedPayloadOf(fieldsInEdit, initial, values)
-    if (missing.length > 0) {
-      setRefusal(`Required: ${missing.join(", ")}`)
-      return
-    }
+    const payload = changedPayloadOf(fieldsInEdit, initial, values)
     if (Object.keys(payload).length === 0) {
       cancel()
       return
@@ -87,9 +87,9 @@ export function useInPlaceEdit({
       toast.success("Saved")
       cancel()
     } catch (e: unknown) {
-      setRefusal(refusalTextOf(e, fieldsInEdit))
+      setRefusal(refusalOfError(e))
     }
   }
 
-  return { editing, refusal, isPending, initial, open, cancel, onSubmit }
+  return { editing, fieldsInEdit, refusal, isPending, initial, open, cancel, onSubmit }
 }

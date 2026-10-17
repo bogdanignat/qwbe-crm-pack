@@ -18,12 +18,15 @@ import { fieldMarkerOf } from "@/lib/field-marker"
 import { fieldTextOf, type ResolveTitle } from "@/lib/kit-form"
 
 export function OrganizationInfo({
+  fields,
   blocks,
   record,
   edit,
   editable,
   resolveTitle,
 }: {
+  // The metadata's fields, for the labels in a refusal.
+  fields: readonly FieldMetadata[]
   blocks: readonly FieldBlock[]
   // The row with its custom values at the top level (displayRowOf).
   record: Row
@@ -45,7 +48,15 @@ export function OrganizationInfo({
 
   const value = (field: FieldMetadata) => {
     if (editing === field.name) {
-      return <InlineEditor field={field} refusal={edit.refusal} pending={edit.isPending} onCancel={edit.cancel} />
+      return (
+        <InlineEditor
+          field={field}
+          fields={fields}
+          refusal={edit.refusal}
+          pending={edit.isPending}
+          onCancel={edit.cancel}
+        />
+      )
     }
     return (
       <InlineValue

@@ -10,20 +10,27 @@
 // reusable detail renderer (cube-show.tsx) for every entity.
 
 import { useEffect, useState } from "react"
-import { required as requiredValidator, type Validator } from "ra-core"
+import type { Validator } from "ra-core"
+import { useFormContext } from "react-hook-form"
 import { AutocompleteInput, ReferenceInput, TextInput } from "shadcn-admin-kit"
 
 import { relationMeta, renderKindOf, type CubeMetadata, type FieldMetadata } from "@/lib/cube.ts"
+import { editedFieldError, fieldError } from "@/lib/validators.ts"
 import { CheckboxInput } from "./checkbox-input"
 import { EnumSelectInput } from "./enum-select-input"
 
-// A caller with its own rules (the organization form) passes `validate`,
-// marks the input required for assistive tech, asks for a text area or adds a
-// hint under the input.
-export type KitFieldOptions = { validate?: Validator; required?: boolean; multiline?: boolean; helperText?: string }
+// A caller may ask for a text area, add a hint under the input, or check the
+// value even unchanged (a create form: its defaults are not a stored record).
+export type KitFieldOptions = { multiline?: boolean; helperText?: string; checkUnchanged?: boolean }
 
 export function KitFieldInput({ field, options = {} }: { field: FieldMetadata; options?: KitFieldOptions }) {
-  const validate = options.validate ?? (field.required ? requiredValidator() : undefined)
+  const { formState } = useFormContext()
+  // The one client check of every form, full or inline (lib/validators.ts);
+  // an edit checks only what the user changed from the form's defaults.
+  const validate: Validator = (value) =>
+    (options.checkUnchanged
+      ? fieldError(field, value)
+      : editedFieldError(field, value, formState.defaultValues?.[field.name])) ?? undefined
 
   if (field.relation) {
     // The metadata guarantees a declared target once relation is set.
@@ -31,7 +38,7 @@ export function KitFieldInput({ field, options = {} }: { field: FieldMetadata; o
   }
 
   if (renderKindOf(field) === "select") {
-    return <EnumSelectInput field={field} validate={validate} required={options.required ?? field.required} />
+    return <EnumSelectInput field={field} validate={validate} required={field.required} />
   }
   // Every boolean, the cube's too: its form value is already a boolean
   // (initialValuesOf). The list cell keeps renderKindOf's text editing for a
@@ -48,7 +55,7 @@ export function KitFieldInput({ field, options = {} }: { field: FieldMetadata; o
       validate={validate}
       multiline={options.multiline}
       aria-description={options.helperText}
-      aria-required={options.required || undefined}
+      aria-required={field.required || undefined}
       type={numeric ? "number" : undefined}
       step={field.type === "integer" ? 1 : field.type === "number" ? "any" : undefined}
     />

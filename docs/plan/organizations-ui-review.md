@@ -23,17 +23,24 @@ punct spune dacă mai e valabil.
 
 ## Prioritare
 
-### 1. Validarea inline diferă de OrganizationForm — ÎNCĂ VALABIL
+### 1. Validarea inline diferă de OrganizationForm — REZOLVAT (T-1832)
 
-Codul s-a mutat între timp (pencil-ul din `organization-info.tsx` duce spre
-`kit/inline-field.tsx` + `hooks/use-in-place-edit.ts`), dar diferența a rămas:
-salvarea inline verifică doar câmpurile obligatorii lipsă (`changedPayloadOf`,
-`lib/kit-form.ts`) plus refuzul din backend, în timp ce `OrganizationForm` aplică
-toate regulile din `lib/organization-validation.ts` (CUI, email, lungimi
-maxime) pe blur și pe submit. O valoare invalidă poate ajunge la PATCH prin
-editarea inline, dar e refuzată client-side în formular (serverul o poate refuza
-și la PATCH). Repar: o singură sursă de reguli, apelată și din
-`use-in-place-edit.ts`.
+Era: salvarea inline verifica doar câmpurile obligatorii lipsă, iar
+`OrganizationForm` aplica regulile din `lib/organization-validation.ts` (CUI,
+email, lungimi scrise de mână). Acum există o singură verificare, generică, din
+metadata publicată: `fieldError` în `lib/validators.ts` (`required`, `maxLength`,
+`format: "email"`, număr întreg pe `integer`; booleanele nu se verifică). O
+rulează `KitFieldInput` ca validator implicit, deci același cod pentru formularul
+complet, pencil-ul inline (`kit/inline-field.tsx` + `hooks/use-in-place-edit.ts`)
+și formularul generic `cube-show.tsx`. La creare se verifică toate valorile; la
+editare doar ce a schimbat utilizatorul (`editedFieldError`), ca o valoare veche
+(email invalid, câmp devenit obligatoriu) să nu blocheze salvarea altui câmp.
+Regulile de business (CUI, unicitate) și listele scrise de mână au fost scoase din
+frontend: le validează backend-ul (`organizations-backend.md` §9). Un refuz 422 cu
+`issues` pe câmp apare sub inputul lui, în formular și în editorul inline
+(`shownRefusalOf` în `lib/kit-form.ts`, doar pe inputurile randate), primul câmp
+primește focusul (`kit/field-refusals.tsx`), iar deasupra se anunță „Check the
+highlighted fields”; un refuz fără path rămâne mesaj general.
 
 ### 2. Metadata de cube se aduce și se decorează în 3 locuri — ÎNCĂ VALABIL
 

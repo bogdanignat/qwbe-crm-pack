@@ -1,10 +1,10 @@
 // The detail values shared by the renderers (T-1814): the shown text, the
-// refusal text and the Duplicate values.
+// refusal split by field and the Duplicate values.
 
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
-import { duplicateValuesOf, fieldTextOf, refusalTextOf } from "./kit-form.ts"
+import { CHECK_FIELDS, duplicateValuesOf, fieldTextOf, refusalOfError, shownRefusalOf } from "./kit-form.ts"
 import { testField as field } from "./test-fields.ts"
 
 const noTitles = () => null
@@ -21,11 +21,38 @@ describe("fieldTextOf", () => {
   })
 })
 
-describe("refusalTextOf", () => {
-  it("adds each refused field under its label", () => {
+describe("refusalOfError", () => {
+  it("reads qwbe's message and the per-field issues of an HttpError", () => {
     const error = Object.assign(new Error("Validation failed"), { body: { errors: { name: "too long" } } })
-    assert.equal(refusalTextOf(error, [field()]), "Validation failed (Name: too long)")
-    assert.equal(refusalTextOf(new Error("Forbidden"), []), "Forbidden")
+    assert.deepEqual(refusalOfError(error), { message: "Validation failed", errors: { name: "too long" } })
+  })
+
+  it("has no field issue when the error has no body (ra-core HttpError, body null) or is no Error", () => {
+    const error = Object.assign(new Error("Forbidden"), { body: null })
+    assert.deepEqual(refusalOfError(error), { message: "Forbidden", errors: {} })
+    assert.deepEqual(refusalOfError("offline"), { message: "offline", errors: {} })
+  })
+})
+
+describe("shownRefusalOf", () => {
+  const name = field({ name: "name", label: "Organization Name" })
+  const email = field({ name: "email", label: "Email" })
+  const cui = field({ name: "cui", label: "CUI" })
+  const fields = [name, email, cui]
+
+  it("puts every issue on a rendered input under it, in the form's order, and asks to check them", () => {
+    const shown = shownRefusalOf({ message: "Validation failed", errors: { email: "bad", name: "short" } }, [name, email], fields)
+    assert.deepEqual(shown, { message: CHECK_FIELDS, fieldErrors: { name: "short", email: "bad" } })
+    assert.deepEqual(Object.keys(shown.fieldErrors), ["name", "email"])
+  })
+
+  it("keeps qwbe's message when no issue has a usable path", () => {
+    assert.deepEqual(shownRefusalOf({ message: "Forbidden", errors: {} }, [name], fields), { message: "Forbidden", fieldErrors: {} })
+  })
+
+  it("names an issue on a field the form does not render by its label, never as a field error", () => {
+    const shown = shownRefusalOf({ message: "Validation failed", errors: { name: "short", cui: "taken", ghost: "x" } }, [name], fields)
+    assert.deepEqual(shown, { message: "Validation failed (CUI: taken; ghost: x)", fieldErrors: { name: "short" } })
   })
 })
 

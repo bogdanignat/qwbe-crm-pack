@@ -87,29 +87,27 @@ describe("updatePayloadOf", () => {
   ]
 
   it("coerces with the same rules as the inline editor", () => {
-    const { payload, missing } = updatePayloadOf(fields, {
+    const payload = updatePayloadOf(fields, {
       name: "Ada",
       phone: "",
       company: "Acme",
       tva: true,
     })
     assert.deepEqual(payload, { name: "Ada", company: "Acme", phone: null, tva: true })
-    assert.deepEqual(missing, [])
   })
 
   it("a cleared nullable field becomes null", () => {
-    const { payload } = updatePayloadOf(fields, { name: "Ada", phone: " ", company: "", tva: false })
+    const payload = updatePayloadOf(fields, { name: "Ada", phone: " ", company: "", tva: false })
     assert.equal(payload.phone, null)
   })
 
   it("a cleared non-nullable optional field is skipped, not sent as empty", () => {
-    const { payload } = updatePayloadOf(fields, { name: "Ada", company: "", tva: false })
+    const payload = updatePayloadOf(fields, { name: "Ada", company: "", tva: false })
     assert.equal("company" in payload, false)
   })
 
-  it("a cleared required field is refused client-side by its label", () => {
-    const { payload, missing } = updatePayloadOf(fields, { name: "", phone: "555", company: "", tva: false })
-    assert.deepEqual(missing, ["Name"])
+  it("a cleared required field is never sent", () => {
+    const payload = updatePayloadOf(fields, { name: "", phone: "555", company: "", tva: false })
     assert.deepEqual(payload, { phone: "555", tva: false })
   })
 
@@ -118,7 +116,7 @@ describe("updatePayloadOf", () => {
       field({ name: "stage", label: "Stage", required: false, nullable: true, enum: ["lead", "won"] }),
       field({ name: "age", label: "Age", type: "integer", required: false, nullable: true }),
     ]
-    const { payload } = updatePayloadOf(enumFields, { stage: "won", age: "42" })
+    const payload = updatePayloadOf(enumFields, { stage: "won", age: "42" })
     assert.deepEqual(payload, { stage: "won", age: 42 })
   })
 })
@@ -133,28 +131,21 @@ describe("changedPayloadOf", () => {
   const initial = initialValuesOf(fields, { name: "Ada", phone: "555", company: "Acme", tva: false })
 
   it("sends only the fields whose value changed, coerced by type", () => {
-    const { payload, missing } = changedPayloadOf(fields, initial, {
+    const payload = changedPayloadOf(fields, initial, {
       ...initial,
       phone: "",
       tva: true,
     })
     assert.deepEqual(payload, { phone: null, tva: true })
-    assert.deepEqual(missing, [])
   })
 
   it("sends nothing when nothing changed, including whitespace-only edits", () => {
-    const { payload, missing } = changedPayloadOf(fields, initial, { ...initial, name: " Ada " })
-    assert.deepEqual(payload, {})
-    assert.deepEqual(missing, [])
+    assert.deepEqual(changedPayloadOf(fields, initial, { ...initial, name: " Ada " }), {})
   })
 
-  it("a cleared required field is refused only when the user cleared it", () => {
-    assert.deepEqual(changedPayloadOf(fields, initial, { ...initial, name: "" }).missing, ["Name"])
+  it("an untouched required field left empty by the row is not sent", () => {
     const emptyStart = initialValuesOf(fields, { name: "", phone: null, company: "", tva: false })
-    assert.deepEqual(changedPayloadOf(fields, emptyStart, { ...emptyStart, phone: "1" }), {
-      payload: { phone: "1" },
-      missing: [],
-    })
+    assert.deepEqual(changedPayloadOf(fields, emptyStart, { ...emptyStart, phone: "1" }), { phone: "1" })
   })
 })
 
@@ -198,8 +189,8 @@ describe("read-only and runtime fields through the renderer's derivation", () =>
   it("a changed custom value travels flat and alone; a cleared one as null", () => {
     const editable = meta.fields.filter(canEdit)
     const initial = initialValuesOf(editable, displayRowOf(meta, row))
-    assert.deepEqual(changedPayloadOf(editable, initial, { ...initial, cui: "RO2" }).payload, { cui: "RO2" })
-    assert.deepEqual(changedPayloadOf(editable, initial, { ...initial, cui: "" }).payload, { cui: null })
+    assert.deepEqual(changedPayloadOf(editable, initial, { ...initial, cui: "RO2" }), { cui: "RO2" })
+    assert.deepEqual(changedPayloadOf(editable, initial, { ...initial, cui: "" }), { cui: null })
   })
 })
 
@@ -216,9 +207,7 @@ describe("fieldsInEditOf (pencil scope)", () => {
   it("a single-field draft persists only that field even if the form carries others", () => {
     const scoped = fieldsInEditOf(editable, "cui")
     const initial = initialValuesOf(scoped, { name: "Ada", cui: "RO1" })
-    const { payload, missing } = changedPayloadOf(scoped, initial, { ...initial, cui: "RO2", name: "Changed" })
-    assert.deepEqual(payload, { cui: "RO2" })
-    assert.deepEqual(missing, [])
+    assert.deepEqual(changedPayloadOf(scoped, initial, { ...initial, cui: "RO2", name: "Changed" }), { cui: "RO2" })
   })
 })
 

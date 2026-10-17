@@ -532,8 +532,9 @@ export async function scenarioCreateOrganization(api) {
     )
   }
   type(orgName)
-  // Industry is required: a select of vtiger's P4 values (pick the first one
-  // offered); typed only if it is ever a text input again.
+  // Industry, required by vtiger (the form requires it once the metadata
+  // does): a select of vtiger's P4 values (pick the first one offered); typed
+  // only if it is ever a text input again.
   const industryRef = await findStable((v) => (v.role === "combobox" || v.role === "textbox") && v.name === "Industry")
   const industryRole = industryRef ? snapshot().refs[industryRef]?.role : null
   if (industryRole === "textbox") {

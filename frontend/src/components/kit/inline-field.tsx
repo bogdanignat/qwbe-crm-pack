@@ -4,18 +4,22 @@
 // shows the value with Copy and, for an editable field, a pencil; both appear
 // on hover (or keyboard focus) where there is a mouse, and stay visible on a
 // touch screen. InlineEditor is the field opened by its pencil: the kit input,
-// focused, with its own Save/Cancel and the refusal right under it. Both live
+// focused, with its own Save/Cancel and the refusal right under it (an issue
+// on this field as the input's own error, announced through a live region
+// since the kit's error line has none; the rest named by label). Both live
 // inside the ra-core context (KitContext); the editor inside the page's Form.
 
+import { useMemo } from "react"
 import { PencilIcon } from "lucide-react"
 import { SaveButton } from "shadcn-admin-kit"
 
 import { Button } from "@/components/ui/button"
 import type { FieldMetadata, Row } from "@/lib/cube"
-import { escapeCancels } from "@/lib/kit-form"
+import { CHECK_FIELDS, escapeCancels, shownRefusalOf, type Refusal } from "@/lib/kit-form"
 import { CopyButton } from "./copy-button"
 import { FieldValue } from "./field-value"
 import { FieldInputCell } from "./field-input-cell"
+import { FieldRefusals } from "./field-refusals"
 import { FocusOnMount } from "./focus-on-mount"
 
 // The icons never cover the value. With a mouse they sit in a gutter the
@@ -69,15 +73,21 @@ export function InlineValue({
 // disabled buttons).
 export function InlineEditor({
   field,
+  fields,
   refusal,
   pending,
   onCancel,
 }: {
   field: FieldMetadata
-  refusal: string | null
+  // The cube's fields, for the labels of issues on other fields.
+  fields: readonly FieldMetadata[]
+  refusal: Refusal | null
   pending: boolean
   onCancel: () => void
 }) {
+  const shown = useMemo(() => refusal && shownRefusalOf(refusal, [field], fields), [refusal, field, fields])
+  // One input: its own error says it all, so no "check the fields" line.
+  const message = shown && shown.message !== CHECK_FIELDS ? shown.message : null
   return (
     <FocusOnMount
       className="flex min-w-0 flex-col gap-2"
@@ -88,10 +98,13 @@ export function InlineEditor({
         }
       }}
     >
-      <FieldInputCell field={field} />
-      {refusal && (
+      <div aria-live="polite">
+        <FieldInputCell field={field} />
+      </div>
+      <FieldRefusals fieldErrors={shown?.fieldErrors} />
+      {message && (
         <p role="alert" className="text-sm text-destructive">
-          {refusal}
+          {message}
         </p>
       )}
       <div className="flex items-center gap-2">

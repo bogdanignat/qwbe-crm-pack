@@ -46,11 +46,12 @@ import {
   type Row,
 } from "@/lib/cube.ts"
 import { MockTag } from "@/components/mock-tag"
-import { displayRowOf, escapeCancels, fieldTextOf } from "@/lib/kit-form.ts"
+import { CHECK_FIELDS, displayRowOf, escapeCancels, fieldTextOf, shownRefusalOf } from "@/lib/kit-form.ts"
 import { cn } from "@/lib/utils"
 import { KitFieldInput } from "./field-input"
 import { CopyButton } from "./copy-button"
 import { FieldValue } from "./field-value"
+import { FieldRefusals } from "./field-refusals"
 import { FocusOnMount } from "./focus-on-mount"
 import { relationRefsOf } from "@/lib/relation-batch.ts"
 import { useCubeMetadata } from "@/hooks/use-cube-metadata"
@@ -104,13 +105,18 @@ export function CubeKitShow({
 
   // In-place editing (hooks/use-in-place-edit.ts): Edit opens every editable
   // field, a pencil exactly one; Save PATCHes only the changed keys.
-  const { editing, refusal, isPending, initial, open, cancel, onSubmit } = useInPlaceEdit({
+  const { editing, fieldsInEdit, refusal, isPending, initial, open, cancel, onSubmit } = useInPlaceEdit({
     cube,
     id,
     row: row as Row | undefined,
     flatRow,
     editableFields,
   })
+  // Every field in edit renders its input here (Edit all and a pencil alike).
+  const refused = useMemo(
+    () => (refusal && meta ? shownRefusalOf(refusal, fieldsInEdit, meta.fields) : null),
+    [refusal, fieldsInEdit, meta],
+  )
   // "edit" from a related list opens the record in edit mode (?edit=all).
   useEditOnOpen(flatRow !== null, editableFields.length > 0, () => open("all"))
 
@@ -171,10 +177,14 @@ export function CubeKitShow({
         }
       }}
     >
-      <KitFieldInput field={field} />
-      {refusal && (
+      {/* The kit's error line has no live region: this one announces it. */}
+      <div aria-live="polite">
+        <KitFieldInput field={field} />
+      </div>
+      {/* One input: its own error says it all, so no "check the fields" line. */}
+      {refused && refused.message !== CHECK_FIELDS && (
         <p role="alert" className="text-sm text-destructive">
-          {refusal}
+          {refused.message}
         </p>
       )}
       <div className="flex items-center gap-2">
@@ -202,10 +212,11 @@ export function CubeKitShow({
         <CardContent className="flex flex-col gap-4">
           {editing === "all" ? (
             <Form defaultValues={initial} onSubmit={onSubmit} className="flex flex-col gap-4">
+              <FieldRefusals fieldErrors={refused?.fieldErrors} />
               <div className="flex flex-wrap items-center justify-end gap-2">
-                {refusal && (
+                {refused && (
                   <p role="alert" className="mr-auto text-sm text-destructive">
-                    {refusal}
+                    {refused.message}
                   </p>
                 )}
                 {/* label spelled out: without an i18n provider the kit's
@@ -232,6 +243,7 @@ export function CubeKitShow({
               onSubmit={onSubmit}
               className="flex flex-col gap-4"
             >
+              <FieldRefusals fieldErrors={refused?.fieldErrors} />
               <RecordContextProvider value={flatRow}>
                 {fieldsets((field) => (field.name === editing ? single(field) : shown(field)))}
               </RecordContextProvider>

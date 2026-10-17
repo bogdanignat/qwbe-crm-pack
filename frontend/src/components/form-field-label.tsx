@@ -1,11 +1,13 @@
-// A form field's label: vtiger's red asterisk before a required field (with
-// "required" for screen readers), the label, and the MOCK marker.
+// A form field's label: vtiger's red asterisk before a field the metadata
+// marks required (with "required" for screen readers), the label, and the
+// MOCK marker.
 
 import { FieldMarker } from "@/components/field-marker"
 import type { FieldMetadata } from "@/lib/cube"
 import { fieldMarkerOf } from "@/lib/field-marker"
 
-export function FormFieldLabel({ field, required }: { field: FieldMetadata; required: boolean }) {
+export function FormFieldLabel({ field }: { field: FieldMetadata }) {
+  const { required } = field
   const marker = fieldMarkerOf(field)
   return (
     <>
