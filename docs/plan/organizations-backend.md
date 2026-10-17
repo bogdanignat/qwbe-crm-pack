@@ -97,14 +97,14 @@ The list follows vtiger 5.4 (spec §2.6). What it cannot do yet:
       `createdAt` only, so Organization No, CUI, Billing City/State, Website, Phone and
       Assigned To have no sort button. Default sort Modified Time descending, as in vtiger
       (needs `modifiedAt`, §8).
-- [ ] **Quick search on name, CUI, email and phone, partial.** `q` scans `name`, `industry` and
-      `externalId` as a prefix of the whole value; the search box says "Name or industry starts
-      with…". CUI is not published yet (§1); email and phone are not search fields.
+- [ ] **Quick search on name, CUI, email and phone**, matching as in §11. `q` scans `name`,
+      `industry` and `externalId` today; CUI is not published yet (§1); email and phone are not
+      search fields.
 - [ ] **A-Z letter bar** (Organization Name *starts with* a letter): needs a prefix filter on the
       name alone; `q` would also match the industry. Not built.
-- [ ] **Exact filters** at least on billingState, legalForm, rating, assignedTo, and filters with
-      operators (contains, greater than) for the vtiger filter conditions (spec §2.3). Today: `name`,
-      `industry`, `externalId`, behind "Filters" with a chip each.
+- [ ] **Filters** at least on billingState, legalForm, rating, assignedTo, and filters with
+      operators (greater than, ...) for the vtiger filter conditions (spec §2.3); text filters match
+      as in §11. Today: `name`, `industry`, `externalId`, behind "Filters" with a chip each.
 - [ ] **Mass actions** on the selection, shown disabled ("Needs backend") in the selection bar:
       Delete (with confirmation), Mass Edit (the `masseditable` fields, an "apply" tick per
       field), Send Mail (to the Email, compose, keep the history), Mailer Export
@@ -123,8 +123,8 @@ The remaining items of the spec's base list, not yet tied to a UI step. They are
 - [ ] Single delete with confirmation; optionally a recycle bin.
 - [ ] Mass delete and mass edit on the selection and on the whole filter result.
 - [ ] CSV export (current filter / page / selection); CSV import with duplicates on CUI.
-- [ ] Server-side CUI validation (unique + check digit, message naming the existing
-      organization); email and length validation, the same in the form and inline edit.
+- [ ] Server-side CUI validation (§9, §12); email and length validation, the same in the form
+      and inline edit.
 - [ ] Filters with operators and AND/OR groups; relative date filters; saved views.
 - [ ] Optionally propagating the billing address to the organization's contacts.
 - [ ] Duplicate detection and merging (CUI, name).
@@ -207,16 +207,13 @@ What it cannot do without the backend:
 - [ ] **Global search over every module**: one search that answers, per searchable module,
       its matching records and their count. Today the palette sends one `q` list request per
       module it knows (organizations, contacts) and sees nothing else.
-- [ ] **Partial search**: `q` is a case-insensitive prefix of the whole value (verified on
-      dev: "srl" does not find "Acme SRL", "one" does not find "HINT ONE ZERO"). The palette
-      needs a match inside the value (at least on every word), on name, CUI, email and phone
-      (see §3).
+- [ ] **Partial search**: the palette matches as in §11, the same rule in every module.
 - [ ] **Why a record matched**: the field that matched, or a short subtitle (city, CUI, a
       contact's organization), so two hits with the same name can be told apart.
 - [ ] **The user's display name** in `/auth/me` (first and last name); today only `username`,
       which is what the account menu shows.
-- [ ] **Partial global search across several fields with a module filter**: one search over at
-      least name, CUI, email and phone, matching inside the value, with a filter on the module
+- [ ] **Global search across several fields with a module filter**: one search over at
+      least name, CUI, email and phone (matching as in §11), with a filter on the module
       (Organizations, Contacts, ...). Today the demo organizations are found by CUI, email and
       phone in the palette (they are local), the real ones by `q` only.
 - [ ] Optional: a capability in `/auth/me` saying whether the user may open Settings. Today the
@@ -289,33 +286,36 @@ The detail page follows vtiger 5.4 (spec §3.6): header, the "Organization Infor
       on the server.
 - [ ] **Locate Map** (Address Information, Google Maps on the billing address): not
       built; a plain map link needs nothing from the backend, a stored geocode would.
-- [ ] **Inline edit validation** as in the form: CUI unique + check digit, email, lengths
-      (same rules in both places, §4 above).
+- [ ] **Inline edit validation:** the frontend runs the same generic metadata check in the
+      form and inline (required, `maxLength`, email format, whole numbers); every business rule
+      (CUI, uniqueness) is the backend's refusal, the same on PATCH as on create (§9).
 - [ ] **Duplicate** (T-1815) copies every editable field the backend publishes, except
       `externalId` and Organization No. A full prefilled copy needs every field of §1 in the cube.
 
 ## 9. Create / edit form (step 5, T-1815)
 
-What the organization form (create, Duplicate, Edit all; spec §4.5) needs from the backend. The form checks these rules in the browser, but a browser check is only a convenience: the backend must refuse the same mistakes, for the form, inline edit, import and any API client.
+What the organization form (create, Duplicate, Edit all; spec §4.5) needs from the backend. Business and format validation belongs to the backend: it must refuse the mistakes below for the form, inline edit, import and any API client.
+
+**What the frontend checks (T-1832).** Only the generic check every cube form shares (`lib/validators.ts`, `fieldError`), driven by the published metadata: `required`, `maxLength`, `format: "email"` and whole numbers on `type: "integer"`, the same in the full form and in inline edit. It no longer checks the CUI (check digit, digits only, the "RO" prefix), uniqueness, the IBAN, or hand-written lengths and required lists: it relies on the backend's refusal (a 422 with per-field `issues`, shown under each field) and on `required` / `maxLength` / `format` in the metadata. **Until the backend enforces a rule below or publishes it in the metadata, an invalid value can be saved.**
 
 ### Validations the backend must enforce
 
-The rules the form already applies on the client. Each needs the same check, and a per-field message, on create and update.
+The rules vtiger applies. Each needs a check and a per-field message on create and update; the generic ones (required, lengths, email) also need publishing in the metadata, so the form checks them before sending.
 
 - [ ] **Required:** Organization Name, Form, TVA, CUI, Assigned To, Industry, Billing State
       (vtiger `~M`). Publish them as `required` in the metadata; today only `name` is, so the
-      form keeps its own list (`ORGANIZATION_REQUIRED`). Industry is required by vtiger but
-      optional in the cube: decide which wins (the form requires it, so a real organization
-      with an empty Industry cannot be saved through Edit all until it is filled). TVA is a
-      boolean: "required" means "never null", not "true".
-- [ ] **CUI:** digits only, 2 to 10 digits, check digit with the key 753217532 (the "RO"
-      prefix refused, not stripped), and **unique** among non-deleted organizations. The
-      refusal should name the existing organization (id and name), so the form can link to it.
+      form marks and requires only Organization Name (the mock fields show the flag of the
+      mock metadata, read-only). Industry is required by vtiger but optional in the cube:
+      decide which wins. TVA is a boolean: "required" means "never null", not "true".
+- [ ] **CUI:** a valid CUI as the company validation pack defines it (§12: format, the "RO"
+      prefix, check digit, existence), and **unique** among non-deleted organizations, as a
+      per-field issue on `cui`. The refusal should name the existing organization (id and
+      name).
 - [ ] **Email:** a valid address. Publish `format: "email"` for it (the frontend attaches it
-      today in `organization-display.ts`).
+      today in `organization-display.ts`), and refuse an invalid one.
 - [ ] **Lengths:** publish `maxLength` per string field in the metadata (the form already reads it)
-      and refuse longer values; until then the form uses the declared ones (CUI 20, Reg no 20,
-      Industry Spec 50, Comp Mobile Phone 15).
+      and refuse longer values: vtiger's declared ones are CUI 20, Reg no 20, Industry Spec 50,
+      Comp Mobile Phone 15. Until then the form checks no length.
 - [ ] **Whole numbers:** Employees, Annual Revenue.
 
 - [ ] **Picklists:** publish `enum` for `organizationType` (P3), `industry` (P4) and `rating` (P5),
@@ -329,14 +329,15 @@ The rules the form already applies on the client. Each needs the same check, and
 
 What else the form relies on or works around. None blocks the form; each removes a stand-in.
 
-- [ ] **Refusals per field:** a 422 with `issues` (path + message) per field, so the form can
-      show the message under its field instead of above the form.
+- [ ] **Refusals per field:** a 422 with `issues` (path + message) per field. The frontend
+      already shows each message under its field, in the form and in the inline editor; a
+      refusal without a usable path stays the general message above the form.
 - [ ] **Organization No** generated on create (vtiger `ACC<n>`) and read-only; today it is a
       plain editable string, so the form edits it, and Duplicate leaves it empty.
 - [ ] **Assigned To** as a relation to users and groups (vtiger's User / Group choice); the form
       shows it disabled until then, and takes the existing user picker once it is published.
-- [ ] **ANAF lookup** by CUI (name, address, Trade Register no., VAT) for a "Fill from ANAF"
-      action: an idea, not built.
+- [ ] **Fill from ANAF** and the CUI checks against the register: the company validation
+      pack, §12 (the form's part is listed there).
 
 ## 10. Custom fields: module and group
 
@@ -373,3 +374,119 @@ How a custom field gets its place on the page. Today a runtime custom field the 
 - The detail page and the form place each field in its group, in `sequence` order.
 - The hand-written placement in `src/lib/organization-layout.ts` and the "Custom fields" block
   (`CUSTOM_BLOCK_TITLE` in `src/lib/field-blocks.ts`) can go.
+
+## 11. Search and filters: match like a normal search
+
+The one matching rule for every search box and text filter, in the lists and in ⌘K. Today a user who types one word of a company name, or a piece of an id, finds nothing and concludes the record does not exist.
+
+- [ ] **A piece of the value finds the record:** the text matches anywhere inside the value
+      (contains), at least at the start of any word. "ONE" finds "HINT ONE ZERO", "srl" finds
+      "Acme SRL", "1815" finds "T-1815 E2E Test SRL".
+- [ ] **From 3 characters:** a search starts at 3 characters; under 3 the frontend sends
+      nothing (it waits). Decide what the backend does with a shorter `q` (ignore it or refuse
+      it), and whether an exact value shorter than 3 (a 2-digit CUI) is still found. The A-Z bar
+      (§3) is a separate name-prefix filter, not `q`.
+- [ ] **Case and diacritics do not matter:** "brasov" finds "Brașov", "hint one" finds
+      "HINT ONE ZERO", both ways (a query with diacritics finds the value without them).
+- [ ] **Every searchable field and every text filter, the same rule:** name, CUI, email, phone,
+      city, Organization No, `externalId` and the other ids. A filter on a picklist or a
+      reference chosen from its list (billingState, legalForm, rating, assignedTo) stays an exact
+      value.
+- [ ] **An unknown filter is refused** (a 400 naming the parameter), not ignored: today it is
+      dropped silently and the answer is the whole list, which looks like a match.
+- [ ] **Global search (⌘K)** uses the same rule in every module it searches (§7).
+- [ ] **Best matches first:** an exact match, then a match at the start of the value, then at
+      the start of a word, then inside a word; so a full CUI or a full name still comes first.
+      The list's chosen sort applies within each group, or replaces this order when the user
+      sorts by a column (decide).
+- [ ] **Fast on real data:** a search or filter answers quickly on 61k+ organizations (and on
+      the larger modules), as fast as the prefix search does today.
+
+**Today** (dev qwbe, 2026-10-17, 4 organizations, 4 contacts; requests sent to qwbe directly,
+`http://localhost:4500`, and two of them repeated through the frontend proxy
+`/api/qwbe/...` with the same result):
+
+- Today: `GET /catalog/crm%2Forganizations/metadata` publishes `list.search` = `name`,
+  `industry`, `externalId` and `list.filters` = `externalId`, `industry`, `name`. Contacts:
+  search `name`, `email`, `externalId`; filters `email`, `externalId`, `name`, `organizationId`.
+- Today: `q` is a case-insensitive prefix of the whole value. `GET /organizations?q=hint`,
+  `?q=HINT` and `?q=hint%20one` find "HINT ONE ZERO"; `?q=ONE`, `?q=one` and `?q=ZERO` find
+  nothing. `?q=srl` and `?q=SRL` find nothing ("Acme SRL"); `?q=acme` finds it. `?q=E2E` and
+  `?q=1815` find nothing, `?q=T-1815` finds "T-1815 E2E Test SRL".
+- Today: diacritics are not folded. `?q=test` finds 2 ("TEST" by name, "T-1815 E2E Test SRL"
+  by its industry "Testing"); `?q=țest`, `?q=ȚEST` and `?q=tést` find nothing.
+- Today: no minimum length. `?q=a` finds "Acme SRL"; `?q=%20` (one space) returns all 4.
+- Today: the filters are exact and case-sensitive. `?name=HINT%20ONE%20ZERO` finds it;
+  `?name=hint%20one%20zero`, `?name=HINT`, `?name=ONE` and `?name=Acme` find nothing.
+  `?industry=IT` finds 2, `?industry=it` none; `?industry=Testing` finds 1, `?industry=Test`
+  and `?industry=esting` none.
+- Today: `?externalId=123` finds nothing. No dev organization has an `externalId` or an
+  Organization No, so a partial id could not be tried on data.
+- Today: unknown filters are ignored. `?organizationNo=ACC`, `?cui=123`,
+  `?email=hintstudio` and `?billingCity=Iasi` all answer 200 with all 4 organizations.
+- Today: no relevance order. `?q=t` answers `sortedBy: "createdAt"` ("TEST", then
+  "T-1815 E2E Test SRL").
+- Today: contacts behave the same. `GET /contacts?q=dan` finds "Dan Popescu";
+  `?q=popescu` finds nothing, `?q=acme` finds nothing (emails at acme.ro).
+
+Frontend, once done: the placeholders "Name or industry starts with…" (organizations),
+"Name or email starts with…" (contacts) and the palette's "whose name starts with" change to
+the new rule; the list and the palette wait for 3 characters.
+
+## 12. Company validation: a separate qwbe pack
+
+A qwbe pack of its own, not inside crm-pack, that checks Romanian companies by CUI and returns their official data. Organizations and any other module with a CUI (contacts, vendors, invoices) use it, so the rule and the source are written once.
+
+### What the pack answers
+
+- [ ] **CUI format:** digits only, 2 to 10 digits. The "RO" prefix: accepted on input and
+      stored without it, or refused as this plan said until now (§9): decide. Spaces around it
+      are trimmed.
+- [ ] **Check digit** with the key 753217532; a wrong one is refused without asking the source.
+- [ ] **The company exists:** the source knows the CUI. Decide whether an unknown CUI is a
+      refusal or a warning (a company registered today may not be in the source yet).
+- [ ] **The name matches the CUI:** a given name is compared with the official one, tolerant to
+      case, diacritics, spacing and punctuation, and to the legal form suffix ("SRL", "S.R.L.",
+      "SA", ...). The answer is match, no match, or could not verify.
+- [ ] **Company data for prefill:** name; address (street, city, county, postal code); Trade
+      Register no.; CAEN code; VAT payer status; inactive status; registration in the
+      e-Factura register; and when the data was checked.
+- [ ] **Validation on save:** the checks above are usable by a module's create and update, so
+      the backend refuses an invalid CUI for every client (form, inline edit, import, API);
+      Organizations uses them on `cui` (§9).
+- [ ] **Several CUIs at once**, for imports and bulk checks (61k organizations), within the
+      source's limits below.
+- [ ] **Access:** only authenticated users with a permission of the pack; it is not an open
+      proxy to the source.
+
+### Source
+
+- [ ] **Start with ANAF's public web service:** free, no account or key:
+      `POST https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva`. Usage limit about 1
+      request per second and up to 100 CUIs per request: both to confirm in ANAF's instruction
+      files.
+- [ ] **Alternatives to evaluate later:** openapi.ro (free tier not confirmed), demoanaf.ro
+      (unofficial, 300 requests/minute, no key), termene.ro (paid, a few free queries per year).
+- [ ] **Replaceable source:** changing or adding a source does not change the callers or the
+      answers they get.
+
+### Availability and limits
+
+- [ ] **Answers are cached:** a company does not change every minute, so a recent answer is
+      reused instead of asking the source again (how long: decide).
+- [ ] **The source's rate limit is respected** for all callers together; a burst (an import)
+      waits its turn, it never exceeds the limit.
+- [ ] **An unavailable source never blocks saving:** when the source does not answer (down,
+      slow, over its limit), the existence and name checks answer "could not verify", not a
+      refusal, and the organization is saved. Format and check digit do not depend on the
+      source and still refuse.
+
+### What belongs to crm-pack
+
+Only the frontend action and the form behaviour; everything above is the pack.
+
+- [ ] **"Fill from ANAF"** on the organization form (create, Duplicate, Edit all): from the
+      CUI, it fills the name, the billing address (street, city, Billing State from the county,
+      postal code), Reg no, SIC Code (CAEN) and TVA. It saves nothing; the user reviews and saves.
+- [ ] **The form shows the pack's answer:** inactive company, not in the e-Factura register,
+      name that does not match, or "could not verify" (saving stays possible).
