@@ -27,8 +27,9 @@ Account Turnover (€), Ticker Symbol, Notify Owner, Member Of, the two PO Boxes
 shipping address (street, city, state, postal code, country). Their picklists P6, P8 and P9 go
 with them. A client who needs one adds it as a custom field (§10).
 
-**Proposed for removal from the cube:** `ownership` (0,5% filled, free text holding people's
-names). Bogdan decides; until then it stays as it is.
+**Removed from the cube** (Bogdan's decision, 2026-10-17): `ownership` (0,5% filled, free text
+holding people's names). It is not refilled with the creator: the creator/owner is the kernel's
+record owner. Stored rows keep the key in their body (no backfill); the API ignores it.
 
 | Name | Label (en_us) | Type | Req. | Length | Picklist | Notes |
 |---|---|---|---|---|---|---|

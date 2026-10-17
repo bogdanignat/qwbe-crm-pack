@@ -14,7 +14,7 @@ import { MOCK_FIELDS, VTIGER_PLACEMENT, withMockFields } from "../mock/organizat
 // The fields the cube publishes today.
 const PUBLISHED = [
   "id", "type", "createdAt", "deleted", "name", "externalId", "organizationNo", "phone", "email", "website",
-  "organizationType", "industry", "rating", "ownership", "employees", "emailOptOut", "billingStreet",
+  "organizationType", "industry", "rating", "employees", "emailOptOut", "billingStreet",
   "billingCity", "billingCode", "billingCountry", "description",
 ]
 const meta: CubeMetadata = {
@@ -28,7 +28,7 @@ const blocks = fieldBlocksOf(withMockFields(meta).fields, ORGANIZATION_BLOCKS, O
 // Block 1's fields in vtiger's sequence (spec §3.2), the dropped ones left out.
 const VTIGER_ORDER = [
   "createdAt", "modifiedAt", "name", "legalForm", "vatPayer", "organizationType", "cui", "rating",
-  "tradeRegisterNo", "customerCategory", "assignedTo", "phone", "otherPhone", "ownership", "mobilePhone",
+  "tradeRegisterNo", "customerCategory", "assignedTo", "phone", "otherPhone", "mobilePhone",
   "annualRevenue", "fax", "employees", "caenCode", "email", "website", "industry", "emailOptOut",
   "industrySpec", "organizationNo",
 ]
@@ -52,9 +52,9 @@ describe("ORGANIZATION_BLOCKS", () => {
     }
   })
 
-  it("close block 1 up two per row in vtiger's sequence, the only empty cell at the end", () => {
+  it("close block 1 up two per row in vtiger's sequence, with no empty cell", () => {
     const names = ORGANIZATION_BLOCKS[0].rows.flat()
-    assert.deepEqual(names, [...VTIGER_ORDER, null])
+    assert.deepEqual(names, VTIGER_ORDER)
   })
 
   it("hide Id, Type, Deleted, External Id and Last Modified By", () => {

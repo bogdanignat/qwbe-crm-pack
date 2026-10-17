@@ -58,12 +58,12 @@ describe("withOrganizationDisplay", () => {
 
   it("offers vtiger's picklists for Type, Industry and Company status, unless the backend publishes an enum", () => {
     const published = meta("crm/organizations")
-    published.fields = [field("industry", "Industry"), field("organizationType", "Type"), field("ownership", "Ownership")]
+    published.fields = [field("industry", "Industry"), field("organizationType", "Type"), field("billingCity", "City")]
     published.fields[1] = { ...published.fields[1], enum: ["Published"] }
-    const [industry, type, ownership] = withOrganizationDisplay(published).fields
+    const [industry, type, city] = withOrganizationDisplay(published).fields
     assert.ok((industry.enum ?? []).length > 10)
     assert.deepEqual(type.enum, ["Published"])
-    assert.equal(ownership.enum, null)
+    assert.equal(city.enum, null)
     const [rating] = withOrganizationDisplay({ ...meta("crm/organizations"), fields: [field("rating", "Rating")] }).fields
     assert.deepEqual(rating.enum?.slice(0, 2), ["Activ", "Inactiv"])
   })

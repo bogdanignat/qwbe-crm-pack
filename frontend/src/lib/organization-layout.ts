@@ -1,7 +1,7 @@
 // The Organizations detail page, block by block and row by row, as vtiger 5.4
 // shows it (docs/plan/organizations-ui-spec.md §3.2), without the fields under
 // 15% filled (dropped, backend.md §1): the rest close up two per row in
-// vtiger's sequence, the only empty cell at the end of a block, and the
+// vtiger's sequence, an empty cell only at the end of a block, and the
 // Address block keeps billing only. The mock fields sit in the block
 // VTIGER_PLACEMENT gives them; a test keeps the two in step.
 
@@ -17,13 +17,12 @@ export const ORGANIZATION_BLOCKS: readonly FieldBlockSpec[] = [
       ["cui", "rating"],
       ["tradeRegisterNo", "customerCategory"],
       ["assignedTo", "phone"],
-      ["otherPhone", "ownership"],
-      ["mobilePhone", "annualRevenue"],
-      ["fax", "employees"],
-      ["caenCode", "email"],
-      ["website", "industry"],
-      ["emailOptOut", "industrySpec"],
-      ["organizationNo", null],
+      ["otherPhone", "mobilePhone"],
+      ["annualRevenue", "fax"],
+      ["employees", "caenCode"],
+      ["email", "website"],
+      ["industry", "emailOptOut"],
+      ["industrySpec", "organizationNo"],
     ],
   },
   {

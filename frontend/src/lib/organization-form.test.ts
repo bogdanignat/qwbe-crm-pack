@@ -12,7 +12,7 @@ import { MOCK_FIELDS, withMockFields } from "../mock/organizations/index.ts"
 
 const PUBLISHED = [
   "id", "type", "createdAt", "deleted", "name", "externalId", "organizationNo", "phone", "email", "website",
-  "organizationType", "industry", "rating", "ownership", "employees", "emailOptOut", "billingStreet",
+  "organizationType", "industry", "rating", "employees", "emailOptOut", "billingStreet",
   "billingCity", "billingCode", "billingCountry", "description",
 ]
 const READ_ONLY = new Set(["id", "type", "createdAt", "deleted"])

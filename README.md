@@ -182,8 +182,8 @@ gate: the same version with a different schema hash refuses to boot. Bump the ve
 schema change (QWB-54, ticket 20). History: `crm/contacts` is at 1.3.0 (1.1.0: the relation
 field was renamed `accountId` → `organizationId`, ticket 12; 1.2.0: `externalId` added,
 ticket 13; 1.3.0: searchable widened to name/email, ticket 14); `crm/organizations` is at
-1.1.0 (1.0.0 at the rename — the old `crm/accounts` data moves with the declared
-`dataMigration`, ticket 14; 1.1.0: `externalId` added, ticket 13); `crm/contracts` is at
+1.2.0 (1.0.0 at the rename — the old `crm/accounts` data moves with the declared
+`dataMigration`, ticket 14; 1.1.0: `externalId` added, ticket 13; 1.2.0: `ownership` removed, T-1830); `crm/contracts` is at
 1.0.0.
 
 ## Layout

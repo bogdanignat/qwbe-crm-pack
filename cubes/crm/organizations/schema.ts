@@ -33,7 +33,6 @@ const fields = {
   organizationType: Schema.NullOr(Schema.String),
   industry: Schema.NullOr(Schema.String),
   rating: Schema.NullOr(Schema.String),
-  ownership: Schema.NullOr(Schema.String),
   /** A headcount is a count: zero or more, never negative. */
   employees: Schema.NullOr(Schema.Int.pipe(Schema.nonNegative())),
   /** The vtiger opt-out flag, kept as a real boolean instead of a varchar(3) flag. */

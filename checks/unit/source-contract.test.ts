@@ -44,7 +44,7 @@ it.effect("declares one CRM parent with contacts and contracts as children", () 
     // (that filter IS the import's lookup); uniqueness lives in the DATABASE, guarded by the
     // partial unique index tools/db/ensure-external-id-index.ts ensures. contracts is not
     // importable (no mapping, no import writes it), so it declares no external identity.
-    expect(organizations.cube.manifest.version).toBe("1.1.0")
+    expect(organizations.cube.manifest.version).toBe("1.2.0")
     expect(organizations.cube.manifest.searchable).toEqual(["name", "industry", "externalId"])
     expect(contacts.cube.manifest.version).toBe("1.3.0")
     expect(contacts.cube.manifest.searchable).toEqual(["name", "email", "externalId"])

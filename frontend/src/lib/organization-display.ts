@@ -34,7 +34,7 @@ const ORGANIZATION_FORMATS: Record<string, FieldFormat> = {
 
 // vtiger's picklists for the real fields published as plain strings: Type
 // (P3), Industry (P4) and Company status (P5). With an `enum` they edit as a
-// select everywhere (renderKindOf). Ownership stays free text, as in vtiger.
+// select everywhere (renderKindOf).
 const ORGANIZATION_ENUMS: Record<string, string[]> = {
   organizationType: picklists.P3.values,
   industry: picklists.P4.values,

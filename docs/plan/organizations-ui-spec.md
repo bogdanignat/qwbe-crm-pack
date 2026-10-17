@@ -483,9 +483,10 @@ More Information tab:
   Schema & API still shows it) and Last Modified By (it is in the header). A published field no
   block names joins the end of block 1; a runtime custom field the "Custom fields" block (until
   the metadata gives every field its group, organizations-backend.md §10). The fields dropped for
-  a fill under 15% (§5.2) are not shown: the rest of block 1 closes up two per row in vtiger's
-  sequence, the only empty cell after Organization No at the end (a test keeps it so), and Address
-  Information holds the billing address only, two fields per row.
+  a fill under 15% (§5.2) and Ownership (removed from the cube, §7) are not shown: the rest of
+  block 1 closes up two per row in vtiger's sequence, ending on Industry Spec and Organization No
+  with no empty cell (a test keeps it so), and Address Information holds the billing address
+  only, two fields per row.
 - **Labels:** vtiger's en_us labels where the frontend supplies them: "Organization Name",
   "Created Time", "Billing Address", "Billing Postal Code", "Type", "Company status".
 - **Mock markers:** a small icon after the label, with a tooltip and a screen-reader label, so the
@@ -597,8 +598,7 @@ What the rebuilt form does today. One form serves create, Duplicate and the deta
   values, attached in the UI until the backend publishes them as `enum`; the same select
   serves create, Edit all, the detail's pencil and the list cell. A stored value the list
   lacks (an older Industry, for instance) stays first in the list, shown as-is, so it is
-  never blanked out. Ownership stays free text, as in vtiger. Every boolean, editable or
-  not, is a checkbox, as in vtiger. On create, Organization No carries the hint "Generated on
+  never blanked out. Every boolean, editable or not, is a checkbox, as in vtiger. On create, Organization No carries the hint "Generated on
   save once the backend numbers records".
 - **Mock fields** (MOCK marker) show as disabled inputs or checkboxes, with their
   marker and, on Edit, the value they hold. They are not part of the form and never travel
@@ -648,7 +648,6 @@ The vtiger fields the crm-pack cube already stores, with how often vtiger has th
 | organizationType | accounttype | Type | 100% | custom RO values (see P3) |
 | industry | industry | Industry | 100% | required; 123 values (see P4) |
 | rating | rating | Rating | 99,9% | here it means **legal status** (see P5); proposed UI label "Company status" |
-| ownership | ownership | Ownership | 0,5% | free text with people's names, see §7; proposed for removal from the cube, Bogdan decides |
 | employees | employees | Employees | 53,6% | integer |
 | emailOptOut | emailoptout | Email Opt Out | 0,2% checked | checkbox |
 | billingStreet | bill_street | Billing Address | 92,2% | max 250 |
@@ -781,7 +780,6 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
     "emailOptOut": false,
     "employees": 42,
     "annualRevenue": 850000,
-    "ownership": null,
     "assignedTo": { "type": "user", "id": "u_mock_07", "name": "Agent Vanzari 1" },
     "billingStreet": "Str. Exemplului nr. 10",
     "billingCity": "Cluj-Napoca",
@@ -817,7 +815,6 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
     "emailOptOut": true,
     "employees": 180,
     "annualRevenue": 4200000,
-    "ownership": null,
     "assignedTo": { "type": "group", "id": "g_mock_02", "name": "Echipa Vanzari" },
     "billingStreet": "Bd. Demonstratiei nr. 5",
     "billingCity": "Baia Mare",
@@ -853,7 +850,6 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
     "emailOptOut": false,
     "employees": 3,
     "annualRevenue": null,
-    "ownership": null,
     "assignedTo": { "type": "user", "id": "u_mock_11", "name": "Agent Vanzari 3" },
     "billingStreet": "Sat Exemplu nr. 7",
     "billingCity": "Lugoj",
@@ -881,7 +877,7 @@ a client who needs one adds it as a custom field. Every field marked dropped in 
 |---|---|---|
 | Ticker Symbol | Romanian companies, not listed | 0% filled |
 | Notify Owner | never used; notifications are done differently | 0% checked |
-| Ownership | free text with people's names (personal data), almost empty; still in the cube, removal proposed, Bogdan decides | 0,5% (316 org.) |
+| Ownership | free text with people's names (personal data), almost empty; removed from the cube (Bogdan, 2026-10-17), the creator/owner is the kernel's record owner | 0,5% (316 org.) |
 | Member Of + "Show Organization Hierarchy" | hierarchy almost unused; a separate page for 12 rows | 12 org. with a parent, 11 parents |
 | PO Box (billing/shipping) | unused in RO | 2,4% / 0,03% |
 | Other Industry + Other Industry Spec | duplicate Industry / Industry Spec | 1,5% / 1,2% |

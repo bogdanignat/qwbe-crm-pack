@@ -13,7 +13,7 @@ import { describe, it } from "node:test"
 import { Cause, Effect, Exit, Schema } from "effect"
 import { type CubeTools, validateCubeParts } from "qwbe-core/cube"
 import { CurrentUser, requirePermission } from "qwbe-core/auth"
-import { OrganizationCreate, OrganizationPatch } from "./schema.ts"
+import { Organization, OrganizationCreate, OrganizationPatch } from "./schema.ts"
 import type { Forbidden, NotFound } from "qwbe-core/errors"
 import { cube } from "./index.ts"
 
@@ -157,7 +157,7 @@ describe("organizations cube contract", () => {
     // filter IS the import's lookup before create. Uniqueness lives in the DATABASE: the
     // partial unique index is ensured by tools/db/ensure-external-id-index.ts, because a
     // plugin cube's role holds DML only and cannot create indexes.
-    assert.equal(cube.manifest.version, "1.1.0")
+    assert.equal(cube.manifest.version, "1.2.0")
     assert.ok(cube.manifest.searchable?.includes("externalId"))
     const decode = Schema.decodeUnknownEither(OrganizationCreate)
     const created = decode({ name: "Ada Industries SRL" })
@@ -175,6 +175,26 @@ describe("organizations cube contract", () => {
     assert.ok(decode({ employees: -3 })._tag === "Left")
     assert.ok(decode({ employees: 3 })._tag === "Right")
     assert.ok(decode({})._tag === "Right")
+  })
+
+  it("a legacy row and a payload still carrying the removed `ownership` key pass, without it", () => {
+    // `ownership` left the cube (2026-10-17) but stored bodies keep the key: no backfill.
+    // The store hands rows back raw and HttpApi encodes the response and decodes the payload
+    // with the default parse options, which ignore excess keys -- the key is stripped, never
+    // fatal. With `onExcessProperty: "error"` here, every legacy row would 500.
+    const legacy = {
+      id: "org_1", type: "Organization", createdAt: "2026-01-01T00:00:00.000Z", deleted: false,
+      ...Schema.decodeUnknownSync(OrganizationCreate)({ name: "Ada Industries SRL" }),
+      ownership: "Ion Popescu",
+    }
+    const encoded = Schema.encodeUnknownEither(Organization)(legacy)
+    assert.ok(encoded._tag === "Right")
+    if (encoded._tag === "Right") assert.ok(!("ownership" in encoded.right))
+    const created = Schema.decodeUnknownEither(OrganizationCreate)({ name: "Ada Industries SRL", ownership: "x" })
+    assert.ok(created._tag === "Right" && !("ownership" in created.right))
+    const patched = Schema.decodeUnknownEither(OrganizationPatch)({ ownership: "x" })
+    assert.ok(patched._tag === "Right")
+    if (patched._tag === "Right") assert.deepEqual(patched.right, {})
   })
 
   it("requirePermission refuses a caller without organizations:write", async () => {
