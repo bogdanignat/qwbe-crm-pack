@@ -71,8 +71,8 @@
   --border: oklch(1 0 0 / 11%);
   --input: oklch(1 0 0 / 28%);
   --ring: oklch(0.75 0.16 60);
-  --grid-line: oklch(1 0 0 / 3%);
-  --grid-line-major: oklch(1 0 0 / 5.5%);
+  --grid-line: oklch(1 0 0 / 1.5%);
+  --grid-line-major: oklch(1 0 0 / 2.75%);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
