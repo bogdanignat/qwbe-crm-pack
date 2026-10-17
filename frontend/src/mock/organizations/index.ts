@@ -2,7 +2,7 @@
 // 5.4 UI needs but the crm/organizations cube does not publish yet.
 //
 // Everything here is fictitious or picklist data from
-// docs/plan/organizations-ui-spec.md (§5.2, §5.3, §6). What the backend must
+// docs/plan/organizations-ui-spec.md (§5.2, §5.3) and docs/plan/organizations-mock-data.md. What the backend must
 // add for this file to disappear is in docs/plan/organizations-backend.md.
 //
 // - Mock fields use the published metadata shape plus `mock: true`. They are
@@ -59,8 +59,8 @@ export function withMockFields(meta: CubeMetadata): CubeMetadata {
   return { ...meta, fields: [...meta.fields, ...MOCK_FIELDS.filter((f) => !published.has(f.name))] }
 }
 
-// The three demo organizations of §6, shown read-only on the list's first page
-// and opened from here, never from the backend. The JSON is §6 verbatim.
+// The three demo organizations (docs/plan/organizations-mock-data.md), shown read-only on the list's first page
+// and opened from here, never from the backend. That md keeps a verbatim copy of the JSON.
 export const DEMO_ORGANIZATIONS: Row[] = organizationsJson
 
 export function demoOrganizationOf(cube: string, id: string): Row | undefined {

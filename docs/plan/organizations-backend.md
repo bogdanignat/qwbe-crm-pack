@@ -6,7 +6,8 @@ Epic T-1809. This document says WHAT is needed, not HOW. Each UI step completes 
 Full specification: `organizations-ui-spec.md` (§5 fields, §8 the base list).
 
 The frontend mockup layer: `frontend/src/mock/organizations/`
-(`fields.json`, `picklists.json`, `organizations.json`, `index.ts`).
+(`fields.json`, `picklists.json`, `organizations.json`, `contacts.json`, `index.ts`), documented
+with a frozen copy in `organizations-mock-data.md`.
 A mock field disappears on its own as soon as `GET /catalog/crm%2Forganizations/metadata`
 publishes a field with the same name; the frontend does not change.
 
@@ -177,6 +178,8 @@ What each backend piece removes from the frontend on its own, without a code cha
 The exact list of frontend code to delete once the backend has everything. Kept current with each step, so the cleanup is mechanical and nothing mock is left behind.
 
 A mechanical deletion, all under `frontend/`. Nothing outside this list refers to the mock.
+`docs/plan/organizations-mock-data.md` stays: its frozen copy of the mock files remains the
+reference for the field shapes, picklists and sample records once `src/mock/` is gone.
 
 1. Delete `src/mock/` (fields, picklists, demo records and demo contacts, `withMockFields`,
    its tests).
