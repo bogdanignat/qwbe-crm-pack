@@ -49,9 +49,10 @@ const noBackend: typeof fetch = async (input) => {
 }
 
 describe("mock data", () => {
-  it("has the 15 kept missing fields of §5.2, in vtiger order, with vtiger placement", () => {
-    assert.equal(MOCK_FIELDS.length, 15)
-    assert.equal(new Set(MOCK_FIELDS.map((f) => f.name)).size, 15)
+  it("has the 15 kept missing fields of §5.2 and the Sector, in vtiger order, with their placement", () => {
+    assert.equal(MOCK_FIELDS.length, 16)
+    assert.equal(new Set(MOCK_FIELDS.map((f) => f.name)).size, 16)
+    assert.equal(MOCK_FIELDS.at(-1)?.name, "billingSector")
     assert.deepEqual(VTIGER_PLACEMENT.legalForm, {
       field: "cf_658",
       block: "Organization Information",
@@ -59,6 +60,11 @@ describe("mock data", () => {
       maxLength: 255,
     })
     assert.deepEqual(byName(meta(MOCK_FIELDS), "legalForm")[0].enum, PICKLISTS.P1.values)
+  })
+
+  it("marks required the fields required on every save (backend.md §12), and no other", () => {
+    const required = MOCK_FIELDS.filter((f) => f.required).map((f) => f.name)
+    assert.deepEqual(required, ["legalForm", "vatPayer", "cui", "assignedTo", "billingState", "billingSector"])
   })
 
   it("has no repeated value in any picklist", () => {
@@ -99,13 +105,13 @@ describe("withMockFields", () => {
     const real = field({ name: "cui", label: "CUI (real)", required: false })
     const merged = withMockFields(meta([field(), real]))
     assert.deepEqual(byName(merged, "cui"), [real])
-    assert.equal(merged.fields.length, 2 + 14)
+    assert.equal(merged.fields.length, 2 + 15)
   })
 
   it("appends every unpublished field marked mock, never sortable or searchable", () => {
     const merged = withMockFields(meta([field()]))
     const mocks = merged.fields.filter((f) => f.mock)
-    assert.equal(mocks.length, 15)
+    assert.equal(mocks.length, 16)
     assert.equal(merged.fields[0].name, "name")
     assert.ok(mocks.every((f) => f.mock === true && !f.sortable && !f.searchable && !canEdit(f)))
   })

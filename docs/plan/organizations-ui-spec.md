@@ -486,7 +486,11 @@ More Information tab:
   a fill under 15% (§5.2) and Ownership (hidden in the UI, §7) are not shown: the rest of
   block 1 closes up two per row in vtiger's sequence, ending on Industry Spec and Organization No
   with no empty cell (a test keeps it so), and Address Information holds the billing address
-  only, two fields per row.
+  only, two fields per row. For a Bucharest county (Billing State "Bucuresti", or `RO-B` once the
+  backend stores codes; matched whatever the case, the diacritics or a "Municipiul" prefix) the Sector (a mock, organizations-backend.md §12) follows Billing State:
+  Address | City, Billing State | Sector, Postal Code | Country. Any other county, or none, shows
+  no Sector. Display only: the backend enforces the rule. The demo ACC90001 is in Bucharest,
+  Sector 3.
 - **Labels:** vtiger's en_us labels where the frontend supplies them: "Organization Name",
   "Created Time", "Billing Address", "Billing Postal Code", "Type", "Company status".
 - **Mock markers:** a small icon after the label, with a tooltip and a screen-reader label, so the
@@ -586,7 +590,8 @@ What the rebuilt form does today. One form serves create, Duplicate and the deta
 - **Layout:** vtiger's 3 blocks in the detail's order and rows (Organization Information,
   Address Information, Description Information), without Created/Modified Time and without
   the dropped fields (§5.2); Address holds billing only, so vtiger's address copy is gone.
-  Two label/value columns that fold to one
+  The Sector follows Billing State only for a Bucharest county, as on the detail (§3.6); a new
+  organization has no county yet, so it shows none. Two label/value columns that fold to one
   when the form is narrower than 42rem (a phone). The blocks are not collapsible. **Save / Cancel** sit
   above and below the blocks.
 - **Where:** `/organizations/new` ("New organization"); `/organizations/new?duplicate=<id>`
@@ -605,14 +610,19 @@ What the rebuilt form does today. One form serves create, Duplicate and the deta
   marker and, on Edit, the value they hold. They are not part of the form and never travel
   in a POST or PATCH. **Assigned To** is one of them: it shows disabled until the backend
   publishes it, then it takes the existing user picker (a relation input).
-- **Required:** a field the metadata marks `required` carries a red asterisk and
-  `aria-required`, and an editable one is refused empty. Today that is Organization Name;
-  the mock fields of §4.2 (Form, TVA, CUI, Assigned To, Billing State) show the asterisk of
-  the mock metadata, read-only. Industry, required by vtiger, is optional in the published
-  metadata, so it is neither marked nor required until the backend publishes it so. A
-  checkbox is never refused: unticked is a value.
+- **Required:** the fields required on every save (organizations-backend.md §12, "Required
+  fields") carry a red asterisk and `aria-required`, and an editable one is refused empty with
+  "<label> is required" under it. Real: Organization Name (published `required`), Billing
+  Address, Billing City and Billing Country (marked by the UI, `ORGANIZATION_REQUIRED` in
+  `organization-display.ts`, until the metadata publishes them; a published `required` wins).
+  Mock, with the asterisk of the mock metadata, read-only: Form, TVA, CUI, Assigned To,
+  Billing State and, for a Bucharest county, Sector. Industry, required by vtiger, is still a
+  decision, so it is neither marked nor required. A checkbox is never refused: unticked is a
+  value. On Edit only a changed value is checked, so an older organization without a street
+  still saves a change to another field.
 - **Checks** (one generic function, `fieldError` in `lib/validators.ts`, the same for every
-  cube, run by the kit input in the full form and in inline edit), from the published
+  cube, run by the kit input in the full form and in inline edit, and by `saveCell` before a
+  list cell's PATCH, its refusal shown in the cell), from the published
   metadata alone:
   - **Required:** `required` (above).
   - **Lengths:** `maxLength` when published; no hand-written length.
@@ -620,7 +630,9 @@ What the rebuilt form does today. One form serves create, Duplicate and the deta
   - **Whole numbers:** every `integer` field (Employees today).
   The browser does **not** check the CUI (check digit, digits only, the RO prefix), nor
   uniqueness: those are the backend's refusal (organizations-backend.md §9), so until the
-  backend has them an invalid value can be saved.
+  backend has them an invalid value can be saved. Nor does it normalise anything (spaces or
+  dots in the CUI, the RO prefix, case, county or country codes): it sends what was typed, and
+  the backend normalises (organizations-backend.md §12).
   Errors show inline under the field on blur and on Save; a refused Save moves the focus to
   the first invalid field and sends nothing. A backend refusal (422) with per-field `issues`
   shows each message under its field, in the form and in the inline editor; a refusal
@@ -790,9 +802,10 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
     "annualRevenue": 850000,
     "assignedTo": { "type": "user", "id": "u_mock_07", "name": "Agent Vanzari 1" },
     "billingStreet": "Str. Exemplului nr. 10",
-    "billingCity": "Cluj-Napoca",
-    "billingState": "Cluj",
-    "billingCode": "400000",
+    "billingCity": "Bucuresti",
+    "billingState": "Bucuresti",
+    "billingSector": 3,
+    "billingCode": "030000",
     "billingCountry": "Romania",
     "description": "Client recurent pentru service generatoare.",
     "createdAt": "2019-03-14T09:12:00Z",
@@ -827,6 +840,7 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
     "billingStreet": "Bd. Demonstratiei nr. 5",
     "billingCity": "Baia Mare",
     "billingState": "Maramures",
+    "billingSector": null,
     "billingCode": "430000",
     "billingCountry": "Romania",
     "description": null,
@@ -862,6 +876,7 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
     "billingStreet": "Sat Exemplu nr. 7",
     "billingCity": "Lugoj",
     "billingState": "Timis",
+    "billingSector": null,
     "billingCode": null,
     "billingCountry": "Romania",
     "description": "Interesat de motopompe pentru irigatii.",

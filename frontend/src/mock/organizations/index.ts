@@ -25,7 +25,9 @@ export const PICKLISTS: Record<string, Picklist> = picklistsJson
 
 // Where vtiger places each mock field: its own field name, block, sequence in
 // the block and declared length. Layout input for the detail and form steps.
-export type VtigerPlacement = { field: string; block: string; sequence: number; maxLength: number | null }
+// billingSector is not a vtiger field (field null): it sits right after
+// Billing State (docs/plan/organizations-backend.md §12, "Required fields").
+export type VtigerPlacement = { field: string | null; block: string; sequence: number; maxLength: number | null }
 export const VTIGER_PLACEMENT: Record<string, VtigerPlacement> = Object.fromEntries(
   fieldsJson.map((f) => [f.name, f.vtiger]),
 )

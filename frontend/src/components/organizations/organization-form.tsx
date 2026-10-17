@@ -65,7 +65,7 @@ export function OrganizationForm({
   // The save went through: the unsaved-changes prompt is off.
   saved?: boolean
 }) {
-  const blocks = useMemo(() => formBlocksOf(fields), [fields])
+  const blocks = useMemo(() => formBlocksOf(fields, record?.billingState), [fields, record])
   const inputs = useMemo(() => editableFieldsOf(blocks), [blocks])
   const shown = useMemo(() => refusal && shownRefusalOf(refusal, inputs, fields), [refusal, inputs, fields])
   const creating = record === undefined

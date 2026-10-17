@@ -68,6 +68,27 @@ describe("withOrganizationDisplay", () => {
     assert.deepEqual(rating.enum?.slice(0, 2), ["Activ", "Inactiv"])
   })
 
+  it("requires the billing street, city and country, and keeps what the backend publishes as required", () => {
+    const published = meta("crm/organizations")
+    published.fields = [
+      { ...field("name", "Name"), required: true },
+      field("billingStreet", "Billing Street"),
+      field("billingCity", "Billing City"),
+      field("billingCountry", "Billing Country"),
+      field("billingCode", "Billing Code"),
+      field("industry", "Industry"),
+    ]
+    const required = withOrganizationDisplay(published).fields.map((f) => [f.name, f.required])
+    assert.deepEqual(required, [
+      ["name", true],
+      ["billingStreet", true],
+      ["billingCity", true],
+      ["billingCountry", true],
+      ["billingCode", false],
+      ["industry", false],
+    ])
+  })
+
   it("leaves every other cube untouched", () => {
     const contacts = meta("crm/contacts")
     assert.equal(withOrganizationDisplay(contacts), contacts)

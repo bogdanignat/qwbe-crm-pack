@@ -532,6 +532,18 @@ export async function scenarioCreateOrganization(api) {
     )
   }
   type(orgName)
+  // The billing address, required on every save (organizations-backend.md §12).
+  for (const [label, value] of [
+    ["Billing Address", "Str. E2E nr. 1"],
+    ["Billing City", "E2E City"],
+    ["Billing Country", "Romania"],
+  ]) {
+    if (!(await clickStable((v) => v.role === "textbox" && v.name === label, label))) {
+      shot("10-create-RED", { full: true })
+      return record(name, "RED", `no ${label} input on the create form`, "10-create-RED.png")
+    }
+    type(value)
+  }
   // Industry, required by vtiger (the form requires it once the metadata
   // does): a select of vtiger's P4 values (pick the first one offered); typed
   // only if it is ever a text input again.
@@ -871,9 +883,9 @@ const N_LABEL = "E2E Note"
  * Define one field through the open panel; fresh snapshot for every step.
  *
  * `required` ticks the panel's Required box before the field is added: the
- * refusal this suite asserts on ("... is required and cannot be emptied")
- * only exists for a field the definition actually marks required, and the
- * panel starts every new field optional.
+ * refusal this suite asserts on ("<label> is required", the cell's generic
+ * check) only exists for a field the definition actually marks required, and
+ * the panel starts every new field optional.
  */
 async function defineField(name, label, typeName, options, required = false) {
   for (let i = 0; i < 20; i++) {
@@ -1106,8 +1118,9 @@ export async function scenarioCustomFieldTypes(api, seed) {
   if (!ok) return record(name, "RED", `the ${D_LABEL} editor did not open`, "09-date-RED.png")
   const dateShown = await waitForText("2026-01-02", 10_000)
 
-  // The required text field: set a value first, then empty it. The refusal
-  // must be qwbe's own message, shown in that cell, with the old value kept.
+  // The required text field: set a value first, then empty it. The cell's
+  // generic check refuses it ("<label> is required") before any request,
+  // shown in that cell, with the old value kept in qwbe.
   const noteOpen1 = await openCellEditor(N_LABEL)
   let noteTyped1 = false
   for (let i = 0; i < 10 && !noteTyped1; i++) {
@@ -1137,7 +1150,7 @@ export async function scenarioCustomFieldTypes(api, seed) {
       await new Promise((r) => setTimeout(r, 500))
     }
   }
-  const refused = await waitForText("cannot be emptied", 15_000)
+  const refused = await waitForText(`${N_LABEL} is required`, 15_000)
   snap = snapshot()
   shot("09-required-refused")
   const noteDetail = `note open=${noteOpen1}/${noteOpen2} typed=${noteTyped1}/${noteTyped2} hello=${helloShown} refused=${refused}`
@@ -1180,7 +1193,7 @@ export async function scenarioCustomFieldTypes(api, seed) {
     name,
     pass ? "PASS" : "RED",
     pass
-      ? "number 7, bool yes, date 2026-01-02 in the cells and the backend; the emptied required field refused with qwbe's message; every definition gone from qwbe"
+      ? "number 7, bool yes, date 2026-01-02 in the cells and the backend; the emptied required field refused in the cell; every definition gone from qwbe"
       : `${noteDetail} values=${JSON.stringify(custom).slice(0, 120)} cleaned=${cleaned} date=${dateShown} leftOver=${leftOver.join(",") || "none"}`,
     "09-required-refused.png",
   )

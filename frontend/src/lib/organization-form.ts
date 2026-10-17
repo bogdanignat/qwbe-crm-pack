@@ -6,12 +6,12 @@
 import { canEdit, createPayloadOf, type FieldMetadata } from "./cube.ts"
 import { fieldBlocksOf, type FieldBlock } from "./field-blocks.ts"
 import { initialValuesOf } from "./kit-form.ts"
-import { ORGANIZATION_BLOCKS, ORGANIZATION_HIDDEN } from "./organization-layout.ts"
+import { organizationLayoutOf } from "./organization-layout.ts"
 
 export type FormValues = Record<string, string | boolean>
 
 // vtiger's form leaves out Created and Modified Time (spec §4.1).
-const FORM_HIDDEN = new Set([...ORGANIZATION_HIDDEN, "createdAt", "modifiedAt"])
+const FORM_HIDDEN = ["createdAt", "modifiedAt"]
 
 // The values vtiger edits in a text area.
 export const MULTILINE_FIELDS: ReadonlySet<string> = new Set(["description", "billingStreet"])
@@ -22,8 +22,11 @@ export const CREATE_HINTS: Readonly<Record<string, string>> = {
   organizationNo: "Generated on save once the backend numbers records",
 }
 
-export function formBlocksOf(fields: readonly FieldMetadata[]): FieldBlock[] {
-  return fieldBlocksOf(fields, ORGANIZATION_BLOCKS, FORM_HIDDEN)
+// The detail's layout for the organization's county (the Sector for
+// Bucharest only); a new organization has none.
+export function formBlocksOf(fields: readonly FieldMetadata[], county?: unknown): FieldBlock[] {
+  const { blocks, hidden } = organizationLayoutOf(county)
+  return fieldBlocksOf(fields, blocks, new Set([...hidden, ...FORM_HIDDEN]))
 }
 
 export function editableFieldsOf(blocks: readonly FieldBlock[]): FieldMetadata[] {

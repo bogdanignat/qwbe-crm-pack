@@ -6,8 +6,10 @@ import { describe, it } from "node:test"
 
 import type { CubeMetadata, Row } from "./cube.ts"
 import { changedPayloadOf, duplicateValuesOf } from "./kit-form.ts"
-import { createBodyOf, editableFieldsOf, formBlocksOf, formDefaultsOf } from "./organization-form.ts"
+import { withOrganizationDisplay } from "./organization-display.ts"
+import { createBodyOf, editableFieldsOf, formBlocksOf, formDefaultsOf, type FormValues } from "./organization-form.ts"
 import { testField as field } from "./test-fields.ts"
+import { editedFieldError, fieldError } from "./validators.ts"
 import { MOCK_FIELDS, withMockFields } from "../mock/organizations/index.ts"
 
 const PUBLISHED = [
@@ -83,5 +85,26 @@ describe("formDefaultsOf", () => {
     const some = editable.filter((f) => f.name === "name" || f.name === "emailOptOut")
     assert.deepEqual(formDefaultsOf(some), { name: "", emailOptOut: false })
     assert.deepEqual(formDefaultsOf(some, { name: "Copy SRL", emailOptOut: "true" }), { name: "Copy SRL", emailOptOut: true })
+  })
+})
+
+describe("the billing address, required on every save", () => {
+  const shown = withOrganizationDisplay({ ...meta, fields }).fields
+  const inputs = editableFieldsOf(formBlocksOf(shown))
+  const street = inputs.find((f) => f.name === "billingStreet")!
+
+  it("is refused empty on create", () => {
+    assert.equal(fieldError(street, ""), "Billing Address is required")
+  })
+
+  it("does not block an edit elsewhere on an older organization that has none", () => {
+    const initial: FormValues = { ...formDefaultsOf(inputs), name: "Old SRL", billingCity: "Arad" }
+    const values: FormValues = { ...initial, name: "Old SRL Renamed" }
+    for (const f of inputs) assert.equal(editedFieldError(f, values[f.name], initial[f.name]), null, f.name)
+    assert.deepEqual(changedPayloadOf(inputs, initial, values), { name: "Old SRL Renamed" })
+  })
+
+  it("is refused when the edit empties it", () => {
+    assert.equal(editedFieldError(street, " ", "Str. Veche 1"), "Billing Address is required")
   })
 })

@@ -29,7 +29,7 @@ import { canEdit, rowHref, type FieldMetadata, type Row } from "@/lib/cube"
 import { fieldBlocksOf } from "@/lib/field-blocks"
 import { displayRowOf } from "@/lib/kit-form"
 import { ORGANIZATIONS_CUBE } from "@/lib/organization-display"
-import { ORGANIZATION_BLOCKS, ORGANIZATION_HIDDEN } from "@/lib/organization-layout"
+import { organizationLayoutOf } from "@/lib/organization-layout"
 import { relationRefsOf } from "@/lib/relation-batch"
 import { ActionsSidebar } from "./actions-sidebar"
 import { OrganizationForm } from "./organization-form"
@@ -44,11 +44,13 @@ export function OrganizationDetail({ id, demo }: { id: string; demo: boolean }) 
   const row = data as Row | undefined
   const [tab, setTab] = useUrlTab(ORGANIZATION_TABS)
 
-  const blocks = useMemo(
-    () => (meta ? fieldBlocksOf(meta.fields, ORGANIZATION_BLOCKS, ORGANIZATION_HIDDEN) : []),
-    [meta],
-  )
   const flatRow = useMemo(() => (meta && row ? displayRowOf(meta, row) : null), [meta, row])
+  const county = flatRow?.billingState
+  const blocks = useMemo(() => {
+    if (!meta) return []
+    const { blocks: specs, hidden } = organizationLayoutOf(county)
+    return fieldBlocksOf(meta.fields, specs, hidden)
+  }, [meta, county])
   const editable = (field: FieldMetadata) => !demo && canEdit(field)
   const editableFields = useMemo(
     () => (demo ? [] : blocks.flatMap((b) => b.rows.flat()).filter((f): f is FieldMetadata => f !== null && canEdit(f))),

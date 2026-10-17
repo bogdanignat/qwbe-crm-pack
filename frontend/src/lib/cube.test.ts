@@ -351,6 +351,34 @@ describe("saving an inline edit", () => {
     assert.equal(patchCalls.length, 0)
   })
 
+  it("an emptied required field is refused in the cell, with no request", async () => {
+    patchCalls.length = 0
+    for (const name of ["name", "billingCity"]) {
+      const result = await saveCell({
+        rowPath: "/api/qwbe/organizations/org-1",
+        row: { id: "org-1", [name]: "Old" } as Row,
+        field: field({ name, label: name === "name" ? "Organization Name" : "Billing City", required: true, nullable: true }),
+        next: " ",
+        doFetch: okFetch,
+      })
+      assert.deepEqual(result, { status: "refused", message: `${name === "name" ? "Organization Name" : "Billing City"} is required` })
+    }
+    assert.equal(patchCalls.length, 0)
+  })
+
+  it("a malformed value is refused in the cell, with no request", async () => {
+    patchCalls.length = 0
+    const result = await saveCell({
+      rowPath: "/api/qwbe/organizations/org-1",
+      row: { id: "org-1", employees: 4 } as Row,
+      field: field({ name: "employees", type: "integer" }),
+      next: "4,5",
+      doFetch: okFetch,
+    })
+    assert.deepEqual(result, { status: "refused", message: "Enter a whole number" })
+    assert.equal(patchCalls.length, 0)
+  })
+
   it("a refused PATCH carries qwbe's message for the edited field", async () => {
     const refusedFetch = (async () =>
       new Response(
@@ -550,12 +578,14 @@ describe("the edit control follows the field metadata alone", () => {
   })
 })
 
-describe("a required custom field refuses an empty save with qwbe's own message", () => {
-  it("the refusal message in the cell is the backend's, not an invented one", async () => {
-    const backendMessage = '"lead_source" is required and cannot be emptied'
+describe("an emptied custom field in the cell", () => {
+  it("a required one is refused by the generic check, before any request", async () => {
     const realFetch = globalThis.fetch
-    globalThis.fetch = (async () =>
-      new Response(JSON.stringify({ message: backendMessage }), { status: 400 })) as unknown as typeof fetch
+    let called = false
+    globalThis.fetch = (async () => {
+      called = true
+      return new Response("{}", { status: 200 })
+    }) as unknown as typeof fetch
     try {
       const result = await saveCell({
         rowPath: "/api/qwbe/contacts/row-1",
@@ -568,8 +598,8 @@ describe("a required custom field refuses an empty save with qwbe's own message"
         next: "",
         doFetch: globalThis.fetch,
       })
-      assert.equal(result.status, "refused")
-      assert.equal(result.status === "refused" && result.message, backendMessage)
+      assert.deepEqual(result, { status: "refused", message: "Lead source is required" })
+      assert.equal(called, false)
     } finally {
       globalThis.fetch = realFetch
     }
@@ -597,7 +627,7 @@ describe("a required custom field refuses an empty save with qwbe's own message"
     }
   })
 
-  it("clearing a SET required custom field is a real change: the PATCH leaves the client (QWB-52 review 1)", async () => {
+  it("clearing a SET optional custom field is a real change: the PATCH leaves the client, qwbe's refusal shows (QWB-52 review 1)", async () => {
     const realFetch = globalThis.fetch
     let called = false
     let sentBody: unknown
@@ -610,13 +640,13 @@ describe("a required custom field refuses an empty save with qwbe's own message"
       const result = await saveCell({
         rowPath: "/api/qwbe/contacts/row-1",
         row: { id: "row-1", name: "Dana", custom: { lead_source: "email" } } as Row,
-        field: customField({ required: true }),
+        field: customField(),
         next: "",
         doFetch: globalThis.fetch,
       })
       assert.equal(called, true)
       assert.deepEqual(sentBody, { lead_source: "" })
-      assert.equal(result.status, "refused")
+      assert.deepEqual(result, { status: "refused", message: "refused" })
     } finally {
       globalThis.fetch = realFetch
     }

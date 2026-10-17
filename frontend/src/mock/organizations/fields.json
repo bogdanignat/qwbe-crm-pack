@@ -253,5 +253,22 @@
       "sequence": 7,
       "maxLength": 30
     }
+  },
+  {
+    "name": "billingSector",
+    "label": "Sector",
+    "type": "integer",
+    "format": null,
+    "required": true,
+    "editable": true,
+    "nullable": true,
+    "picklist": null,
+    "relation": null,
+    "vtiger": {
+      "field": null,
+      "block": "Address Information",
+      "sequence": 8,
+      "maxLength": null
+    }
   }
 ]

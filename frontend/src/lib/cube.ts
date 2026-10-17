@@ -11,6 +11,7 @@
 import { APP_PAGES } from "./app-pages.ts"
 import { formatDateTime, isIsoDateTime } from "./date-time.ts"
 import { formatNumber } from "./number-format.ts"
+import { fieldError } from "./validators.ts"
 
 // The published field metadata (qwbe core/src/metadata/schemas.ts).
 export type FieldMetadata = {
@@ -605,6 +606,9 @@ export type SaveResult =
 // without a DOM: PATCHes exactly the edited key, merges ONLY that key from the
 // response (an out-of-order stale body must not overwrite newer columns), and
 // returns qwbe's own message -- matched to the edited field -- on refusal.
+// A changed value first passes the generic check every form runs
+// (lib/validators.ts): an emptied required field or a malformed value is
+// refused here, in the cell, and never sent.
 //
 // The pre-edit value is derived HERE, from the row and the field, via the same
 // customValueOf the cell renders with. A caller cannot hand in a "current": a
@@ -622,6 +626,8 @@ export async function saveCell(opts: {
   if (field.mock) return { status: "refused", message: "mock field: not saved" }
   const current = customValueOf(row, field)
   if (next === String(current ?? "")) return { status: "unchanged" }
+  const invalid = fieldError(field, next)
+  if (invalid) return { status: "refused", message: invalid }
   // One path for static AND custom fields: a custom field is saved through the
   // TARGET cube's own PATCH, the kernel folds the undeclared key into the
   // row's `custom` sub-object and validates it against the definition, and a

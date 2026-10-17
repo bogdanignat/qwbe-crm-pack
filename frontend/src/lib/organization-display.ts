@@ -1,7 +1,8 @@
 // How the organization fields are shown, where the published metadata says
-// nothing yet: UI decisions on real fields. What the backend publishes itself
-// always wins. The one tie to the mockup layer is vtiger's picklist values for
-// three real fields (ORGANIZATION_ENUMS), until the backend publishes them.
+// nothing yet: UI decisions on real fields, and the fields required on save.
+// What the backend publishes itself always wins. The one tie to the mockup
+// layer is vtiger's picklist values for three real fields
+// (ORGANIZATION_ENUMS), until the backend publishes them.
 
 import type { CubeMetadata, FieldFormat } from "./cube.ts"
 import picklists from "../mock/organizations/picklists.json" with { type: "json" }
@@ -41,6 +42,12 @@ const ORGANIZATION_ENUMS: Record<string, string[]> = {
   rating: picklists.P5.values,
 }
 
+// The real fields required on every save (Bogdan, 2026-10-17) that the
+// metadata does not publish as `required` yet: the form marks them and refuses
+// them empty (lib/validators.ts). Gone once the backend publishes `required`
+// (docs/plan/organizations-backend.md §12, "Required fields").
+const ORGANIZATION_REQUIRED: ReadonlySet<string> = new Set(["billingStreet", "billingCity", "billingCountry"])
+
 export function withOrganizationDisplay(meta: CubeMetadata): CubeMetadata {
   if (meta.cube !== ORGANIZATIONS_CUBE) return meta
   return {
@@ -51,6 +58,7 @@ export function withOrganizationDisplay(meta: CubeMetadata): CubeMetadata {
       return {
         ...f,
         label: ORGANIZATION_LABELS[f.name] ?? f.label,
+        required: f.required || ORGANIZATION_REQUIRED.has(f.name),
         ...(format ? { format } : {}),
         enum: values,
       }
