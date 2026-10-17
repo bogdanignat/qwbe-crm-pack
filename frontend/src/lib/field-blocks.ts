@@ -35,7 +35,7 @@ export function fieldBlocksOf(
   const blocks: FieldBlock[] = specs.map((spec) => ({
     title: spec.title,
     // A row whose fields are all unpublished disappears; a half-published
-    // row keeps its empty cell, so billing stays left and shipping right.
+    // row keeps its empty cell, so each field stays in its column.
     rows: spec.rows.map((row) => row.map(take)).filter((row) => row.some((f) => f !== null)),
   }))
 

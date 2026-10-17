@@ -56,7 +56,7 @@ export function OrganizationDetail({ id, demo }: { id: string; demo: boolean }) 
   )
   const edit = useInPlaceEdit({ cube: ORGANIZATIONS_CUBE, id, row, flatRow, editableFields })
 
-  // Relation titles (Member Of) resolve in one batch, as in the list.
+  // Relation titles (a runtime custom relation field) resolve in one batch, as in the list.
   const relationRefs = useMemo(() => (meta && row ? relationRefsOf([row], meta.fields) : []), [meta, row])
   const resolveTitle = useRelationTitles(relationRefs)
 

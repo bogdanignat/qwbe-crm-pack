@@ -42,11 +42,11 @@ describe("withOrganizationDisplay", () => {
     assert.deepEqual(labels, ["Billing Address", "Billing Postal Code", "Created Time"])
   })
 
-  it("names the currency of the two amounts: EUR, the single currency for now", () => {
+  it("names the currency of the amount: EUR, the single currency for now", () => {
     const amounts = meta("crm/organizations")
-    amounts.fields = [field("annualRevenue", "Annual Revenue"), field("turnoverEur", "Account Turnover (€)")]
+    amounts.fields = [field("annualRevenue", "Annual Revenue")]
     const labels = withOrganizationDisplay(amounts).fields.map((f) => f.label)
-    assert.deepEqual(labels, ["Annual Revenue (EUR)", "Account Turnover (EUR)"])
+    assert.deepEqual(labels, ["Annual Revenue (EUR)"])
   })
 
   it("formats phone, email and website as links, unless the backend publishes a format", () => {

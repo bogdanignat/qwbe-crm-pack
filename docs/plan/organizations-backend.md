@@ -12,98 +12,63 @@ publishes a field with the same name; the frontend does not change.
 
 ## 1. Fields missing from the cube (step 1, T-1811)
 
-The 33 vtiger fields the organizations cube does not have yet. Without them the detail page and the list show mock values instead of real data.
+The 15 vtiger fields the organizations cube does not have yet. Without them the detail page and the list show mock values instead of real data.
 
-All 33, with the names below, readable and writable (except the read-only ones).
+All 15 go into the cube, with the names below, readable and writable (except the read-only ones).
 Type, required flag, length and picklist are the vtiger ones (§5.2); the exact source
-is `frontend/src/mock/organizations/fields.json`. The 33 fields and the picklists P1, P2,
-P3, P5, P7 and P8 were checked against the vtiger database; P4, P6 and P9 are complete
-lists from it (vtiger order, normalized, without "--None--").
+is `frontend/src/mock/organizations/fields.json`. The 15 fields and the picklists P1, P2,
+P3, P5 and P7 were checked against the vtiger database; P4 is the complete list from it
+(vtiger order, normalized, without "--None--").
 
-**Target** (Bogdan's decision): only the fields worth porting go into the cube, the rest
-become runtime custom fields of `crm/organizations`, under the same names.
+**Dropped** (Bogdan's decision, 2026-10-17): the vtiger fields filled on fewer than 15% of the
+61,347 organizations (fill rates in spec §5.2) are not ported and the UI does not show them:
+Other Industry, Other Industry Spec, Product Category, Bank, IBAN, Other Fax, Other Email,
+Account Turnover (€), Ticker Symbol, Notify Owner, Member Of, the two PO Boxes and the whole
+shipping address (street, city, state, postal code, country). Their picklists P6, P8 and P9 go
+with them. A client who needs one adds it as a custom field (§10).
 
-- **cube (24):** cui, legalForm, vatPayer, tradeRegisterNo, customerCategory, caenCode,
-  industrySpec, assignedTo, modifiedAt, modifiedBy, otherPhone, mobilePhone, fax, otherEmail,
-  annualRevenue, turnoverEur, bank, iban, billingState, shippingStreet, shippingCity,
-  shippingState, shippingCode, shippingCountry.
-- **custom (9):** otherIndustry, otherIndustrySpec, productCategory, otherFax, billingPoBox,
-  shippingPoBox, tickerSymbol, notifyOwner, parentOrganizationId.
+**Proposed for removal from the cube:** `ownership` (0,5% filled, free text holding people's
+names). Bogdan decides; until then it stays as it is.
 
-The UI already treats the 9 as custom fields (`custom: true`, value in `row.custom`, a
-CUSTOM marker after the label). On the detail page they stay in their vtiger blocks, where
-`src/lib/organization-layout.ts` names them (Other Industry in Organization Information,
-the PO Boxes in Address Information, and so on), and a test keeps them there; only a
-runtime custom field the layout does not name goes to the "Custom fields" block. In the
-list they are hidden by default and can be picked in Columns. Once they are real custom
-fields nothing moves: the layout names them, and the list keeps them out of its defaults.
-
-| Name | Label (en_us) | Target | Type | Req. | Length | Picklist | Notes |
-|---|---|---|---|---|---|---|---|
-| modifiedAt | Modified Time | cube | datetime | – | – | – | read-only |
-| otherIndustry | Other Industry | custom | picklist | no | 255 | P6 | |
-| legalForm | Form | cube | picklist | yes | 255 | P1 | |
-| otherIndustrySpec | Other Industry Spec | custom | text | no | 255 | – | |
-| vatPayer | TVA | cube | boolean | yes (formal) | – | – | |
-| cui | CUI | cube | text (digits) | yes | 20 | – | unique + check digit |
-| tradeRegisterNo | Reg no | cube | text | no | 20 | – | |
-| customerCategory | Category | cube | picklist | no | 255 | P7 | |
-| bank | Bank | cube | picklist | no | 255 | P8 | |
-| productCategory | Product Category | custom | picklist | no | 255 | P9 | |
-| iban | IBAN | cube | text | no | 50 | – | |
-| assignedTo | Assigned To | cube | user or group | yes | – | – | `{type, id, name}` |
-| parentOrganizationId | Member Of | custom | relation to crm/organizations | no | – | – | |
-| otherPhone | Other Phone | cube | phone | no | 30 | – | |
-| mobilePhone | Comp Mobile Phone | cube | phone | no | 15 | – | |
-| annualRevenue | Annual Revenue | cube | integer (EUR) | no | – | – | UI label "Annual Revenue (EUR)" |
-| fax | Fax | cube | phone | no | 30 | – | |
-| otherFax | Other Fax | custom | text | no | 15 | – | |
-| caenCode | SIC Code | cube | text | no | 50 | – | "NNNN Description" |
-| tickerSymbol | Ticker Symbol | custom | text | no | 30 | – | 0% used, skipped at import |
-| otherEmail | Other Email | cube | email | no | 100 | – | |
-| turnoverEur | Account Turnover (€) | cube | integer (EUR) | no | 10 digits | – | UI label "Account Turnover (EUR)" |
-| notifyOwner | Notify Owner | custom | boolean | no | – | – | 0% used, skipped at import |
-| industrySpec | Industry Spec | cube | text | no | 50 | – | |
-| modifiedBy | Last Modified By | cube | user | – | – | – | read-only, `{id, name}` |
-| shippingStreet | Shipping Address | cube | textarea | no | 250 | – | |
-| billingPoBox | Billing PO Box | custom | text | no | 30 | – | |
-| shippingPoBox | Shipping PO Box | custom | text | no | 30 | – | |
-| shippingCity | Shipping City | cube | text | no | 30 | – | |
-| billingState | Billing State | cube | picklist | yes | 30 | P2 | |
-| shippingState | Shipping State | cube | text (P2 proposed) | no | 30 | – | |
-| shippingCode | Shipping Postal Code | cube | text | no | 30 | – | |
-| shippingCountry | Shipping Country | cube | text | no | 30 | – | |
+| Name | Label (en_us) | Type | Req. | Length | Picklist | Notes |
+|---|---|---|---|---|---|---|
+| modifiedAt | Modified Time | datetime | – | – | – | read-only |
+| legalForm | Form | picklist | yes | 255 | P1 | |
+| vatPayer | TVA | boolean | yes (formal) | – | – | |
+| cui | CUI | text (digits) | yes | 20 | – | unique + check digit |
+| tradeRegisterNo | Reg no | text | no | 20 | – | |
+| customerCategory | Category | picklist | no | 255 | P7 | |
+| assignedTo | Assigned To | user or group | yes | – | – | `{type, id, name}` |
+| otherPhone | Other Phone | phone | no | 30 | – | |
+| mobilePhone | Comp Mobile Phone | phone | no | 15 | – | |
+| annualRevenue | Annual Revenue | integer (EUR) | no | – | – | UI label "Annual Revenue (EUR)" |
+| fax | Fax | phone | no | 30 | – | |
+| caenCode | SIC Code | text | no | 50 | – | "NNNN Description" |
+| industrySpec | Industry Spec | text | no | 50 | – | |
+| modifiedBy | Last Modified By | user | – | – | – | read-only, `{id, name}` |
+| billingState | Billing State | picklist | yes | 30 | P2 | |
 
 ### Import and data notes
 
 Points to settle when vtiger's data is imported into the new fields. They keep the import from losing or inventing data.
 
-- [ ] `tickerSymbol` and `notifyOwner` hold no data (0%): the import can skip them.
-- [ ] `parentOrganizationId` is a relation (Member Of): check whether custom fields support a
-      relation to `crm/organizations`; if not, it needs another home.
-- [ ] Bank values in vtiger carry NBSP (U+00A0); the import must normalize them to plain
-      spaces, otherwise they do not match the P8 picklist.
-- [ ] IBAN is filled mostly on real customers (53% of the organizations with an IBAN have
-      quotes or orders): import it without loss.
+- [ ] The dropped fields (§1) have no place in the cube. Open: whether their vtiger values are
+      imported into a custom field for a client who defines one (§10), or left behind.
 - [ ] **Currency:** a single currency for every amount, configured at qwbe level 0. EUR for now;
       the UI labels say "(EUR)" until the backend publishes the configured currency.
-- [ ] **Open question, low priority:** `annualRevenue` and `turnoverEur` are both kept for now.
-      `turnoverEur` (8,9% filled, used in 2 filter columns) seems to duplicate `annualRevenue`
-      (35,5% filled, 68 filter columns); whether both are needed stays open.
-- [ ] `otherEmail` (6,1%) and the `shipping*` fields (7,9%) are sparsely filled.
 
 ## 2. Metadata
 
 What the cube's metadata must publish so the UI can build itself from it. Today the frontend fills these gaps by hand, and each hand-made piece can drift from the backend.
 
-- [ ] Picklists as `enum` in the metadata, with the vtiger values and order: P1, P2,
-      P6–P9 on the new fields; P3 on `organizationType`, P4 on `industry`, P5 on `rating`
+- [ ] Picklists as `enum` in the metadata, with the vtiger values and order: P1, P2 and
+      P7 on the new fields; P3 on `organizationType`, P4 on `industry`, P5 on `rating`
       (all three are `enum: null` today). Optionally filtered by role, as in 5.4.
 - [ ] A display format for text fields: `email`, `phone`, `url`. Today the metadata publishes
       `phone`, `email` and `website` as plain `type: "string"`, with no format, so the UI
       supplies one to show them as tel:/mailto:/http links, as vtiger does: for the real
       fields in `frontend/src/lib/organization-display.ts`, for the mock ones in
-      `fields.json` (otherPhone, mobilePhone, fax: phone; otherEmail: email). A format the
+      `fields.json` (otherPhone, mobilePhone, fax: phone). A format the
       backend publishes wins over the UI's.
 - [ ] The vtiger en_us labels on the existing fields, where they differ: Type (today
       "Organization Type"), Billing Address ("Billing Street"), Billing Postal Code
@@ -114,8 +79,8 @@ What the cube's metadata must publish so the UI can build itself from it. Today 
 - [ ] The maximum length of every text field, so the UI can validate before saving.
 - [ ] A published type for the user/group references (`assignedTo`, `modifiedBy`); the UI
       shows `name`.
-- [ ] `parentOrganizationId` published as a relation to `crm/organizations`.
 - [ ] `modifiedAt`, `modifiedBy`, `createdAt` read-only (`editable: false`).
+- [ ] The group (block) and position of every field, custom or not (§10).
 
 ## 3. List (step 4, T-1813)
 
@@ -137,7 +102,7 @@ The list follows vtiger 5.4 (spec §2.6). What it cannot do yet:
       `industry`, `externalId`, behind "Filters" with a chip each.
 - [ ] **Mass actions** on the selection, shown disabled ("Needs backend") in the selection bar:
       Delete (with confirmation), Mass Edit (the `masseditable` fields, an "apply" tick per
-      field), Send Mail (choose Email or Other Email, compose, keep the history), Mailer Export
+      field), Send Mail (to the Email, compose, keep the history), Mailer Export
       (organization and contact emails, opt-out rules), Send SMS (an SMS provider).
 - [ ] **Selection over the whole result** ("Select all N records"): the mass endpoints must accept
       the current filter, not only ids. Today the selection is the page in view.
@@ -154,9 +119,9 @@ The remaining items of the spec's base list, not yet tied to a UI step. They are
 - [ ] Mass delete and mass edit on the selection and on the whole filter result.
 - [ ] CSV export (current filter / page / selection); CSV import with duplicates on CUI.
 - [ ] Server-side CUI validation (unique + check digit, message naming the existing
-      organization); IBAN, email and length validation, the same in the form and inline edit.
+      organization); email and length validation, the same in the form and inline edit.
 - [ ] Filters with operators and AND/OR groups; relative date filters; saved views.
-- [ ] Shipping address; optionally propagating the address to contacts.
+- [ ] Optionally propagating the billing address to the organization's contacts.
 - [ ] Duplicate detection and merging (CUI, name).
 - [ ] Comments, email to the organization and its history, prev/next in the list (optional).
 - [ ] The missing related modules (§3.5) and the SELECT relations (link/unlink).
@@ -168,8 +133,8 @@ What each backend piece removes from the frontend on its own, without a code cha
 
 - A field of §1 published under the same name: its mock disappears automatically.
 - Picklists published as `enum`: `picklists.json` is no longer needed.
-- The 9 custom-target fields defined as custom fields under the same names: their mocks
-  disappear the same way (a real field, custom or not, wins by name).
+- The group and position of every field published (§10): `src/lib/organization-layout.ts`
+  and the "Custom fields" block are no longer needed.
 - The demo organizations (`organizations.json`, `org_mock_001..003`) need nothing from
   the backend; they go once the real organizations carry the new data.
 - The `rating` label stays: it is a UI decision, not part of the mock.
@@ -187,11 +152,7 @@ A mechanical deletion, all under `frontend/`. Nothing outside this list refers t
 2. Delete `src/components/mock-tag.tsx`.
 3. `src/lib/qwbe-data-provider.ts`: the `demoOrganizationOf` import, the demo branch in
    `getOne` and the demo refusal in `update`.
-4. `src/lib/relation-batch.ts`: the `demoOrganizationOf` import, the demo skip in
-   `relationRefsOf`, and `demoTitleOf`.
-5. `src/hooks/use-relation-titles.ts`: the `demoTitleOf` import and its `??` fallback in
-   `resolve` (back to `?? null`).
-6. The list (T-1813): `src/hooks/use-list-query.ts` (the `withMockFields` import and call),
+4. The list (T-1813): `src/hooks/use-list-query.ts` (the `withMockFields` import and call),
    `src/components/cube-list.tsx` (the `demoRows` prop, `demoRowsMatching`, and `empty` becomes
    `page.rows.length === 0`), `src/components/list/list-table.tsx` (the demo rows, their
    disabled checkbox and the `MockTag`; the `FieldMarker` in the headers),
@@ -200,27 +161,27 @@ A mechanical deletion, all under `frontend/`. Nothing outside this list refers t
    `src/components/organizations/organization-list.tsx` (`DEMO_ORGANIZATIONS`, the demo branch of
    the row menu) and `src/lib/demo-search.ts` with its test (keep `matchesPrefix` if the palette
    still needs it).
-7. `src/hooks/use-cube-metadata.ts`: the `withMockFields` import and call.
+5. `src/hooks/use-cube-metadata.ts`: the `withMockFields` import and call.
    `src/components/kit/cube-show.tsx`: the `MockTag` import and call, and the `demo` prop with
    its three uses (editable fields, pencil, title tag).
    `src/components/organizations/`: the `MockTag` use in organization-header, the
-   `FieldMarker` uses (organization-info, contacts-table) with `src/lib/field-marker.ts` and
+   `FieldMarker` uses (organization-info, contacts-table, and `form-field-label.tsx`,
+   `list/column-picker.tsx` outside it) with `src/lib/field-marker.ts` and
    `src/components/field-marker.tsx`, and the `demo` prop (organization-detail,
    organization-header, related-contacts, with the `demoContactsOf` slice there).
    `src/hooks/use-duplicate-values.ts`: the `demoOrganizationOf` guard. The read-only previews
    `src/components/sharing-preview.tsx` and `activity-preview.tsx` go with their `demo`
-   branches. `src/lib/organization-layout.ts` keeps the vtiger rows; a test there reads
-   `VTIGER_PLACEMENT` and goes with the mock.
-8. `src/components/cube-create-form.tsx`: the `withMockFields` import and call.
-9. `src/app/organizations/[id]/page.tsx`: the `demoOrganizationOf` import and the `demo` flag.
-10. `src/lib/organization-display.ts`: the `picklists.json` import and `ORGANIZATION_ENUMS`
-    (with their test), once the backend publishes the three enums (§9).
-11. `src/lib/cube.ts`: `mock?` in `FieldMetadata`, `&& !field.mock` in `canEdit`, the
-    `!(field.mock && field.custom)` part of `visible` in `columnsFromFields`, the mock
-    refusal in `saveCell`, the mock skip in `createPayloadOf`, and the `demoRows`
-    parameter of `listWindowOf` (with the "+N demo" part of its label).
-12. `src/lib/kit-form.ts`: the mock skip in `updatePayloadOf`.
-13. `src/lib/global-search.ts`: the `DEMO_ORGANIZATIONS` and `ORGANIZATIONS_CUBE` imports,
+   branches. `src/lib/organization-layout.ts` keeps the vtiger rows until the metadata places
+   the fields (§10); a test there reads `VTIGER_PLACEMENT` and goes with the mock.
+6. `src/components/cube-create-form.tsx`: the `withMockFields` import and call.
+7. `src/app/organizations/[id]/page.tsx`: the `demoOrganizationOf` import and the `demo` flag.
+8. `src/lib/organization-display.ts`: the `picklists.json` import and `ORGANIZATION_ENUMS`
+   (with their test), once the backend publishes the three enums (§9).
+9. `src/lib/cube.ts`: `mock?` in `FieldMetadata`, `&& !field.mock` in `canEdit`, the mock
+   refusal in `saveCell`, the mock skip in `createPayloadOf`, and the `demoRows` parameter of
+   `listWindowOf` (with the "+N demo" part of its label).
+10. `src/lib/kit-form.ts`: the mock skip in `updatePayloadOf`.
+11. `src/lib/global-search.ts`: the `DEMO_ORGANIZATIONS` and `ORGANIZATIONS_CUBE` imports,
     `DEMO_ROWS`, `DEMO_EXTRA_SEARCH`, and `demoRows` (in `SearchModule`, `SEARCH_MODULES` and
     `searchModule`).
 
@@ -312,17 +273,16 @@ The detail page follows vtiger 5.4 (spec §3.6): header, the "Organization Infor
 - [ ] **Quick actions** of the sidebar, shown disabled ("Needs backend"):
   - Add Event and Add To Do: a Calendar module (events, tasks) linked to the organization.
   - Add Note: Documents linked to the organization (upload or note).
-  - Show Organization Hierarchy: the Member Of tree (`parentOrganizationId` as a real relation,
-    parents and children of a record). Little used (12 organizations, spec §7).
   - Send SMS: an SMS provider and the SMS Notifier history.
+  - Show Organization Hierarchy is left out: Member Of was dropped (§1), so there is no tree.
 - [ ] **Send Mail** works as a `mailto:` to the organization's email. vtiger's version (choose the
       address, send from the CRM, keep the email in the history) needs an email module.
 - [ ] **Mail Merge** (Word templates, 2 for Organizations) and **EMAILMaker** (22 email templates):
       not built. Mail Merge is not worth copying (spec §7); EMAILMaker needs templates and sending
       on the server.
-- [ ] **Locate Map** (Address Information, Google Maps on the billing or shipping address): not
+- [ ] **Locate Map** (Address Information, Google Maps on the billing address): not
       built; a plain map link needs nothing from the backend, a stored geocode would.
-- [ ] **Inline edit validation** as in the form: CUI unique + check digit, IBAN, email, lengths
+- [ ] **Inline edit validation** as in the form: CUI unique + check digit, email, lengths
       (same rules in both places, §4 above).
 - [ ] **Duplicate** (T-1815) copies every editable field the backend publishes, except
       `externalId` and Organization No. A full prefilled copy needs every field of §1 in the cube.
@@ -344,14 +304,12 @@ The rules the form already applies on the client. Each needs the same check, and
 - [ ] **CUI:** digits only, 2 to 10 digits, check digit with the key 753217532 (the "RO"
       prefix refused, not stripped), and **unique** among non-deleted organizations. The
       refusal should name the existing organization (id and name), so the form can link to it.
-- [ ] **IBAN:** RO format (RO, 2 check digits, 4-letter bank code, 16 letters or digits) and the
-      mod-97 checksum; store it without spaces, upper case.
-- [ ] **Email:** Email and Other Email, a valid address. Publish `format: "email"` for both (the
-      frontend attaches it today: `organization-display.ts` for Email, the mock for Other Email).
+- [ ] **Email:** a valid address. Publish `format: "email"` for it (the frontend attaches it
+      today in `organization-display.ts`).
 - [ ] **Lengths:** publish `maxLength` per string field in the metadata (the form already reads it)
       and refuse longer values; until then the form uses the declared ones (CUI 20, Reg no 20,
-      IBAN 50, Industry Spec 50, Other Industry Spec 255, Comp Mobile Phone 15, Other Fax 15).
-- [ ] **Whole numbers:** Employees, Annual Revenue; Account Turnover numeric without decimals.
+      Industry Spec 50, Comp Mobile Phone 15).
+- [ ] **Whole numbers:** Employees, Annual Revenue.
 
 - [ ] **Picklists:** publish `enum` for `organizationType` (P3), `industry` (P4) and `rating` (P5),
       and refuse a value outside it on create and update. The frontend attaches vtiger's values
@@ -370,7 +328,41 @@ What else the form relies on or works around. None blocks the form; each removes
       plain editable string, so the form edits it, and Duplicate leaves it empty.
 - [ ] **Assigned To** as a relation to users and groups (vtiger's User / Group choice); the form
       shows it disabled until then, and takes the existing user picker once it is published.
-- [ ] **Shipping address, PO Box and Billing State** as real fields: the two address copy
-      buttons are disabled ("Needs backend") until every target field is editable.
 - [ ] **ANAF lookup** by CUI (name, address, Trade Register no., VAT) for a "Fill from ANAF"
       action: an idea, not built.
+
+## 10. Custom fields: module and group
+
+How a custom field gets its place on the page. Today a runtime custom field the layout does not name lands in a catch-all "Custom fields" block; with a group per field, every field sits where it belongs and the hand-written layout can go.
+
+### Choosing where a field goes
+
+- [ ] **Two choices, in order:** creating a custom field asks first for the **module** (the
+      `targetCube`: Organizations, Contacts, ...) and then for the **group** (block) of that
+      module. For Organizations the groups are Organization Information, Address Information and
+      Description Information.
+- [ ] **The group list depends on the module:** another module offers its own groups; changing
+      the module empties the group choice.
+- [ ] **No group, no field:** a definition without a group is not saved. There is no catch-all
+      "Custom fields" block any more.
+
+### Backend
+
+- [ ] **Groups in the metadata:** each module publishes its groups, each with a `key`, a `label`
+      and an `order`.
+- [ ] **`block` on the definition:** required; refused when it is not a group of that module.
+      Editable later, so a field can move to another group.
+- [ ] **`sequence` on the definition:** optional, the position inside the group (the definition's
+      `position` today has no group to count in). Editable later.
+- [ ] **Every field placed:** the cube metadata publishes every field, custom or not, with its
+      `block` and `sequence`, so the frontend places fields from the metadata instead of a
+      hand-written layout.
+- [ ] Optional: a **"shown in the list by default"** flag on the definition (today the list's
+      hidden custom fields are a per-browser preference, `src/lib/field-prefs.ts`).
+
+### Frontend, once published
+
+- The Settings form asks for the Module, then the Group of that module.
+- The detail page and the form place each field in its group, in `sequence` order.
+- The hand-written placement in `src/lib/organization-layout.ts` and the "Custom fields" block
+  (`CUSTOM_BLOCK_TITLE` in `src/lib/field-blocks.ts`) can go.

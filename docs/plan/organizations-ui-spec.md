@@ -454,11 +454,11 @@ Code: `frontend/src/components/organizations/` (layout data in `src/lib/organiza
 +---------------------------------------------------------+--------------------------+
 | v Organization Information                              | Actions                  |
 |   Created Time | <local dt> | Modified Time | <local dt>|   Send Mail (mailto:)    |
-|   Organization Name | …     | Other Industry| …         |   Add Event        (off) |
-|   …  (rows of §3.2, mock fields with a marker)          |   Add To Do        (off) |
-| v Address Information  (billing left, shipping right)   |   Add Note         (off) |
-| v Description Information  (full width)                 |   Show Org. Hierarchy (off)|
-| v Custom fields  (runtime custom fields only)           |   Send SMS         (off) |
+|   Organization Name | …     | Form | …                  |   Add Event        (off) |
+|   …  (rows of §3.2 without the dropped fields, §5.2)    |   Add To Do        (off) |
+| v Address Information  (billing only)                   |   Add Note         (off) |
+| v Description Information  (full width)                 |   Send SMS         (off) |
+| v Custom fields  (runtime custom fields only)           |                          |
 |                                                         | Activity (comments feed) |
 +---------------------------------------------------------+--------------------------+
 More Information tab:
@@ -477,19 +477,20 @@ More Information tab:
 - **Blocks:** collapsible (chevron in the header), all open by default; the open/closed state is
   remembered per block in the viewer's browser (localStorage). The vtiger 4-cell rows (right-aligned
   label, value, label, value) collapse to one column (label above value) when the block is narrow
-  (phone width), read column by column: all the left fields, then all the right ones (in Address,
-  all of billing, then all of shipping). The DOM has that order too, so tab order, screen readers
+  (phone width), read column by column: all the left fields, then all the right ones. The DOM has
+  that order too, so tab order, screen readers
   and Edit follow what the reader sees at every width. Hidden: Id, Type, Deleted, External Id (technical; vtiger has no such field and
   Schema & API still shows it) and Last Modified By (it is in the header). A published field no
-  block names joins the end of block 1; a runtime custom field the "Custom fields" block. The nine
-  fields bound to become runtime custom fields (Other Industry, Other Industry Spec, Product
-  Category, Other Fax, the two PO Boxes, Ticker Symbol, Notify Owner, Member Of) are named by the
-  layout, so once real they stay in their vtiger place (a test keeps it so).
+  block names joins the end of block 1; a runtime custom field the "Custom fields" block (until
+  the metadata gives every field its group, organizations-backend.md §10). The fields dropped for
+  a fill under 15% (§5.2) are not shown: the rest of block 1 closes up two per row in vtiger's
+  sequence, the only empty cell after Organization No at the end (a test keeps it so), and Address
+  Information holds the billing address only, two fields per row.
 - **Labels:** vtiger's en_us labels where the frontend supplies them: "Organization Name",
   "Created Time", "Billing Address", "Billing Postal Code", "Type", "Company status".
 - **Mock markers:** a small icon after the label, with a tooltip and a screen-reader label, so the
-  label stays on one line: MOCK (dashed circle) for a field bound for the cube, CUSTOM (puzzle
-  piece) for one bound to be a runtime custom field; screen readers hear the full description. Both are read-only and never sent.
+  label stays on one line: MOCK (dashed circle) for a field the backend does not publish yet, bound
+  for the cube; screen readers hear the full description. A mock is read-only and never sent.
 - **Inline edit:** the pencil (and Copy) follow the value in space of their own (they never cover
   it) and appear on hover where there is a mouse, always on touch; only on real editable fields,
   never on mock fields or demo records. Phone, email and website stay links. While a draft is open
@@ -498,13 +499,13 @@ More Information tab:
 - **Dates and numbers:** one fixed locale, ro-RO (Europe/Bucharest), from `src/lib/locale.ts`,
   everywhere (header, detail, list, contacts, activity): 16.10.2026, 19:21 and 850.000, never raw
   ISO.
-- **IBAN:** shown in groups of four that never break mid-group; Copy copies the raw value.
-- **Currency:** one currency, EUR, for now: "Annual Revenue (EUR)", "Account Turnover (EUR)". It
+- **Currency:** one currency, EUR, for now: "Annual Revenue (EUR)". It
   will be configured at qwbe level 0.
 - **Related lists:** only Contacts (`organizationId` filter), with a count, paging (10 per page)
   and "Add Contact" (`/contacts/new?organizationId=<id>`, organization preselected). The other 18
   lists of §3.5 are not shown until their modules exist (organizations-backend.md §8).
-- **Sidebar:** on the first tab only, as in vtiger. Mail Merge and EMAILMaker are left out.
+- **Sidebar:** on the first tab only, as in vtiger. Mail Merge, EMAILMaker and Show Organization
+  Hierarchy (Member Of was dropped, §5.2) are left out.
 - **Sharing:** on the More Information tab, under the related lists; the Schema & API panel stays
   below the tabs.
 - The three demo organizations open read-only and send no request about the record: no pencils,
@@ -582,8 +583,9 @@ Observation from the code: Save in Quick Create calls `AjaxDuplicateValidate('Ac
 What the rebuilt form does today. One form serves create, Duplicate and the detail's Edit all, so the three never drift apart; the rules below apply to every field the backend publishes as editable.
 
 - **Layout:** vtiger's 3 blocks in the detail's order and rows (Organization Information,
-  Address Information, Description Information), without Created/Modified Time; the
-  future custom fields stay in their vtiger block. Two label/value columns that fold to one
+  Address Information, Description Information), without Created/Modified Time and without
+  the dropped fields (§5.2); Address holds billing only, so vtiger's address copy is gone.
+  Two label/value columns that fold to one
   when the form is narrower than 42rem (a phone). The blocks are not collapsible. **Save / Cancel** sit
   above and below the blocks.
 - **Where:** `/organizations/new` ("New organization"); `/organizations/new?duplicate=<id>`
@@ -598,7 +600,7 @@ What the rebuilt form does today. One form serves create, Duplicate and the deta
   never blanked out. Ownership stays free text, as in vtiger. Every boolean, editable or
   not, is a checkbox, as in vtiger. On create, Organization No carries the hint "Generated on
   save once the backend numbers records".
-- **Mock fields** (MOCK / CUSTOM marker) show as disabled inputs or checkboxes, with their
+- **Mock fields** (MOCK marker) show as disabled inputs or checkboxes, with their
   marker and, on Edit, the value they hold. They are not part of the form and never travel
   in a POST or PATCH. **Assigned To** is one of them: it shows disabled until the backend
   publishes it, then it takes the existing user picker (a relation input).
@@ -611,25 +613,18 @@ What the rebuilt form does today. One form serves create, Duplicate and the deta
   - **CUI:** digits only, 2 to 10 of them, check digit with the key 753217532. The **RO
     prefix is refused** with a hint ("Enter the CUI without the RO prefix: digits only"),
     not stripped, as vtiger refuses it; the user sees what is stored.
-  - **IBAN:** a Romanian IBAN (RO, 2 check digits, 4-letter bank code, 16 letters or digits),
-    spaces and case ignored, with the mod-97 checksum.
-  - **Email:** the fields with the email format (Email, Other Email), `name@domain.tld`.
+  - **Email:** the fields with the email format (Email), `name@domain.tld`.
   - **Whole numbers:** every integer field (Employees today).
   - **Lengths:** the metadata's `maxLength` when published, else the declared lengths of
-    §4.3 (CUI 20, Reg no 20, IBAN 50, Industry Spec 50, Other Industry Spec 255, Comp
-    Mobile Phone 15, Other Fax 15).
+    §4.3 that remain (CUI 20, Reg no 20, Industry Spec 50, Comp Mobile Phone 15).
   Errors show inline under the field on blur and on Save; a refused Save moves the focus to
   the first invalid field and sends nothing. The backend's own refusal shows above the form.
-- **Address copy:** "Copy billing to shipping" and "Copy shipping to billing" in the Address
-  block header (vtiger's two radios). Each is disabled ("Needs backend") while any of its
-  target fields is not editable, which is the case today (shipping, PO Box and State are mock).
 - **Unsaved changes:** with a changed form, leaving through a link, Cancel or a page reload
   or close asks "Leave this page? Your changes are not saved." Once the save went through
   the prompt is off, so opening the new record never asks. The browser's Back button is not
   guarded (Next's App Router has no route-change hook).
 - **Not built:** the CUI uniqueness check with a link to the existing organization and
-  "Fill from ANAF" (name, address, Trade Register no., VAT) need a backend; the county
-  picklist on shipping waits for the shipping fields.
+  "Fill from ANAF" (name, address, Trade Register no., VAT) need a backend.
 
 ---
 
@@ -653,7 +648,7 @@ The vtiger fields the crm-pack cube already stores, with how often vtiger has th
 | organizationType | accounttype | Type | 100% | custom RO values (see P3) |
 | industry | industry | Industry | 100% | required; 123 values (see P4) |
 | rating | rating | Rating | 99,9% | here it means **legal status** (see P5); proposed UI label "Company status" |
-| ownership | ownership | Ownership | 0,5% | free text with people's names, see §7 |
+| ownership | ownership | Ownership | 0,5% | free text with people's names, see §7; proposed for removal from the cube, Bogdan decides |
 | employees | employees | Employees | 53,6% | integer |
 | emailOptOut | emailoptout | Email Opt Out | 0,2% checked | checkbox |
 | billingStreet | bill_street | Billing Address | 92,2% | max 250 |
@@ -668,42 +663,47 @@ The vtiger fields the crm-pack cube already stores, with how often vtiger has th
 The vtiger fields the cube does not have yet, with type, length and how often they are filled. The fill rate helps decide what to port and what to drop.
 
 Fill = % of 61.347. Length = the declared `LE~N`, otherwise the DB column.
+The table stays the vtiger reference. A row marked **dropped (<15%)** is not ported (Bogdan's
+decision, 2026-10-17, organizations-backend.md §1): it is filled on fewer than 15% of the
+organizations, so the UI does not show it; a client who needs it adds it as a custom field.
+Shipping Country counts with the street (7,9%): its 50,8% is the "Romania" default. The 15 kept
+rows are the cube's missing fields.
 
 | vtiger fieldname | Label | Block | Seq | uitype → type | Req. | Length | Picklist | Fill | Proposed name |
 |---|---|---|---|---|---|---|---|---|---|
 | modifiedtime | Modified Time | Org. Info | 2 | 70 → datetime (read-only) | – | – | – | 100% | modifiedAt |
-| cf_675 | Other Industry | Org. Info | 7 | 15 → picklist | no | 255 | P6 (83) | 1,5% | otherIndustry |
+| cf_675 | Other Industry | Org. Info | 7 | 15 → picklist | no | 255 | P6 (83) | 1,5% | dropped (<15%) |
 | cf_658 | Form | Org. Info | 9 | 15 → picklist | **yes** | 255 | P1 (29) | 100% | legalForm |
-| cf_676 | Other Industry Spec | Org. Info | 10 | 1 → text | no | 255 | – | 1,2% | otherIndustrySpec |
+| cf_676 | Other Industry Spec | Org. Info | 10 | 1 → text | no | 255 | – | 1,2% | dropped (<15%) |
 | cf_665 | TVA | Org. Info | 12 | 56 → checkbox | yes (formal) | – | – | 92,7% checked | vatPayer |
 | cf_666 | CUI | Org. Info | 14 | 1 → text (digits) | **yes** | 20 (validation: ≤10 digits + check digit) | – | 100% | cui |
 | cf_670 | Reg no | Org. Info | 17 | 1 → text | no | 20 | – | 73,9% (85% of them start with "J", <1% with "F") | tradeRegisterNo |
 | cf_679 | Category | Org. Info | 19 | 15 → picklist | no | 255 | P7 (4) | 88,9% | customerCategory |
-| cf_706 | Bank | Org. Info | 20 | 15 → picklist | no | 255 | P8 (53 unique) | 6,1% | bank |
-| cf_692 | Product Category | Org. Info | 21 | 15 → picklist | no | 255 | P9 (102) | 4,1% | productCategory |
-| cf_638 | IBAN | Org. Info | 22 | 1 → text | no | 50 | – | 5,0% | iban |
+| cf_706 | Bank | Org. Info | 20 | 15 → picklist | no | 255 | P8 (53 unique) | 6,1% | dropped (<15%) |
+| cf_692 | Product Category | Org. Info | 21 | 15 → picklist | no | 255 | P9 (102) | 4,1% | dropped (<15%) |
+| cf_638 | IBAN | Org. Info | 22 | 1 → text | no | 50 | – | 5,0% | dropped (<15%) |
 | assigned_user_id | Assigned To | Org. Info | 23 | 53 → user/group reference | **yes** | – | 28 active users + 8 groups; 60 distinct owners in the data | 100% | assignedTo `{type:"user"\|"group", id, name}` |
-| account_id (parentid) | Member Of | Org. Info | 25 | 51 → account reference | no | – | – | 12 org. (0,02%) | parentOrganizationId |
+| account_id (parentid) | Member Of | Org. Info | 25 | 51 → account reference | no | – | – | 12 org. (0,02%) | dropped (<15%) |
 | otherphone | Other Phone | Org. Info | 27 | 11 → phone | no | 30 | – | 19,5% | otherPhone |
 | cf_677 | Comp Mobile Phone | Org. Info | 30 | 11 → phone | no | 15 | – | 28,6% | mobilePhone |
 | annual_revenue | Annual Revenue | Org. Info | 32 | 71 → currency (integer, base currency EUR) | no | int | – | 35,5% (>0) | annualRevenue |
 | fax | Fax | Org. Info | 33 | 11 → phone | no | 30 | – | 36,1% | fax |
-| cf_678 | Other Fax | Org. Info | 35 | 1 → text (phone) | no | 15 | – | 1,2% | otherFax |
+| cf_678 | Other Fax | Org. Info | 35 | 1 → text (phone) | no | 15 | – | 1,2% | dropped (<15%) |
 | siccode | SIC Code | Org. Info | 36 | 1 → text | no | 50 | – | 64,3% | caenCode (holds "NNNN Activity description") |
-| tickersymbol | Ticker Symbol | Org. Info | 38 | 1 → text | no | 30 | – | **0%** | tickerSymbol (to be removed) |
-| email2 | Other Email | Org. Info | 39 | 13 → email | no | 100 | – | 6,1% | otherEmail |
-| cf_681 | Account Turnover (€) | Org. Info | 40 | 7 → integer (`NN`, 10 digits) | no | decimal(11,0) | – | 8,9% (>0) | turnoverEur |
-| notify_owner | Notify Owner | Org. Info | 42 | 56 → checkbox | no | – | – | **0%** | notifyOwner (to be removed) |
+| tickersymbol | Ticker Symbol | Org. Info | 38 | 1 → text | no | 30 | – | **0%** | dropped (<15%) |
+| email2 | Other Email | Org. Info | 39 | 13 → email | no | 100 | – | 6,1% | dropped (<15%) |
+| cf_681 | Account Turnover (€) | Org. Info | 40 | 7 → integer (`NN`, 10 digits) | no | decimal(11,0) | – | 8,9% (>0) | dropped (<15%) |
+| notify_owner | Notify Owner | Org. Info | 42 | 56 → checkbox | no | – | – | **0%** | dropped (<15%) |
 | cf_703 | Industry Spec | Org. Info | 46 | 1 → text | no | 50 | – | 20,2% | industrySpec |
 | modifiedby | Last Modified By | Org. Info | 49 | 52 → user reference (hidden in the UI, displaytype 3) | – | – | – | – | modifiedBy |
-| bill_pobox | Billing PO Box | Address | 3 | 1 → text | no | 30 | – | 2,4% | billingPoBox |
+| bill_pobox | Billing PO Box | Address | 3 | 1 → text | no | 30 | – | 2,4% | dropped (<15%) |
 | bill_state | Billing State | Address | 7 | 15 → picklist (county) | **yes** | 30 | P2 (43) | 100% | billingState |
-| ship_street | Shipping Address | Address | 2 | 21 → textarea | no | 250 | – | 7,9% | shippingStreet |
-| ship_pobox | Shipping PO Box | Address | 4 | 1 → text | no | 30 | – | 0,03% | shippingPoBox |
-| ship_city | Shipping City | Address | 6 | 1 → text | no | 30 | – | 7,1% | shippingCity |
-| ship_state | Shipping State | Address | 8 | 1 → **free text** | no | 30 | (48 distinct values in the data) | 7,2% | shippingState (P2 picklist proposed) |
-| ship_code | Shipping Postal Code | Address | 12 | 1 → text | no | 30 | – | 2,1% | shippingCode |
-| ship_country | Shipping Country | Address | 14 | 1 → text | no | 30 | – | 50,8% (filled with "Romania" by default; the street exists in only 7,9%) | shippingCountry |
+| ship_street | Shipping Address | Address | 2 | 21 → textarea | no | 250 | – | 7,9% | dropped (<15%) |
+| ship_pobox | Shipping PO Box | Address | 4 | 1 → text | no | 30 | – | 0,03% | dropped (<15%) |
+| ship_city | Shipping City | Address | 6 | 1 → text | no | 30 | – | 7,1% | dropped (<15%) |
+| ship_state | Shipping State | Address | 8 | 1 → **free text** | no | 30 | (48 distinct values in the data) | 7,2% | dropped (<15%) |
+| ship_code | Shipping Postal Code | Address | 12 | 1 → text | no | 30 | – | 2,1% | dropped (<15%) |
+| ship_country | Shipping Country | Address | 14 | 1 → text | no | 30 | – | 50,8% (filled with "Romania" by default; the street exists in only 7,9%) | dropped (<15%) |
 
 Outside the blocks: `campaignrelstatus` (Status, uitype 16, picklist with 4 values), used only as the organization's status in a campaign's related list; it is not a field of the record. Proposed name: `campaignStatus` on the campaign–organization relation.
 
@@ -732,16 +732,16 @@ Structure: "Domain - Subdomain"; domains: Administratie, Agrement, Agricultura, 
 Activ, Inactiv, Restrictionat, Dizolvat/Radiat, Lichidare, Insolventa, Restructurare, Litigiu cu GT, Tepar.
 Distribution: Activ 60.223 · Dizolvat/Radiat 577 · Inactiv 372 · --None-- 81 · Lichidare 16 · Insolventa 8 · Restructurare 5 · Tepar 2 · Restrictionat 1 · Litigiu cu GT 1.
 
-**P6 – Other Industry (cf_675), 83 values.** Same structure as P4 (a slightly different subset). The first 20:
+**P6 – Other Industry (cf_675), 83 values** (dropped with its field, §5.2). Same structure as P4 (a slightly different subset). The first 20:
 Agrement - Cluburi, Cazinouri, Baruri, Centre recreative, Parcuri · Agricultura - Asociatii si Ferme agricole · Agricultura - Cresterea animalelor · Agricultura - Cresterea pasarilor · Agricultura - Gospodarii agricole individuale · Agricultura - Horticultura, Plante de gradina · Agricultura - Hrana pentru animale, Nutreturi · Agricultura - Legumicultura, Sere · Agricultura - Piscicultura · Agricultura - Viticultura, Pomicultura · Comert - Combustibili, Benzinarii · Comert - Confectii Textile Pielarie · Comert - Diverse · Comert - Electronice, Electrocasnice · Comert - Malluri, Supermaketuri, Baze aprovizionare · Comert - Materiale de constructii, Chimice · Comert - Mobila si decoratiuni interioare · Comert - Produse alimentare · Comert Specializat - Masini, Echipamente, Utilaje · Comert Specializat - Scule, Unelte, Accesorii.
 
 **P7 – Category (cf_679), 4 values:** Normal, Silver, Gold, Platin. Distribution: Normal 54.388 · empty 6.788 · --None-- 107 · Silver 47 · Gold 17.
 
-**P8 – Bank (cf_706).** The table has 191 rows with duplicates; **53 unique values**:
+**P8 – Bank (cf_706)** (dropped with its field, §5.2). The table has 191 rows with duplicates; **53 unique values**:
 Alpha Bank - BUCU, Anglo Romanian Bank - ARBL, ATE Bank Romania - MIND, Banc Post - BPOS, Banca Centrala Cooperatista Creditcoop - CRCO, Banca Comerciala Carpatica - CARP, Banca Comerciala Romana - RNCB, Banca CR Firenze Romania - DARO, Banca Italo Romena - BITR, Banca Millenium - MILB, Banca Nationala A Romaniei - NBOR, Banca Romana Pentru Dezvoltare - BRDE, Banca Romaneasca - BRMA, Banca Transilvania - BTRL, Bank Leumi Romania - DAFB, Bank Of Cyprus Romania - BCYP, BCR Banca pentru Locuinte - BCRL, Blom Bank France Romania - BLOM, Caja De Ahorros Y Pensiones Barcelona - CAIX, CEC Bank - CECE, Citibank Romania - CITI, Credit Europe Bank Romania - FNNB, Danske Bank Copenhagen - DABA, Depfa Bank Plc Dublin Bucuresti - DPFA, Emporiki Bank Romania - BSEA, Eximbank - EXIM, Fortis BankNv Bruxelles Bucuresti - FTSB, Frankfurt Bucharest Bank - FRBU, Garantibank International Nv - UGBI, HVB Banca Pentru Locuinte - HVBL, ING Bank Romania - INGB, Intesa San Paolo Romania - WBAN, Libra Bank - BREL, Marfin Bank Romania - EGNA, MKB Romexterra - CRDZ, National Bank Of Greece - ETHN, Nova Bank - BCUN, OTP Bank Romania - BNRB, Piraeus Bank Romania - PIRB, Porsche Bank - PORL, Procredit Bank - MIRO, Raiffeisen Banca pentru Locuinte - RZBL, Raiffeisen Bank Romania - RZBR, RBS Bank Romania - ABNA, Romanian International Bank - ROIN, Transfond - TRFD, Trezoreria Statului - TREZ, Unicredit Tiriac Bank - BACX, Volksbank Romania - VBBU, Bank Leumi Romania, Banca Feroviara, ING Bank - ING, Piraeus Bank.
 Per role: most roles see 7–16 values.
 
-**P9 – Product Category (cf_692), 102 values.** Format "Group - Subgroup". The first 20:
+**P9 – Product Category (cf_692), 102 values** (dropped with its field, §5.2). Format "Group - Subgroup". The first 20:
 Aer comprimat - Accesorii si consumabile · Aer comprimat - Compresoare cu piston industriale · Aer comprimat - Compresoare cu piston profesionale · Aer comprimat - Compresoare cu surub · Aer comprimat - Compresoare de uz medical · Aer comprimat - Motocompresoare · Aer comprimat - Piese de schimb · Aeroterme - Aeroterme directe · Aeroterme - Aeroterme indirecte · Aeroterme - Electrice · Aeroterme - Piese de schimb · Aparate de sudura - Accesorii si consumabile · Aparate de sudura - Generatoare · Aparate de sudura - Invertoare · Aparate de sudura - MIG-MAG · Aparate de sudura - MMA · Aparate de sudura - Oxyacetilenica, Oxygaz · Aparate de sudura - Piese de schimb · Aparate de sudura - Puncte · Aparate de sudura - Taiere Plasma.
 Groups: Aer comprimat, Aeroterme, Aparate de sudura, Baterii de condensatoare, Echipamente constructii, Echipamente de curatenie, Echipamente de ridicat si stivuit, Echipamente pentru tratarea apelor, Echipamente service auto, Grupuri electrogene, Inchiriere, Instrumente de masura, Motoare termice, Panouri solare incalzire, Pompe, Scule de mana, Scule electrice, Scule pneumatice, Stabilizatoare de tensiune, Surse neintreruptibile, Utilaje/echipamente agricole, Alte produse.
 
@@ -771,39 +771,23 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
     "customerCategory": "Gold",
     "industry": "Constructii - Instalatii electrice",
     "industrySpec": "Instalatii joasa tensiune",
-    "otherIndustry": null,
-    "otherIndustrySpec": null,
     "caenCode": "4321 Lucrari de instalatii electrice",
-    "productCategory": "Grupuri electrogene - Medii (21-59 KVA)",
-    "bank": "Banca Transilvania - BTRL",
-    "iban": "RO00EXMP0000000000000001",
     "phone": "0700 000 001",
     "otherPhone": null,
     "mobilePhone": "0700000101",
     "fax": null,
-    "otherFax": null,
     "email": "office@exemplu.test",
-    "otherEmail": "contabilitate@exemplu.test",
     "website": "www.exemplu.test",
     "emailOptOut": false,
     "employees": 42,
     "annualRevenue": 850000,
-    "turnoverEur": 790000,
     "ownership": null,
-    "parentOrganizationId": null,
     "assignedTo": { "type": "user", "id": "u_mock_07", "name": "Agent Vanzari 1" },
     "billingStreet": "Str. Exemplului nr. 10",
-    "billingPoBox": null,
     "billingCity": "Cluj-Napoca",
     "billingState": "Cluj",
     "billingCode": "400000",
     "billingCountry": "Romania",
-    "shippingStreet": "Str. Depozitului nr. 2",
-    "shippingPoBox": null,
-    "shippingCity": "Floresti",
-    "shippingState": "Cluj",
-    "shippingCode": "407280",
-    "shippingCountry": "Romania",
     "description": "Client recurent pentru service generatoare.",
     "createdAt": "2019-03-14T09:12:00Z",
     "modifiedAt": "2025-11-02T15:40:00Z",
@@ -823,39 +807,23 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
     "customerCategory": "Normal",
     "industry": "Industrie Mecanica - Piese, Confectii metalice",
     "industrySpec": null,
-    "otherIndustry": "Comert Specializat - Masini, Echipamente, Utilaje",
-    "otherIndustrySpec": "Distributie utilaje",
     "caenCode": "2562 Operatiuni de mecanica generala",
-    "productCategory": "Aer comprimat - Compresoare cu surub",
-    "bank": "Banca Comerciala Romana - RNCB",
-    "iban": "RO00EXMP0000000000000002",
     "phone": "0700 000 002",
     "otherPhone": "0700 000 012",
     "mobilePhone": null,
     "fax": "0700 000 022",
-    "otherFax": null,
     "email": "contact@demo-instal.test",
-    "otherEmail": null,
     "website": "https://demo-instal.test",
     "emailOptOut": true,
     "employees": 180,
     "annualRevenue": 4200000,
-    "turnoverEur": null,
     "ownership": null,
-    "parentOrganizationId": null,
     "assignedTo": { "type": "group", "id": "g_mock_02", "name": "Echipa Vanzari" },
     "billingStreet": "Bd. Demonstratiei nr. 5",
-    "billingPoBox": null,
     "billingCity": "Baia Mare",
     "billingState": "Maramures",
     "billingCode": "430000",
     "billingCountry": "Romania",
-    "shippingStreet": null,
-    "shippingPoBox": null,
-    "shippingCity": null,
-    "shippingState": null,
-    "shippingCode": null,
-    "shippingCountry": null,
     "description": null,
     "createdAt": "2012-06-20T07:30:00Z",
     "modifiedAt": "2024-02-10T10:05:00Z",
@@ -875,39 +843,23 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
     "customerCategory": "Silver",
     "industry": "Agricultura - Legumicultura, Sere",
     "industrySpec": "Sere legume",
-    "otherIndustry": null,
-    "otherIndustrySpec": null,
     "caenCode": "0113 Cultivarea legumelor",
-    "productCategory": "Pompe - Motopompe",
-    "bank": null,
-    "iban": null,
     "phone": null,
     "otherPhone": null,
     "mobilePhone": "0700000103",
     "fax": null,
-    "otherFax": null,
     "email": null,
-    "otherEmail": null,
     "website": null,
     "emailOptOut": false,
     "employees": 3,
     "annualRevenue": null,
-    "turnoverEur": null,
     "ownership": null,
-    "parentOrganizationId": "org_mock_002",
     "assignedTo": { "type": "user", "id": "u_mock_11", "name": "Agent Vanzari 3" },
     "billingStreet": "Sat Exemplu nr. 7",
-    "billingPoBox": null,
     "billingCity": "Lugoj",
     "billingState": "Timis",
     "billingCode": null,
     "billingCountry": "Romania",
-    "shippingStreet": null,
-    "shippingPoBox": null,
-    "shippingCity": null,
-    "shippingState": null,
-    "shippingCode": null,
-    "shippingCountry": null,
     "description": "Interesat de motopompe pentru irigatii.",
     "createdAt": "2023-05-08T12:00:00Z",
     "modifiedAt": "2023-05-08T12:00:00Z",
@@ -922,15 +874,23 @@ The values are fictitious and checked as absent from the DB (names, CUI, Trade R
 
 The vtiger fields and features left out of the rebuild, with the reason and the data behind it. Leaving them out keeps the new UI simpler.
 
+Rule (Bogdan, 2026-10-17): a field filled on fewer than 15% of the organizations is not ported;
+a client who needs one adds it as a custom field. Every field marked dropped in §5.2 is below.
+
 | Element [vtiger 5.4] | Reason | Data |
 |---|---|---|
 | Ticker Symbol | Romanian companies, not listed | 0% filled |
 | Notify Owner | never used; notifications are done differently | 0% checked |
-| Ownership | free text with people's names (personal data), almost empty | 0,5% (316 org.) |
+| Ownership | free text with people's names (personal data), almost empty; still in the cube, removal proposed, Bogdan decides | 0,5% (316 org.) |
 | Member Of + "Show Organization Hierarchy" | hierarchy almost unused; a separate page for 12 rows | 12 org. with a parent, 11 parents |
 | PO Box (billing/shipping) | unused in RO | 2,4% / 0,03% |
 | Other Industry + Other Industry Spec | duplicate Industry / Industry Spec | 1,5% / 1,2% |
 | Other Fax | almost empty | 1,2% |
+| Bank + IBAN | under 15% | 6,1% / 5,0% |
+| Product Category | under 15% | 4,1% |
+| Other Email | under 15% | 6,1% |
+| Account Turnover (€) | under 15%; Annual Revenue covers the amount | 8,9% |
+| Shipping address (street, city, state, postal code, country) + the address copy | under 15%; the country is only the "Romania" default, the state free text | street 7,9%, country 50,8% (default), 48 distinct states |
 | Tag cloud ("Tag it") | unused | 6 tags on 4 organizations |
 | Mail Merge with Word templates | old Office technology; replaced by PDF/EMAIL Maker | 2 templates |
 | Mini calendar, world clock, calculator, chat in the toolbar | gadgets unrelated to the module | – |
@@ -938,8 +898,6 @@ The vtiger fields and features left out of the rebuild, with the reason and the 
 | Filter approval workflow (pending) | 59 filters left pending; no value | 148 private, 59 pending, 54 public |
 | Dozens of nearly identical filters | can be replaced by filter chips + saved views | 262 filters, series of 20+ clones |
 | The "Custom Information" block | empty (the custom fields live in block 1) | 0 fields |
-| Shipping State as free text | inconsistent with Billing State (picklist); the same list is used | 48 distinct values |
-| "Romania" default on Shipping Country | fills artificially; a country without an address makes no sense | 50,8% country vs 7,9% street |
 | Empty related lists | HelpDesk 0, Services 0, Assets 0, Service Contracts 1, Products 2, Invoice 8 | hidden until there is data |
 | Mailer Export | special email export; covered by Export + the Email Opt Out filter | – |
 | `cf_716` Cod import | hidden (presence 1), import artifact | 13,1% |
@@ -951,8 +909,8 @@ The vtiger fields and features left out of the rebuild, with the reason and the 
 
 The base list of backend work the UI depends on. organizations-backend.md details it step by step.
 
-- [ ] Every field of §5.2 in the cube (read + write), with the proposed names.
-- [ ] Picklists P1–P9 exposed as metadata (values + order); optionally filtered by role, as in 5.4.
+- [ ] Every kept field of §5.2 in the cube (read + write), with the proposed names; not the rows marked dropped.
+- [ ] Picklists P1–P5 and P7 exposed as metadata (values + order); optionally filtered by role, as in 5.4.
 - [ ] Assigned To: user or group, list of active users and groups; "mine" filter.
 - [ ] Created/Modified At + Modified By, read-only.
 - [ ] Delete (single), with confirmation; optionally a recycle bin/restore.
@@ -961,15 +919,15 @@ The base list of backend work the UI depends on. organizations-backend.md detail
 - [ ] CSV export: current filter / page / selection.
 - [ ] CSV import with field mapping and a duplicate rule (on CUI).
 - [ ] Server-side CUI validation: unique + check digit; message naming the existing organization.
-- [ ] IBAN, email, length validation (the same rules in the form and in inline edit).
+- [ ] Email and length validation (the same rules in the form and in inline edit).
 - [ ] Text search on name, CUI, email, phone (partial, not exact).
 - [ ] Filters with operators (equals, contains, starts/ends with, not, <, >, ≤, ≥, between, before/after, empty) on any field, AND/OR groups.
 - [ ] Relative date filters (today, last 7/30 days, current month etc.) on Created/Modified.
 - [ ] Saved views (name, columns, sorting, conditions), personal or shared, one default.
 - [ ] Sorting on any displayed column (not only name/industry/createdAt).
 - [ ] Record total in the list response; configurable page size.
-- [ ] Shipping address (shipping*) and Billing State; optionally propagating the address to contacts.
-- [ ] Parent organization (parentOrganizationId), if kept.
+- [ ] Billing State; optionally propagating the billing address to contacts.
+- [ ] Custom fields placed by module and group (organizations-backend.md §10).
 - [ ] Duplicate detection and merging (identical CUI: 499 CUIs appear more than once; identical name: 896).
 - [ ] Comments on the organization (timeline).
 - [ ] Sending email to the organization + email history.

@@ -1,19 +1,12 @@
-// The organization form: the detail's blocks without the timestamps, the
-// address copy, and no mock field in any create, Duplicate or edit body.
+// The organization form: the detail's blocks without the timestamps, and no
+// mock field in any create, Duplicate or edit body.
 
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
 import type { CubeMetadata, Row } from "./cube.ts"
 import { changedPayloadOf, duplicateValuesOf } from "./kit-form.ts"
-import {
-  canCopyAddress,
-  copiedAddress,
-  createBodyOf,
-  editableFieldsOf,
-  formBlocksOf,
-  formDefaultsOf,
-} from "./organization-form.ts"
+import { createBodyOf, editableFieldsOf, formBlocksOf, formDefaultsOf } from "./organization-form.ts"
 import { testField as field } from "./test-fields.ts"
 import { MOCK_FIELDS, withMockFields } from "../mock/organizations/index.ts"
 
@@ -84,28 +77,5 @@ describe("formDefaultsOf", () => {
     const some = editable.filter((f) => f.name === "name" || f.name === "emailOptOut")
     assert.deepEqual(formDefaultsOf(some), { name: "", emailOptOut: false })
     assert.deepEqual(formDefaultsOf(some, { name: "Copy SRL", emailOptOut: "true" }), { name: "Copy SRL", emailOptOut: true })
-  })
-})
-
-describe("the address copy", () => {
-  const values = { billingStreet: "Str. 1", billingCity: "Iasi", billingCode: "700000", billingCountry: "Romania", shippingCity: "Cluj" }
-
-  it("copies billing to shipping and back, empty where the source is empty", () => {
-    assert.deepEqual(copiedAddress(values, "billingToShipping"), {
-      shippingStreet: "Str. 1",
-      shippingPoBox: "",
-      shippingCity: "Iasi",
-      shippingState: "",
-      shippingCode: "700000",
-      shippingCountry: "Romania",
-    })
-    assert.equal(copiedAddress(values, "shippingToBilling").billingCity, "Cluj")
-  })
-
-  it("is offered only when every target field can be edited", () => {
-    assert.equal(canCopyAddress(fields, "billingToShipping"), false)
-    const real = fields.map((f) => (f.mock ? { ...f, mock: false, editable: true } : f))
-    assert.equal(canCopyAddress(real, "billingToShipping"), true)
-    assert.equal(canCopyAddress(real, "shippingToBilling"), true)
   })
 })

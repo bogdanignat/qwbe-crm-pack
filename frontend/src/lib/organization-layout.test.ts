@@ -6,7 +6,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
 import type { CubeMetadata } from "./cube.ts"
-import { CUSTOM_BLOCK_TITLE, fieldBlocksOf } from "./field-blocks.ts"
+import { fieldBlocksOf } from "./field-blocks.ts"
 import { ORGANIZATION_BLOCKS, ORGANIZATION_HIDDEN } from "./organization-layout.ts"
 import { testField as field } from "./test-fields.ts"
 import { MOCK_FIELDS, VTIGER_PLACEMENT, withMockFields } from "../mock/organizations/index.ts"
@@ -25,6 +25,13 @@ const meta: CubeMetadata = {
   fields: PUBLISHED.map((name) => field({ name })),
 }
 const blocks = fieldBlocksOf(withMockFields(meta).fields, ORGANIZATION_BLOCKS, ORGANIZATION_HIDDEN)
+// Block 1's fields in vtiger's sequence (spec §3.2), the dropped ones left out.
+const VTIGER_ORDER = [
+  "createdAt", "modifiedAt", "name", "legalForm", "vatPayer", "organizationType", "cui", "rating",
+  "tradeRegisterNo", "customerCategory", "assignedTo", "phone", "otherPhone", "ownership", "mobilePhone",
+  "annualRevenue", "fax", "employees", "caenCode", "email", "website", "industry", "emailOptOut",
+  "industrySpec", "organizationNo",
+]
 const blockOf = (name: string) => blocks.find((b) => b.rows.some((row) => row.some((f) => f?.name === name)))?.title
 
 describe("ORGANIZATION_BLOCKS", () => {
@@ -45,34 +52,18 @@ describe("ORGANIZATION_BLOCKS", () => {
     }
   })
 
-  it("hide Id, Type, Deleted, External Id and Last Modified By, and end block 1 as vtiger does", () => {
+  it("close block 1 up two per row in vtiger's sequence, the only empty cell at the end", () => {
+    const names = ORGANIZATION_BLOCKS[0].rows.flat()
+    assert.deepEqual(names, [...VTIGER_ORDER, null])
+  })
+
+  it("hide Id, Type, Deleted, External Id and Last Modified By", () => {
     for (const name of ["id", "type", "deleted", "externalId", "modifiedBy"]) assert.equal(blockOf(name), undefined, name)
-    assert.deepEqual(blocks[0].rows.at(-1)?.map((f) => f?.name ?? null), ["industrySpec", "organizationNo"])
   })
 
-  it("keep billing on the left and shipping on the right", () => {
-    for (const [left, right] of blocks[1].rows) {
-      assert.ok(left?.name.startsWith("billing") && right?.name.startsWith("shipping"), `${left?.name} ${right?.name}`)
-    }
-  })
-
-  // Bogdan's split (backend.md §1): these become runtime custom fields. Once
-  // the backend publishes them (custom: true, no mock), the layout still
-  // names them, so they stay in their vtiger blocks, not in "Custom fields".
-  it("keep the future runtime custom fields in their vtiger blocks once they are real", () => {
-    const future = MOCK_FIELDS.filter((f) => f.custom).map((f) => f.name)
-    assert.deepEqual([...future].sort(), [
-      "billingPoBox", "notifyOwner", "otherFax", "otherIndustry", "otherIndustrySpec", "parentOrganizationId",
-      "productCategory", "shippingPoBox", "tickerSymbol",
+  it("show billing only in the Address block, in vtiger's order", () => {
+    assert.deepEqual(blocks[1].rows.flat().map((f) => f?.name ?? null), [
+      "billingStreet", "billingCity", "billingState", "billingCode", "billingCountry", null,
     ])
-    const real = { ...meta, fields: [...meta.fields, ...future.map((name) => field({ name, custom: true }))] }
-    const realBlocks = fieldBlocksOf(withMockFields(real).fields, ORGANIZATION_BLOCKS, ORGANIZATION_HIDDEN)
-    assert.equal(realBlocks.some((b) => b.title === CUSTOM_BLOCK_TITLE), false)
-    for (const name of future) {
-      const block = realBlocks.find((b) => b.rows.some((row) => row.some((f) => f?.name === name)))
-      assert.equal(block?.title, VTIGER_PLACEMENT[name].block, name)
-      const placed = block?.rows.flat().find((f) => f?.name === name)
-      assert.equal(placed?.mock, undefined, `${name} is the published field, not the mock`)
-    }
   })
 })

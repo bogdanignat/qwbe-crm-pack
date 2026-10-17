@@ -3,8 +3,7 @@
 // The "Organization Information" tab: vtiger's collapsible blocks of label /
 // value rows, with a pencil that edits one field in place. Edit all (the
 // header button) is the shared organization form instead (OrganizationForm).
-// Fields the backend does not publish yet are marked (MOCK for the cube,
-// CUSTOM for a future custom field) and never editable.
+// Fields the backend does not publish yet are marked MOCK and never editable.
 
 import { Form } from "ra-core"
 

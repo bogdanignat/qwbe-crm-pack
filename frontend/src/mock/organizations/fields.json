@@ -8,31 +8,12 @@
     "editable": false,
     "nullable": false,
     "picklist": null,
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "modifiedtime",
       "block": "Organization Information",
       "sequence": 2,
       "maxLength": null
-    }
-  },
-  {
-    "name": "otherIndustry",
-    "label": "Other Industry",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": "P6",
-    "target": "custom",
-    "relation": null,
-    "vtiger": {
-      "field": "cf_675",
-      "block": "Organization Information",
-      "sequence": 7,
-      "maxLength": 255
     }
   },
   {
@@ -44,30 +25,11 @@
     "editable": true,
     "nullable": false,
     "picklist": "P1",
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "cf_658",
       "block": "Organization Information",
       "sequence": 9,
-      "maxLength": 255
-    }
-  },
-  {
-    "name": "otherIndustrySpec",
-    "label": "Other Industry Spec",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": null,
-    "target": "custom",
-    "relation": null,
-    "vtiger": {
-      "field": "cf_676",
-      "block": "Organization Information",
-      "sequence": 10,
       "maxLength": 255
     }
   },
@@ -80,7 +42,6 @@
     "editable": true,
     "nullable": false,
     "picklist": null,
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "cf_665",
@@ -98,7 +59,6 @@
     "editable": true,
     "nullable": false,
     "picklist": null,
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "cf_666",
@@ -116,7 +76,6 @@
     "editable": true,
     "nullable": true,
     "picklist": null,
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "cf_670",
@@ -134,67 +93,12 @@
     "editable": true,
     "nullable": true,
     "picklist": "P7",
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "cf_679",
       "block": "Organization Information",
       "sequence": 19,
       "maxLength": 255
-    }
-  },
-  {
-    "name": "bank",
-    "label": "Bank",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": "P8",
-    "target": "cube",
-    "relation": null,
-    "vtiger": {
-      "field": "cf_706",
-      "block": "Organization Information",
-      "sequence": 20,
-      "maxLength": 255
-    }
-  },
-  {
-    "name": "productCategory",
-    "label": "Product Category",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": "P9",
-    "target": "custom",
-    "relation": null,
-    "vtiger": {
-      "field": "cf_692",
-      "block": "Organization Information",
-      "sequence": 21,
-      "maxLength": 255
-    }
-  },
-  {
-    "name": "iban",
-    "label": "IBAN",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": null,
-    "target": "cube",
-    "relation": null,
-    "vtiger": {
-      "field": "cf_638",
-      "block": "Organization Information",
-      "sequence": 22,
-      "maxLength": 50
     }
   },
   {
@@ -206,34 +110,11 @@
     "editable": true,
     "nullable": false,
     "picklist": null,
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "assigned_user_id",
       "block": "Organization Information",
       "sequence": 23,
-      "maxLength": null
-    }
-  },
-  {
-    "name": "parentOrganizationId",
-    "label": "Member Of",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": null,
-    "target": "custom",
-    "relation": {
-      "target": "crm/organizations",
-      "entity": "Organization",
-      "summary": null
-    },
-    "vtiger": {
-      "field": "account_id",
-      "block": "Organization Information",
-      "sequence": 25,
       "maxLength": null
     }
   },
@@ -246,7 +127,6 @@
     "editable": true,
     "nullable": true,
     "picklist": null,
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "otherphone",
@@ -264,7 +144,6 @@
     "editable": true,
     "nullable": true,
     "picklist": null,
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "cf_677",
@@ -282,7 +161,6 @@
     "editable": true,
     "nullable": true,
     "picklist": null,
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "annual_revenue",
@@ -300,31 +178,12 @@
     "editable": true,
     "nullable": true,
     "picklist": null,
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "fax",
       "block": "Organization Information",
       "sequence": 33,
       "maxLength": 30
-    }
-  },
-  {
-    "name": "otherFax",
-    "label": "Other Fax",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": null,
-    "target": "custom",
-    "relation": null,
-    "vtiger": {
-      "field": "cf_678",
-      "block": "Organization Information",
-      "sequence": 35,
-      "maxLength": 15
     }
   },
   {
@@ -336,85 +195,12 @@
     "editable": true,
     "nullable": true,
     "picklist": null,
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "siccode",
       "block": "Organization Information",
       "sequence": 36,
       "maxLength": 50
-    }
-  },
-  {
-    "name": "tickerSymbol",
-    "label": "Ticker Symbol",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": null,
-    "target": "custom",
-    "relation": null,
-    "vtiger": {
-      "field": "tickersymbol",
-      "block": "Organization Information",
-      "sequence": 38,
-      "maxLength": 30
-    }
-  },
-  {
-    "name": "otherEmail",
-    "label": "Other Email",
-    "type": "string",
-    "format": "email",
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": null,
-    "target": "cube",
-    "relation": null,
-    "vtiger": {
-      "field": "email2",
-      "block": "Organization Information",
-      "sequence": 39,
-      "maxLength": 100
-    }
-  },
-  {
-    "name": "turnoverEur",
-    "label": "Account Turnover (€)",
-    "type": "integer",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": null,
-    "target": "cube",
-    "relation": null,
-    "vtiger": {
-      "field": "cf_681",
-      "block": "Organization Information",
-      "sequence": 40,
-      "maxLength": null
-    }
-  },
-  {
-    "name": "notifyOwner",
-    "label": "Notify Owner",
-    "type": "boolean",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": false,
-    "picklist": null,
-    "target": "custom",
-    "relation": null,
-    "vtiger": {
-      "field": "notify_owner",
-      "block": "Organization Information",
-      "sequence": 42,
-      "maxLength": null
     }
   },
   {
@@ -426,7 +212,6 @@
     "editable": true,
     "nullable": true,
     "picklist": null,
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "cf_703",
@@ -444,85 +229,12 @@
     "editable": false,
     "nullable": false,
     "picklist": null,
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "modifiedby",
       "block": "Organization Information",
       "sequence": 49,
       "maxLength": null
-    }
-  },
-  {
-    "name": "shippingStreet",
-    "label": "Shipping Address",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": null,
-    "target": "cube",
-    "relation": null,
-    "vtiger": {
-      "field": "ship_street",
-      "block": "Address Information",
-      "sequence": 2,
-      "maxLength": 250
-    }
-  },
-  {
-    "name": "billingPoBox",
-    "label": "Billing PO Box",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": null,
-    "target": "custom",
-    "relation": null,
-    "vtiger": {
-      "field": "bill_pobox",
-      "block": "Address Information",
-      "sequence": 3,
-      "maxLength": 30
-    }
-  },
-  {
-    "name": "shippingPoBox",
-    "label": "Shipping PO Box",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": null,
-    "target": "custom",
-    "relation": null,
-    "vtiger": {
-      "field": "ship_pobox",
-      "block": "Address Information",
-      "sequence": 4,
-      "maxLength": 30
-    }
-  },
-  {
-    "name": "shippingCity",
-    "label": "Shipping City",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": null,
-    "target": "cube",
-    "relation": null,
-    "vtiger": {
-      "field": "ship_city",
-      "block": "Address Information",
-      "sequence": 6,
-      "maxLength": 30
     }
   },
   {
@@ -534,66 +246,11 @@
     "editable": true,
     "nullable": false,
     "picklist": "P2",
-    "target": "cube",
     "relation": null,
     "vtiger": {
       "field": "bill_state",
       "block": "Address Information",
       "sequence": 7,
-      "maxLength": 30
-    }
-  },
-  {
-    "name": "shippingState",
-    "label": "Shipping State",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": null,
-    "target": "cube",
-    "relation": null,
-    "vtiger": {
-      "field": "ship_state",
-      "block": "Address Information",
-      "sequence": 8,
-      "maxLength": 30
-    }
-  },
-  {
-    "name": "shippingCode",
-    "label": "Shipping Postal Code",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": null,
-    "target": "cube",
-    "relation": null,
-    "vtiger": {
-      "field": "ship_code",
-      "block": "Address Information",
-      "sequence": 12,
-      "maxLength": 30
-    }
-  },
-  {
-    "name": "shippingCountry",
-    "label": "Shipping Country",
-    "type": "string",
-    "format": null,
-    "required": false,
-    "editable": true,
-    "nullable": true,
-    "picklist": null,
-    "target": "cube",
-    "relation": null,
-    "vtiger": {
-      "field": "ship_country",
-      "block": "Address Information",
-      "sequence": 14,
       "maxLength": 30
     }
   }

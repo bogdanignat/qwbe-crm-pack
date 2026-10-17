@@ -23,13 +23,12 @@ import { canEdit, type FieldMetadata, type Row } from "@/lib/cube"
 import { fieldTextOf } from "@/lib/kit-form"
 import { formBlocksOf, MULTILINE_FIELDS, type FormValues } from "@/lib/organization-form"
 import { isRequiredField, organizationFieldError } from "@/lib/organization-validation"
-import { CopyAddressActions } from "./copy-address-actions"
 import { FormActions } from "./form-actions"
 
-const ADDRESS_BLOCK = "Address Information"
 // One object for "no hints", so the options memo is not rebuilt on every render.
 const NO_HINTS: Readonly<Record<string, string>> = {}
-// The form shows no relation titles: the only relation (Member Of) is mock.
+// The form resolves no relation titles: only read-only fields go through
+// fieldTextOf; an editable (custom) relation field gets FieldInputCell.
 const noTitle = () => null
 
 // Off once the record is saved, so leaving for it never asks.
@@ -96,11 +95,7 @@ export function OrganizationForm({
       <UnsavedChangesGuard saved={saved} />
       <FormActions pending={pending} refusal={refusal} onCancel={onCancel} announce />
       {blocks.map((block) => (
-        <FormBlock
-          key={block.title}
-          title={block.title}
-          aside={block.title === ADDRESS_BLOCK ? <CopyAddressActions fields={fields} /> : undefined}
-        >
+        <FormBlock key={block.title} title={block.title}>
           <FieldGrid rows={block.rows} label={label} value={value} />
         </FormBlock>
       ))}

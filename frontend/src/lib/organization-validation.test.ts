@@ -1,11 +1,10 @@
-// The organization form's client checks (spec §4.2, §4.3): CUI, IBAN, email,
+// The organization form's client checks (spec §4.2, §4.3): CUI, email,
 // whole numbers, lengths and the required fields, by field name and format.
 
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
 import { cuiError } from "./cui.ts"
-import { ibanError } from "./iban.ts"
 import { isRequiredField, organizationFieldError } from "./organization-validation.ts"
 import { testField as field } from "./test-fields.ts"
 import { emailError, integerError, maxLengthError, requiredError } from "./validators.ts"
@@ -22,18 +21,6 @@ describe("cuiError", () => {
     assert.match(cuiError("12345678901") ?? "", /2 to 10 digits/)
     assert.match(cuiError("4") ?? "", /2 to 10 digits/)
     assert.match(cuiError("18547291") ?? "", /check digit/)
-  })
-})
-
-describe("ibanError", () => {
-  it("accepts a Romanian IBAN with a valid mod-97 checksum, spaced or lower case", () => {
-    for (const iban of ["RO49AAAA1B31007593840000", "ro49 aaaa 1b31 0075 9384 0000", ""]) assert.equal(ibanError(iban), null, iban)
-  })
-
-  it("refuses another format and a wrong checksum", () => {
-    assert.match(ibanError("DE89370400440532013000") ?? "", /Romanian IBAN/)
-    assert.match(ibanError("RO49AAAA1B3100759384000") ?? "", /Romanian IBAN/)
-    assert.match(ibanError("RO49AAAA1B31007593840001") ?? "", /check digits/)
   })
 })
 
@@ -58,10 +45,9 @@ describe("organizationFieldError", () => {
     assert.equal(organizationFieldError(field({ name: "phone" }), ""), null)
   })
 
-  it("applies the CUI, IBAN, email and number rules by name, format and type", () => {
+  it("applies the CUI, email and number rules by name, format and type", () => {
     assert.match(organizationFieldError(field({ name: "cui", label: "CUI" }), "RO1") ?? "", /RO prefix/)
-    assert.match(organizationFieldError(field({ name: "iban" }), "RO00") ?? "", /Romanian IBAN/)
-    assert.match(organizationFieldError(field({ name: "otherEmail", format: "email" }), "x@") ?? "", /email/)
+    assert.match(organizationFieldError(field({ name: "email", format: "email" }), "x@") ?? "", /email/)
     assert.match(organizationFieldError(field({ name: "website", format: "email" }), "x@") ?? "", /email/)
     assert.match(organizationFieldError(field({ name: "employees", type: "integer" }), "4,5") ?? "", /whole number/)
   })

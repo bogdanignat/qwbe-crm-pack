@@ -17,8 +17,9 @@ import fieldsJson from "./fields.json" with { type: "json" }
 import organizationsJson from "./organizations.json" with { type: "json" }
 import picklistsJson from "./picklists.json" with { type: "json" }
 
-// P1-P9, complete, in the order vtiger shows them (checked against the vtiger
-// database; normalized, without "--None--").
+// The vtiger picklists of the fields shown (P1-P5, P7), complete, in the
+// order vtiger shows them (checked against the vtiger database; normalized,
+// without "--None--"). P6, P8 and P9 went with their fields (under 15% filled).
 export type Picklist = { field: string; label: string; values: string[] }
 export const PICKLISTS: Record<string, Picklist> = picklistsJson
 
@@ -30,9 +31,7 @@ export const VTIGER_PLACEMENT: Record<string, VtigerPlacement> = Object.fromEntr
 )
 
 // Never sortable or searchable: the server cannot sort or search a column it
-// does not have. A field whose target is "custom" (Bogdan's cube/custom split,
-// docs/plan/organizations-backend.md) is shaped as a runtime custom field, so
-// the UI treats it exactly like one: its value in `row.custom`, its own section.
+// does not have. Every mock is bound for the cube (docs/plan/organizations-backend.md §1).
 export const MOCK_FIELDS: FieldMetadata[] = fieldsJson.map((f) => ({
   name: f.name,
   label: f.label,
@@ -45,7 +44,7 @@ export const MOCK_FIELDS: FieldMetadata[] = fieldsJson.map((f) => ({
   nullable: f.nullable,
   enum: f.picklist ? PICKLISTS[f.picklist].values : null,
   relation: f.relation,
-  custom: f.target === "custom",
+  custom: false,
   mock: true,
 }))
 
@@ -59,18 +58,8 @@ export function withMockFields(meta: CubeMetadata): CubeMetadata {
 }
 
 // The three demo organizations of §6, shown read-only on the list's first page
-// and opened from here, never from the backend. The JSON is §6 verbatim (flat);
-// the values of the custom-target fields move to `row.custom`, where the
-// backend keeps a custom field's value.
-const CUSTOM_NAMES = new Set(MOCK_FIELDS.filter((f) => f.custom).map((f) => f.name))
-
-export const DEMO_ORGANIZATIONS: Row[] = organizationsJson.map((flat: Row) => {
-  const entries = Object.entries(flat)
-  return {
-    ...Object.fromEntries(entries.filter(([name]) => !CUSTOM_NAMES.has(name))),
-    custom: Object.fromEntries(entries.filter(([name]) => CUSTOM_NAMES.has(name))),
-  }
-})
+// and opened from here, never from the backend. The JSON is §6 verbatim.
+export const DEMO_ORGANIZATIONS: Row[] = organizationsJson
 
 export function demoOrganizationOf(cube: string, id: string): Row | undefined {
   return cube === ORGANIZATIONS_CUBE ? DEMO_ORGANIZATIONS.find((row) => row.id === id) : undefined

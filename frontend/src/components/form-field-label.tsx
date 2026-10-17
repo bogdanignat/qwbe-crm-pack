@@ -1,5 +1,5 @@
 // A form field's label: vtiger's red asterisk before a required field (with
-// "required" for screen readers), the label, and the MOCK / CUSTOM marker.
+// "required" for screen readers), the label, and the MOCK marker.
 
 import { FieldMarker } from "@/components/field-marker"
 import type { FieldMetadata } from "@/lib/cube"

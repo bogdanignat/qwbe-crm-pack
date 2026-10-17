@@ -29,7 +29,7 @@ Codul s-a mutat între timp (pencil-ul din `organization-info.tsx` duce spre
 `kit/inline-field.tsx` + `hooks/use-in-place-edit.ts`), dar diferența a rămas:
 salvarea inline verifică doar câmpurile obligatorii lipsă (`changedPayloadOf`,
 `lib/kit-form.ts`) plus refuzul din backend, în timp ce `OrganizationForm` aplică
-toate regulile din `lib/organization-validation.ts` (CUI, IBAN, email, lungimi
+toate regulile din `lib/organization-validation.ts` (CUI, email, lungimi
 maxime) pe blur și pe submit. O valoare invalidă poate ajunge la PATCH prin
 editarea inline, dar e refuzată client-side în formular (serverul o poate refuza
 și la PATCH). Repar: o singură sursă de reguli, apelată și din

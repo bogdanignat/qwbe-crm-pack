@@ -19,7 +19,7 @@ const all = columnsFromFields([
   field({ name: "name", label: "Organization Name", required: true }),
   field({ name: "phone", label: "Phone" }),
   field({ name: "cui", label: "CUI", mock: true }),
-  field({ name: "otherFax", label: "Other Fax", mock: true, custom: true }),
+  field({ name: "partner", label: "Partner", custom: true }),
   field({ name: "website", label: "Website" }),
 ])
 
@@ -42,15 +42,15 @@ describe("defaultColumnNamesOf", () => {
     assert.deepEqual(defaultColumnNamesOf(all, ["cui", "name", "nope", "phone"], ["phone"]), ["cui", "name"])
   })
 
-  it("falls back to the metadata default: editable, no future custom field", () => {
-    assert.deepEqual(defaultColumnNamesOf(all, undefined, []), ["name", "phone", "cui", "website"])
+  it("falls back to the metadata default: the editable fields", () => {
+    assert.deepEqual(defaultColumnNamesOf(all, undefined, []), ["name", "phone", "cui", "partner", "website"])
   })
 })
 
 describe("the picker", () => {
   it("lists the current columns first, then the rest by label, never the bookkeeping", () => {
     const names = pickerColumnsOf(all, ["phone", "name"]).map((c) => c.field.name)
-    assert.deepEqual(names, ["phone", "name", "cui", "otherFax", "website"])
+    assert.deepEqual(names, ["phone", "name", "cui", "partner", "website"])
   })
 
   it("adds a column at the right end and never removes the title column", () => {

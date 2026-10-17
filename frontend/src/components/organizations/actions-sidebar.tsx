@@ -1,9 +1,10 @@
 // vtiger's "Actions" box beside the blocks. Send Mail opens the mail client on
 // the organization's email; the rest need the backend (events, tasks,
-// documents, the Member Of hierarchy, SMS), so they show disabled and say so.
-// Mail Merge and EMAILMaker are left out (docs/plan/organizations-backend.md).
+// documents, SMS), so they show disabled and say so. Mail Merge, EMAILMaker
+// and the Member Of hierarchy (Member Of was dropped) are left out
+// (docs/plan/organizations-backend.md).
 
-import { CalendarPlus, FilePlus, ListTodo, Mail, MessageSquare, Network, type LucideIcon } from "lucide-react"
+import { CalendarPlus, FilePlus, ListTodo, Mail, MessageSquare, type LucideIcon } from "lucide-react"
 
 import { DisabledAction } from "@/components/disabled-action"
 import { Button } from "@/components/ui/button"
@@ -15,7 +16,6 @@ const PENDING_ACTIONS: readonly { label: string; icon: LucideIcon }[] = [
   { label: "Add Event", icon: CalendarPlus },
   { label: "Add To Do", icon: ListTodo },
   { label: "Add Note", icon: FilePlus },
-  { label: "Show Organization Hierarchy", icon: Network },
   { label: "Send SMS", icon: MessageSquare },
 ]
 

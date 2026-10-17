@@ -1,6 +1,9 @@
 // The Organizations detail page, block by block and row by row, as vtiger 5.4
-// shows it (docs/plan/organizations-ui-spec.md §3.2). The mock fields sit in
-// the block VTIGER_PLACEMENT gives them; a test keeps the two in step.
+// shows it (docs/plan/organizations-ui-spec.md §3.2), without the fields under
+// 15% filled (dropped, backend.md §1): the rest close up two per row in
+// vtiger's sequence, the only empty cell at the end of a block, and the
+// Address block keeps billing only. The mock fields sit in the block
+// VTIGER_PLACEMENT gives them; a test keeps the two in step.
 
 import type { FieldBlockSpec } from "./field-blocks.ts"
 
@@ -9,34 +12,26 @@ export const ORGANIZATION_BLOCKS: readonly FieldBlockSpec[] = [
     title: "Organization Information",
     rows: [
       ["createdAt", "modifiedAt"],
-      ["name", "otherIndustry"],
-      ["legalForm", "otherIndustrySpec"],
+      ["name", "legalForm"],
       ["vatPayer", "organizationType"],
       ["cui", "rating"],
       ["tradeRegisterNo", "customerCategory"],
-      ["bank", "productCategory"],
-      ["iban", "assignedTo"],
-      ["phone", "parentOrganizationId"],
+      ["assignedTo", "phone"],
       ["otherPhone", "ownership"],
       ["mobilePhone", "annualRevenue"],
       ["fax", "employees"],
-      ["otherFax", "caenCode"],
-      ["email", "tickerSymbol"],
-      ["otherEmail", "turnoverEur"],
-      ["website", "notifyOwner"],
-      ["industry", "emailOptOut"],
-      ["industrySpec", "organizationNo"],
+      ["caenCode", "email"],
+      ["website", "industry"],
+      ["emailOptOut", "industrySpec"],
+      ["organizationNo", null],
     ],
   },
   {
     title: "Address Information",
     rows: [
-      ["billingStreet", "shippingStreet"],
-      ["billingPoBox", "shippingPoBox"],
-      ["billingCity", "shippingCity"],
-      ["billingState", "shippingState"],
-      ["billingCode", "shippingCode"],
-      ["billingCountry", "shippingCountry"],
+      ["billingStreet", "billingCity"],
+      ["billingState", "billingCode"],
+      ["billingCountry", null],
     ],
   },
   { title: "Description Information", rows: [["description"]] },

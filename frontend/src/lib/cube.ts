@@ -30,15 +30,14 @@ export type FieldMetadata = {
   // True for a field the backend does not publish yet, merged in from the
   // mockup layer (src/mock). Shown marked, never edited, never sent.
   mock?: boolean
-  // How a text value is shown: a mailto:, tel: or http link, or an IBAN in
-  // groups of four. qwbe does not publish it yet; the mock and the
-  // organization page supply it.
+  // How a text value is shown: a mailto:, tel: or http link. qwbe does not
+  // publish it yet; the mock and the organization page supply it.
   format?: FieldFormat
   // The longest value accepted, when the backend publishes one (not yet).
   maxLength?: number
 }
 
-export type FieldFormat = "email" | "phone" | "url" | "iban"
+export type FieldFormat = "email" | "phone" | "url"
 
 // The list query contract a cube publishes (qwbe core/src/metadata/schemas.ts
 // ListContract): what its list route actually honours. `search` names the fields
@@ -259,8 +258,7 @@ export function listApiPath(cube: string, params: ListParams): string {
 // Columns are DERIVED from metadata. The default column set is metadata-driven
 // too: a field absent from the create payload (editable: false) is a backend
 // bookkeeping column (id, type, version, deleted, createdAt) and is hidden by
-// default, so a 60k-row list does not render five dead columns per row. A mock
-// field bound for a custom field (src/mock) is hidden by default too.
+// default, so a 60k-row list does not render five dead columns per row.
 export type ColumnSpec = {
   field: FieldMetadata
   sortable: boolean
@@ -273,7 +271,7 @@ export function columnsFromFields(fields: FieldMetadata[]): ColumnSpec[] {
     field,
     sortable: field.sortable,
     editable: field.editable,
-    visible: field.editable && !(field.mock && field.custom),
+    visible: field.editable,
   }))
 }
 

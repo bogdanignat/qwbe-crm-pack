@@ -1,11 +1,10 @@
 // What the organization form checks before saving (spec §4.2, §4.3), wired by
 // field name and format, so a rule applies on its own once its field becomes
-// a real editable field (CUI and IBAN are mock today). Mock fields never reach
+// a real editable field (CUI is mock today). Mock fields never reach
 // these checks: they are read-only in the form and never sent.
 
 import type { FieldMetadata } from "./cube.ts"
 import { cuiError } from "./cui.ts"
-import { ibanError } from "./iban.ts"
 import { emailError, integerError, maxLengthError, requiredError } from "./validators.ts"
 
 // vtiger's mandatory fields (typeofdata ~M). TVA is a checkbox: unticked is a
@@ -24,16 +23,13 @@ export const ORGANIZATION_REQUIRED: ReadonlySet<string> = new Set([
 export const ORGANIZATION_MAX_LENGTHS: Readonly<Record<string, number>> = {
   cui: 20,
   tradeRegisterNo: 20,
-  iban: 50,
   industrySpec: 50,
-  otherIndustrySpec: 255,
   mobilePhone: 15,
-  otherFax: 15,
 }
 
-// vtiger's per-field rules. Email and Other Email (vtiger's E~O) go by their
+// vtiger's per-field rules. Email (vtiger's E~O) goes by its
 // `format`, which organization-display and the mock attach until it is published.
-const BY_NAME: Readonly<Record<string, (value: string) => string | null>> = { cui: cuiError, iban: ibanError }
+const BY_NAME: Readonly<Record<string, (value: string) => string | null>> = { cui: cuiError }
 
 export function isRequiredField(field: FieldMetadata): boolean {
   return field.required || ORGANIZATION_REQUIRED.has(field.name)

@@ -22,11 +22,10 @@ const field = (over: Partial<FieldMetadata> = {}): FieldMetadata => ({
 })
 
 describe("isMonoValue", () => {
-  it("sets numbers, dates, phones and IBANs in mono", () => {
+  it("sets numbers, dates and phones in mono", () => {
     assert.equal(isMonoValue(field({ type: "integer" }), 4), true)
     assert.equal(isMonoValue(field(), "2026-10-16T21:35:28.000Z"), true)
     assert.equal(isMonoValue(field({ format: "phone" }), "0232 830652"), true)
-    assert.equal(isMonoValue(field({ format: "iban" }), "RO49 AAAA 1B31"), true)
   })
 
   it("sets codes in mono, words and names in the text font", () => {
